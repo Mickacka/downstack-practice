@@ -417,6 +417,7 @@ select#input13, select#pcwizard_option {
 	vertical-align: text-bottom;
 	pointer-events: auto;
 	display: inline-block;
+	user-select: none;
     touch-action: manipulation;
     
 }
@@ -449,4 +450,5 @@ select#input13, select#pcwizard_option {
     width: 100%;
     padding: 8px;
     border: 1px solid #dddddd
+
   }
