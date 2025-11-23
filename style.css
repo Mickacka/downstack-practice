@@ -452,3 +452,19 @@ select#input13, select#pcwizard_option {
     border: 1px solid #dddddd
 
   }
+
+#tcc {
+ 	display: grid;grid-template-columns: repeat(8, 1fr);
+ 	grid-template-areas: ". hd . . . . dr ." "l d r . . h cc c";
+}
+
+#tc-hd { grid-area: hd; }
+#tc-dr { grid-area: dr; }
+
+#tc-l  { grid-area: l; }
+#tc-d  { grid-area: d; }
+#tc-r  { grid-area: r; }
+
+#tc-h  { grid-area: h; }
+#tc-cc { grid-area: cc; }
+#tc-c  { grid-area: c; }
