@@ -1,10 +1,12 @@
 html{
     background-color: #363941;
+	user-select: none;
 }
 
 body{
     margin: 0;
     font-family: Arial, sans-serif;
+	user-select: none;
 }
 
 a {
@@ -467,4 +469,5 @@ select#input13, select#pcwizard_option {
 #tc-h  { grid-area: h; }
 #tc-cc { grid-area: cc; }
 #tc-c  { grid-area: c; }
+
 
