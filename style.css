@@ -404,7 +404,6 @@ select#input13, select#pcwizard_option {
 	padding: 10px;
 	pointer-events: none;
 	z-index: 11;
-    display: none;
     font-size: 80px;
 }
 .tc span {
@@ -468,3 +467,4 @@ select#input13, select#pcwizard_option {
 #tc-h  { grid-area: h; }
 #tc-cc { grid-area: cc; }
 #tc-c  { grid-area: c; }
+
