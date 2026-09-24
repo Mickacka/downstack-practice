@@ -94,6 +94,7 @@ function show_spin_message(text){
 */
 
 Controls.harddrop = () => do_harddrop()
+Controls.can_play = () => !Record.showing
 Controls.bind_options = () => {
     document.getElementById('input13').oninput = e=>{save_gamemode()}
     for (var id of ['input16', 'spin_S', 'spin_Z', 'spin_L', 'spin_J', 'spin_I', 'spin_T']){
@@ -387,6 +388,7 @@ function is_spin_slot(b, piece, orientation, x, y, slot){
 
 // 4.2 build a map, shuffle the queue and play / restart
 function play_a_map(){
+    stop_answer()
     var n_build = Config.no_of_piece - 1
     // pick the spin piece first (not per attempt), so rarer setups like T come up as often
     var pieces = shuffle([...Config.spin_pieces])
@@ -469,11 +471,32 @@ function detect_win(){
 }
 
 // shows where every piece goes, including the spin piece in its slot
+// Show Answer: replay the solution from the starting board, one build piece at a
+// time in the order you place them, then the spin piece in its slot
+var answer_timers = []
+function stop_answer(){
+    answer_timers.forEach(clearTimeout)
+    answer_timers = []
+    Record.showing = false
+}
+
 function show_ans(){
-    game.board = clone(Record.board[Record.board.length-1])
-    for (var [col, row] of Record.spin_cells) game.board[row][col] = Record.spin_piece
+    if (Record.showing) return
+    Record.showing = true
+    play()
+    game.tetramino = 'G'   // hide the falling piece while replaying
     render()
-    setTimeout(retry, 3000)
+    var steps = [...Record.build].reverse().concat([{piece: Record.spin_piece, cells: Record.spin_cells}])
+    steps.forEach((step, i) => answer_timers.push(setTimeout(() => {
+        for (var [col, row] of step.cells) game.board[row][col] = step.piece
+        render()
+        if (i == steps.length - 1) show_spin_message(`The ${step.piece} spins in here`)
+    }, 700 * (i + 1))))
+    answer_timers.push(setTimeout(() => {
+        stop_answer()
+        retry()
+        document.getElementById('spin_message').textContent = ''
+    }, 700 * steps.length + 1800))
 }
 
 /*
