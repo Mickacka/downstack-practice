@@ -1,14 +1,10 @@
 
 var game = new Game();
-const Keybind = {'keydown':{}, 'keyup':{}}
 var Config = {'das':100, 'arr':0, 'delay':0, 'pressing_left':false, 'pressing_right': false, 'pressing_down': false, 'pressing':{},
 'skim_ind':true, 'mdhole_ind':false, 'unqiue_ind':true, 'auto_next_ind':true,
 'mode':'1', 'no_of_unreserved_piece':7, 'no_of_piece':7,
 'no_of_trial':0, 'no_of_success':0}
-var Customized_key = ['ArrowLeft','ArrowRight','ArrowDown','Space','KeyZ','KeyX','KeyA','ShiftLeft','KeyR','KeyP']
-var board = document.getElementById('board')
 
-const clone = (items) => items.map(item => Array.isArray(item) ? clone(item) : item);
 
 function clone2d(arr){
     var newarr = []
@@ -25,17 +21,6 @@ fetch('./learnfromai.json')
 /*
 0. sound effect
 */
-const sound={
-    0:new Audio ("sound/1.ogg"),
-    1:new Audio ("sound/2.ogg"),
-    2:new Audio ("sound/3.ogg"),
-    3:new Audio ("sound/4.ogg"),
-    4:new Audio ("sound/5.ogg"),
-    5:new Audio ("sound/6.ogg"),
-    6:new Audio ("sound/7.ogg"),
-    win:new Audio ("sound/win.ogg"),
-    lose:new Audio ("sound/lose.ogg")
-}
     
 
 /*

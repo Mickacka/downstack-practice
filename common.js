@@ -1,5 +1,22 @@
 // Code shared by every game page (loaded after header.js, before the page script).
-// Page scripts define the globals used here: game, Config, Keybind, Customized_key, sound, board, play().
+// Page scripts define the globals used here: game, Config, play(), detect_win(), show_ans().
+
+const Keybind = {'keydown':{}, 'keyup':{}}
+var Customized_key = ['ArrowLeft','ArrowRight','ArrowDown','Space','KeyZ','KeyX','KeyA','ShiftLeft','KeyR','KeyP']
+var board = document.getElementById('board')
+const clone = (items) => items.map(item => Array.isArray(item) ? clone(item) : item);
+
+const sound={
+    0:new Audio ("sound/1.ogg"),
+    1:new Audio ("sound/2.ogg"),
+    2:new Audio ("sound/3.ogg"),
+    3:new Audio ("sound/4.ogg"),
+    4:new Audio ("sound/5.ogg"),
+    5:new Audio ("sound/6.ogg"),
+    6:new Audio ("sound/7.ogg"),
+    win:new Audio ("sound/win.ogg"),
+    lose:new Audio ("sound/lose.ogg")
+}
 
 function play_sound(){
     if (game.combo >= 0){
