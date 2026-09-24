@@ -5,12 +5,13 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Redirect</title>
+    <link rel="icon" href="/downstack-practice/favicon.svg" type="image/svg+xml">
 </head>
 <body>
     <h1 id="content"></h1>
     <script>
         var halfpath = '/downstack-practice/usermode.html/'
-        var fullpath = 'https://himitsuconfidential.github.io/downstack-practice/usermode.html'
+        var fullpath = window.location.origin + '/downstack-practice/usermode.html'
         var name = window.location.pathname
         var temp = ''
 
