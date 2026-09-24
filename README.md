@@ -14,6 +14,7 @@ This is a fork of [himitsuconfidential/downstack-practice](https://github.com/hi
 | [T-Spin Challenge](https://mickacka.github.io/downstack-practice/tspin-challenge.html) | Solve as many T-spin puzzles as you can and get on the leaderboard (try to reach the top 50 :>) |
 | [T-Spin Practice](https://mickacka.github.io/downstack-practice/tspin-practice.html) | T-spin setups |
 | [Advanced T-Spin Practice](https://mickacka.github.io/downstack-practice/advance-tspin-practice.html) | Harder T-spin setups |
+| [All-Spin Practice](https://mickacka.github.io/downstack-practice/allspin-practice.html) | S, Z, L, J, I and T spins: rotate the piece into a slot where it can't move left, right or up, and clear lines |
 | [Quad Practice](https://mickacka.github.io/downstack-practice/quad-practice.html) | Building and clearing quads |
 | [Upstack Practice](https://mickacka.github.io/downstack-practice/upstack-practice.html) | Stacking |
 | [Mid-game PC Practice](https://mickacka.github.io/downstack-practice/pc-practice.html) | Perfect clears from a mid-game board |

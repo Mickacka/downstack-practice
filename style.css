@@ -474,3 +474,26 @@ select#input13, select#pcwizard_option {
 
 
 
+
+#spin_message {
+    min-height: 2rem;
+    color: rgb(246, 208, 60);
+    font-size: 1.5rem;
+    font-weight: bold;
+    text-align: center;
+}
+#spin_message.flash {
+    animation: spin-flash 1.2s ease-out;
+}
+@keyframes spin-flash {
+    from { transform: scale(1.4); opacity: 0.3; }
+    to { transform: scale(1); opacity: 1; }
+}
+#gamemode .spin_piece {
+    display: inline-block;
+    margin: 0.3rem 0.4rem 0 0;
+    white-space: nowrap;
+}
+#gamemode .spin_piece input {
+    width: auto;
+}
