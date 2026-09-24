@@ -624,3 +624,5 @@ html.portrait-zoom #board {
     /* keep the board's shape when the width is the limit */
     object-fit: contain;
 }
+/* the Learn from AI level list is 50vh tall, which is huge on the zoomed-out page */
+html.portrait-zoom #scrollable { height: 18rem; }
