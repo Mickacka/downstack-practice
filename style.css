@@ -301,6 +301,9 @@ button.game_button:focus{
 }
 
 #board{
+    /* on-page size; the drawing resolution follows the screen (see board_context) */
+    width: 520px;
+    height: 610px;
     background-color: #2a2c30;
     border: none;
     padding: 1rem;

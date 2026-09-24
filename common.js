@@ -24,8 +24,22 @@ function play_sound(){
     }
 }
 
+// The board is drawn in 520x610 units. The canvas backing store is scaled by the
+// screen's pixel ratio so it stays sharp on phones; its size on the page is set in CSS.
+function board_context(){
+    var canvas = document.getElementById('board')
+    var dpr = Math.min(window.devicePixelRatio || 1, 3)
+    if (canvas.width != Math.round(520 * dpr)){
+        canvas.width = Math.round(520 * dpr)
+        canvas.height = Math.round(610 * dpr)
+    }
+    var ctx = canvas.getContext('2d')
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+    return ctx
+}
+
 function render(){
-    var ctx = document.getElementById("board").getContext('2d');
+    var ctx = board_context();
     ctx.clearRect(0,0,520,610);
     // render background and margin
 
@@ -316,7 +330,7 @@ function set_event_listener(){
     board.onfocus = (e => render())
 
     board.onblur = (e =>{
-        var ctx = board.getContext('2d');
+        var ctx = board_context();
         ctx.font = "bold 40px Arial ";
         ctx.fillStyle = 'rgba(234,200,0,0.5)'
         ctx.fillText('          OUT OF FOCUS',0,300)
