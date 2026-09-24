@@ -76,7 +76,7 @@
             <h2>Winning Requirement</h2>
             <div id="winning_requirement">
                 <p id="winning_requirement1">Do a T-Spin Double</p>
-                <p id="winning_requirement2">Spin = the piece can't move left, right or up after its last rotation</p>
+                <p id="winning_requirement2">Build the setup with your pieces, then spin in. A spin: the piece can't move left, right or up after its last rotation</p>
             </div>
 
             <button class="game_button orange" onclick="retry(); board.focus()">Retry</button>
@@ -97,10 +97,8 @@
             <div id="gamemode" class="open">
                 <table>
                     <tbody>
-                        <tr><td><input id="input13" type="number" min="2" max="7"></td><td>Pieces (including the spin piece)</td></tr>
-                        <tr><td><input id="input14" type="checkbox"></td><td>Clear lines in the solution</td></tr>
+                        <tr><td><input id="input13" type="number" min="3" max="7"></td><td>Pieces (the setup + the spin piece)</td></tr>
                         <tr><td><input id="input16" type="checkbox"></td><td>Generate unique pieces</td></tr>
-                        <tr><td><input id="input17" type="checkbox"></td><td>Generate flatter board</td></tr>
                         <tr><td colspan="2">Spin pieces:<br><label class="spin_piece"><input id="spin_S" type="checkbox"> S</label> <label class="spin_piece"><input id="spin_Z" type="checkbox"> Z</label> <label class="spin_piece"><input id="spin_L" type="checkbox"> L</label> <label class="spin_piece"><input id="spin_J" type="checkbox"> J</label> <label class="spin_piece"><input id="spin_I" type="checkbox"> I</label> <label class="spin_piece"><input id="spin_T" type="checkbox"> T</label></td></tr>
                     </tbody>
                 </table>

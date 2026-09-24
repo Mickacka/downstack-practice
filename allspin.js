@@ -1,9 +1,9 @@
 var game = new Game();
 const Keybind = {'keydown':{}, 'keyup':{}}
 var Config = {'das':100, 'arr':0, 'delay':0, 'pressing_left':false, 'pressing_right': false, 'pressing_down': false, 'pressing':{},
-'skim_ind':false, 'mdhole_ind':false, 'unqiue_ind':true, 'smooth_ind':true, 'auto_next_ind':true,
+'unqiue_ind':true, 'auto_next_ind':true,
 'spin_pieces':'SZLJIT',
-'mode':'allspin', 'no_of_unreserved_piece':6, 'no_of_piece':5,
+'mode':'allspin', 'no_of_piece':5,
 'no_of_trial':0, 'no_of_success':0}
 var Customized_key = ['ArrowLeft','ArrowRight','ArrowDown','Space','KeyZ','KeyX','KeyA','ShiftLeft','KeyR','KeyP']
 var board = document.getElementById('board')
@@ -32,13 +32,11 @@ function load_gamemode(){
         var pieces = localStorage.getItem('allspin_pieces')
         if (pieces) Config.spin_pieces = pieces
         var n = parseInt(localStorage.getItem('allspin_no_of_piece'))
-        if (n>=2 && n<=7) Config.no_of_piece = n
+        if (n>=3 && n<=7) Config.no_of_piece = n
     }
     catch(err){}
     document.getElementById('input13').value = Config.no_of_piece
-    document.getElementById('input14').checked = Config.skim_ind
     document.getElementById('input16').checked = Config.unqiue_ind
-    document.getElementById('input17').checked = Config.smooth_ind
     for (var piece of 'SZLJIT'){
         document.getElementById('spin_'+piece).checked = Config.spin_pieces.includes(piece)
     }
@@ -46,13 +44,11 @@ function load_gamemode(){
 
 function save_gamemode(){
     Config.no_of_piece = parseInt(document.getElementById('input13').value)
-    if (! (Config.no_of_piece>=2 && Config.no_of_piece<=7)){
-        alert('no of piece should be between 2 to 7')
+    if (! (Config.no_of_piece>=3 && Config.no_of_piece<=7)){
+        alert('no of piece should be between 3 to 7')
         Config.no_of_piece = 5
     }
-    Config.skim_ind = document.getElementById('input14').checked
     Config.unqiue_ind = document.getElementById('input16').checked
-    Config.smooth_ind = document.getElementById('input17').checked
     var pieces = [...'SZLJIT'].filter(piece => document.getElementById('spin_'+piece).checked).join('')
     if (pieces == ''){
         alert('Choose at least one spin piece')
@@ -110,7 +106,7 @@ function show_spin_message(text){
 Controls.harddrop = () => do_harddrop()
 Controls.bind_options = () => {
     document.getElementById('input13').oninput = e=>{save_gamemode()}
-    for (var id of ['input14', 'input16', 'input17', 'spin_S', 'spin_Z', 'spin_L', 'spin_J', 'spin_I', 'spin_T']){
+    for (var id of ['input16', 'spin_S', 'spin_Z', 'spin_L', 'spin_J', 'spin_I', 'spin_T']){
         document.getElementById(id).onchange = e=>{save_gamemode()}
     }
 }
@@ -121,11 +117,8 @@ Controls.bind_options = () => {
 const empty_board = () => Array.from({length: 20}, () => Array(10).fill('N'))
 
 var Record = {
-    added_line: [],
     board: [],
-    piece_added: [],
     shuffled_queue: ['I','O','J','L','S','Z','T'],
-    finished_map: empty_board(),
     spin_piece: 'T',
     spin_lines: 2,
     done_spin: false,
@@ -140,277 +133,274 @@ function piece_cells(piece, orientation, x, y){
     return shape_table[piece][orientation].map(([dx, dy]) => [x+dx, y+dy])
 }
 
-// Breadth-first search over every position the piece can reach from spawn
-function reachable_states(test_board, piece){
+// Can the piece, starting from spawn, end up covering exactly these cells?
+// Breadth-first search over the player's moves, stopping as soon as it gets there.
+function can_reach(test_board, piece, target){
+    var want = target.map(c => c.join()).sort().join("|")
+    var state_id = (x, y, o) => ((y + 4) * 16 + (x + 3)) * 4 + o
+    // every (x, y, orientation) whose cells are the target
+    var goals = new Set()
+    for (var o=0; o<4; o++)
+        for (var [dx, dy] of shape_table[piece][o])
+            for (var [tx, ty] of target){
+                var cells = piece_cells(piece, o, tx - dx, ty - dy)
+                if (cells.map(c => c.join()).sort().join("|") == want) goals.add(state_id(tx - dx, ty - dy, o))
+            }
     var g = new Game()
     g.board = test_board
     g.tetramino = piece
     g.x = 4
     g.y = 18
     g.orientation = 0
-    if (g.is_collide()) return new Set()
-    var key = () => `${g.x},${g.y},${g.orientation}`
-    var seen = new Set([key()])
-    var queue = [[g.x, g.y, g.orientation]]
+    if (g.is_collide()) return false
+    var seen = new Uint8Array(30 * 16 * 4)
+    seen[state_id(g.x, g.y, 0)] = 1
+    var queue = [[g.x, g.y, 0]]
     // the player's moves: there is no gravity and soft drop is instant, so no one-row drops
     var sonic_drop = () => { var y = g.y; g.drop(); return g.y != y }
     var moves = [() => g.move_left(), () => g.move_right(), sonic_drop,
                  () => g.rotate_clockwise(), () => g.rotate_anticlockwise(), () => g.rotate_180()]
-    while (queue.length){
-        var [x, y, o] = queue.shift()
+    for (var head=0; head<queue.length; head++){
+        var [x, y, o] = queue[head]
         for (var move of moves){
             g.x = x; g.y = y; g.orientation = o
-            if (move() && !seen.has(key())){
-                seen.add(key())
-                queue.push([g.x, g.y, g.orientation])
-            }
-        }
-    }
-    return seen
-}
-
-function try_spin_setup(piece){
-    var orientation = random_int(4)
-    var shape = shape_table[piece][orientation]
-    var xs = shape.map(c => c[0]), ys = shape.map(c => c[1])
-    var x = random_int(10 - (Math.max(...xs) - Math.min(...xs))) - Math.min(...xs)
-    var y = random_int(2) - Math.min(...ys)
-    var cells = piece_cells(piece, orientation, x, y)
-    var rows = [...new Set(cells.map(c => c[1]))]
-    var bottom = Math.min(...rows), top = Math.max(...rows)
-    var is_cell = (col, row) => cells.some(c => c[0] == col && c[1] == row)
-
-    var b = empty_board()
-    // below the spin: a clean cheese column
-    var cheese_col = random_int(10)
-    for (var row=0; row<bottom; row++)
-        for (var col=0; col<10; col++)
-            if (col != cheese_col) b[row][col] = 'G'
-    // the rows the spin clears: full except the piece
-    for (var row=bottom; row<=top; row++)
-        for (var col=0; col<10; col++)
-            if (!is_cell(col, row)) b[row][col] = 'G'
-    // above the spin: an uneven surface with overhangs over the slot
-    for (var col=0; col<10; col++){
-        var height = top + 2 + random_int(3)
-        var start = top + 1
-        if (cells.some(c => c[0] == col)){
-            var roll = Math.random()
-            if (roll < 0.45) continue           // open column
-            if (roll < 0.75) height = top + 2   // one-block overhang
-        }
-        for (var row=start; row<height; row++) b[row][col] = 'G'
-    }
-    // no row above the slot may be full
-    for (var row=top+1; row<20; row++)
-        if (b[row].every(c => c != 'N')) b[row][random_int(10)] = 'N'
-
-    // the piece must be reachable, and immobile once there (so the last move is a rotation)
-    var g = new Game()
-    g.board = b
-    g.tetramino = piece
-    g.x = x; g.y = y; g.orientation = orientation
-    if (g.is_collide()) return null
-    for (var [dx, dy] of [[-1, 0], [1, 0], [0, 1]]){
-        g.x = x+dx; g.y = y+dy
-        if (!g.is_collide()) return null
-    }
-    // the same cells may be reachable under another orientation index (S/Z/I symmetry)
-    var target = new Set(cells.map(c => c.join()))
-    var reachable = reachable_states(b, piece)
-    var found = [...reachable].some(state => {
-        var [sx, sy, so] = state.split(',').map(Number)
-        var sc = piece_cells(piece, so, sx, sy)
-        return sc.every(c => target.has(c.join()))
-    })
-    if (!found) return null
-    return {board: b, lines: top - bottom + 1, cells: cells}
-}
-
-function generate_final_map(piece){
-    for (var attempt=0; attempt<5000; attempt++){
-        var setup = try_spin_setup(piece)
-        if (setup){
-            game = new Game()
-            game.board = setup.board
-            Record.spin_piece = piece
-            Record.spin_lines = setup.lines
-            Record.spin_cells = setup.cells
-            Record.added_line = []
-            return true
+            if (!move()) continue
+            var id = state_id(g.x, g.y, g.orientation)
+            if (seen[id]) continue
+            if (goals.has(id)) return true
+            seen[id] = 1
+            queue.push([g.x, g.y, g.orientation])
         }
     }
     return false
 }
 
-// 4.2 downstack pieces: carved out of the setup and any added garbage lines,
-// so the player rebuilds the setup (clearing the garbage) before spinning
-function add_line(row_idx){
-    for (var i=0; i<10; i++){
-        for (var j=19; j>row_idx; j--){
-            game.board[j][i] = game.board[j-1][i]
-        }
-        game.board[row_idx][i] = 'G'
-    }
-    Record.added_line.push(row_idx)
-}
-
-// insert garbage just above the spin setup so the downstack pieces clear lines too
-function add_random_line(){
-    Record.added_line = []
-    var row_index = Record.setup_height + random_int(2)
-    var rng = Math.random()
-    if (rng<0.1){
-        add_line(row_index)
-        add_line(row_index+1)
-    }
-    else if (rng<0.4){
-        add_line(row_index)
-    }
-}
-
-function column_heights(){
-    var height = []
-    for (var col=0; col<10; col++){
-        var h = 0
-        for (var row=0; row<20; row++)
-            if (game.board[row][col] != 'N') h = row + 1
-        height.push(h)
-    }
-    return height
-}
-
-function is_flat_enough(){
-    if (!Config.smooth_ind) return true
-    var height = column_heights().sort((a, b) => a - b)
-    return height[8] - height[1] <= 5
-}
-
-// every non-garbage cell must be supported, except inside the spin setup
-function has_no_new_holes(){
-    for (var col=0; col<10; col++){
-        var seen_empty = false
-        for (var row=Record.setup_height; row<20; row++){
-            if (game.board[row][col] == 'N') seen_empty = true
-            else if (seen_empty) return false
-        }
-    }
-    return true
-}
-
-function try_a_piece(){
-    if (try_drop()){
-        var shape = game.to_shape()
-        var test = ! is_floatable()
-        test = test && Record.added_line.every(val => shape.some(pos => val==pos[1]))
-        test = test && (get_unstability() <= Record.base_unstability)
-        test = test && (is_exposed() || is_spinable())
-        for (var [col, row] of shape){
-            game.board[row][col] = "G"
-        }
-        test = test && has_no_new_holes() && is_flat_enough()
-        return test
-    }
-    return false
-}
+// The player sees a flat garbage floor. The spin rows are garbage except a
+// "build area" around the slot; the player fills that area and builds the
+// overhang, which reveals the slot, then spins into it.
+const cell_key = (col, row) => col + ',' + row
 
 function is_even_distributed(bag){
-    var last_piece = null
     var counter = {I:0, O:0, T:0, J:0, L:0, Z:0, S:0}
     var max = Config.unqiue_ind? 1: 2
     var limit = {I:max, O:max, T:max, J:max, L:max, Z:max, S:max}
     limit[Record.spin_piece] -= 1
     for (var piece of bag){
         counter[piece] += 1
-        if (counter[piece] > limit[piece])
-            return false
-        if (piece == last_piece)
-            return false
-        last_piece = piece
+        if (counter[piece] > limit[piece]) return false
     }
     return true
 }
 
-function try_all_pieces(){
-    var bag = shuffle([...'IOTJLZS'])
-    for (var piece of bag){
-        if (! is_even_distributed(Record.piece_added.concat(piece))) continue
-        shuffle(possible_piece_config_table[piece])
-        for (var [ori_idx, col_idx] of possible_piece_config_table[piece]){
-            game.tetramino = piece
-            game.x = col_idx
-            game.y = 18
-            game.orientation = ori_idx
-            if (try_a_piece()){
-                Record.piece_added.push(piece)
-                return true
+// Split the build cells into tetrominoes, removing the top pieces first
+// (so the player places them last). Each piece must rest on something and be
+// reachable on the board the player has at that moment.
+function carve(b, cells, used){
+    if (cells.size == 0) return []
+    if (Date.now() > Record.deadline) return null
+    // the highest (then leftmost) cell must belong to the next piece removed
+    var target = null
+    for (var key of cells){
+        var [c, r] = key.split(',').map(Number)
+        if (!target || r > target[1] || (r == target[1] && c < target[0])) target = [c, r]
+    }
+    var tried = new Set()
+    for (var piece of shuffle([...'IOTJLSZ'])){
+        if (!is_even_distributed(used.concat(piece))) continue
+        for (var o of shuffle([0, 1, 2, 3])){
+            for (var [dx, dy] of shape_table[piece][o]){
+                var x = target[0] - dx, y = target[1] - dy
+                var pc = piece_cells(piece, o, x, y)
+                if (!pc.every(([col, row]) => cells.has(cell_key(col, row)))) continue
+                var id = piece + pc.map(c => c.join()).sort().join('|')
+                if (tried.has(id)) continue
+                tried.add(id)
+                for (var [col, row] of pc) b[row][col] = 'N'
+                // resting: something directly below one of its cells
+                var rests = pc.some(([col, row]) => row == 0 || (b[row-1][col] != 'N' && !pc.some(p => p[0] == col && p[1] == row-1)))
+                if (rests){
+                    // nothing above it: a straight hard drop reaches it; otherwise search
+                    var open_above = pc.every(([col, row]) => {
+                        for (var r=row+1; r<20; r++)
+                            if (b[r][col] != 'N' && !pc.some(p => p[0] == col && p[1] == r)) return false
+                        return true
+                    })
+                    var here = open_above || can_reach(b, piece, pc)
+                    if (here){
+                        for (var [col, row] of pc) cells.delete(cell_key(col, row))
+                        var rest = carve(b, cells, used.concat(piece))
+                        if (rest) return [{piece: piece, cells: pc}].concat(rest)
+                        for (var [col, row] of pc) cells.add(cell_key(col, row))
+                    }
+                }
+                for (var [col, row] of pc) b[row][col] = 'B'
             }
         }
     }
-    return false
+    return null
 }
 
-function try_a_move(){
-    if (Config.skim_ind){
-        add_random_line()}
-    else{
-        Record.added_line = []}
-    if (try_all_pieces()){
-        game.lock()
-        Record.board.push(clone(game.board))
-        return true
+function try_spin_setup(piece, n_build){
+    // only flat slots ever work out (and for T, only pointing down: the T-spin double shape)
+    var orientation = piece == 'T'? 2: 2 * random_int(2)
+    var shape = shape_table[piece][orientation]
+    var xs = shape.map(c => c[0]), ys = shape.map(c => c[1])
+    var floor = random_int(3)
+    var x = random_int(10 - (Math.max(...xs) - Math.min(...xs))) - Math.min(...xs)
+    var y = floor - Math.min(...ys)
+    var slot = piece_cells(piece, orientation, x, y)
+    var slot_cols = slot.map(c => c[0])
+    var bottom = floor, top = Math.max(...slot.map(c => c[1]))
+    var is_slot = (col, row) => slot.some(c => c[0] == col && c[1] == row)
+
+    // build area: the slot's columns plus a margin of 1-3 on each side (cells
+    // under the slot's edges would otherwise be cut off and impossible to fill)
+    var left = Math.max(0, Math.min(...slot_cols) - 1 - random_int(3))
+    var right = Math.min(9, Math.max(...slot_cols) + 1 + random_int(3))
+
+    var b = empty_board()
+    var cheese_col = random_int(10)
+    for (var row=0; row<bottom; row++)
+        for (var col=0; col<10; col++)
+            if (col != cheese_col) b[row][col] = 'G'
+    for (var row=bottom; row<=top; row++)
+        for (var col=0; col<10; col++)
+            if (!is_slot(col, row)) b[row][col] = (col >= left && col <= right)? 'B': 'G'
+
+    // over the slot: cap some columns (the overhang) and leave the rest open as the way in
+    // Try every choice of capped columns (at most 16) and keep one where the slot is
+    // reachable, and only by a final rotation.
+    var slot_col_set = [...new Set(slot_cols)]
+    var valid = []
+    for (var mask=0; mask < (1 << slot_col_set.length); mask++){
+        var h = Array(10).fill(0)
+        slot_col_set.forEach((col, i) => { if (mask & (1 << i)) h[col] = 1 + random_int(2) })
+        if (is_spin_slot(with_stacks(b, h, top), piece, orientation, x, y, slot)) valid.push(h)
     }
-    return false
-}
+    if (valid.length == 0) return null
+    var heights = valid[random_int(valid.length)]
 
-function generate_a_ds_map(move){
-    for (var trial=0; trial<5; trial++){
-        if (Date.now() > Record.deadline) return false
-        var success = (move == 1)? try_a_move() : (try_a_move() && generate_a_ds_map(move - 1))
-        if (success) return true
-        Record.board.length = Config.no_of_unreserved_piece-move
-        Record.piece_added.length = Config.no_of_unreserved_piece-move
-        game.board = clone(Record.board.length > 0? Record.board[Record.board.length-1] : Record.finished_map)
-    }
-    return false
-}
-
-// 4.3 build a map, shuffle the queue and play / restart
-function new_setup(piece){
-    generate_final_map(piece)
-    Record.finished_map = clone(game.board)
-    Record.setup_height = Math.max(...column_heights())
-    // the spin slot has overhangs by design; only reject maps that add more
-    Record.base_unstability = get_unstability()
-    game.drawmode = true
-    Record.piece_added = []
-    Record.board = []
-    // a few setups are very hard to fill; give up on them quickly and try another
-    Record.deadline = Date.now() + 150
-}
-
-function play_a_map(){
-    Config.no_of_unreserved_piece = Config.no_of_piece - 1
-    // pick the piece once, so pieces with rarer setups (like T) come up as often as the others
-    var piece = Config.spin_pieces[random_int(Config.spin_pieces.length)]
-    new_setup(piece)
-    var success = false
-    for (var i=0; i<100 && !success && Config.no_of_unreserved_piece > 0; i++){
-        if (generate_a_ds_map(Config.no_of_unreserved_piece) && game.get_max_height() < 17){
-            var queue = [...Record.piece_added].reverse()
-            queue.push(Record.spin_piece)
-            Record.shuffled_queue = get_shuffled_holdable_queue(queue)
-            success = Record.shuffled_queue.length > 0
+    // beside the slot: random stacks, sized so the build takes exactly n_build pieces.
+    // A good slot is rare, so try several stacks around the same one.
+    var side_cols = []
+    for (var col=Math.max(0, left-1); col<=Math.min(9, right+1); col++)
+        if (!slot_cols.includes(col)) side_cols.push(col)
+    if (side_cols.length == 0) return null
+    var spin_row_cells = b.flat().filter(c => c == 'B').length
+    for (var attempt=0; attempt<12; attempt++){
+        var h = [...heights]
+        for (var col of side_cols) h[col] = random_int(3)
+        var count = () => spin_row_cells + h.reduce((a, v) => a + v, 0)
+        for (var i=0; i<40 && count() != 4*n_build; i++){
+            var col = side_cols[random_int(side_cols.length)]
+            if (count() < 4*n_build && h[col] < 4) h[col] += 1
+            else if (count() > 4*n_build && h[col] > 0) h[col] -= 1
         }
-        if (!success) new_setup(piece)
+        if (count() != 4*n_build) continue
+        var nb = with_stacks(b, h, top)
+        if (nb.slice(top+1).some(row => row.every(c => c != 'N'))) continue
+        // the stacks beside the slot can block the way in
+        if (!is_spin_slot(nb, piece, orientation, x, y, slot)) continue
+
+        // split the build into pieces the player can place in order
+        var cells = new Set()
+        for (var row=0; row<20; row++)
+            for (var col=0; col<10; col++)
+                if (nb[row][col] == 'B') cells.add(cell_key(col, row))
+        if (!groups_of_four(cells)) continue
+        var finished = clone(nb)
+        var build = carve(nb, cells, [])
+        if (!build){
+            if (Date.now() > Record.deadline) return null
+            continue
+        }
+        // the finished board with each piece in its own colour, for Show Answer
+        for (var {piece: p, cells: pc} of build)
+            for (var [col, row] of pc) finished[row][col] = p
+        return {board: finished, lines: top - bottom + 1, cells: slot, build: build}
     }
-    // fall back to just the spin setup
-    if (!success){
-        Record.board = [clone(Record.finished_map)]
-        Record.shuffled_queue = [Record.spin_piece]
+    return null
+}
+
+// Tetrominoes can only tile a group of touching cells whose size is a multiple of 4
+function groups_of_four(cells){
+    var seen = new Set()
+    for (var start of cells){
+        if (seen.has(start)) continue
+        var size = 0, stack = [start]
+        seen.add(start)
+        while (stack.length){
+            var [c, r] = stack.pop().split(',').map(Number)
+            size += 1
+            for (var [dc, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1]]){
+                var k = cell_key(c+dc, r+dr)
+                if (cells.has(k) && !seen.has(k)){ seen.add(k); stack.push(k) }
+            }
+        }
+        if (size % 4) return false
     }
+    return true
+}
+
+function with_stacks(b, heights, top){
+    var nb = clone(b)
+    for (var col=0; col<10; col++)
+        for (var row=top+1; row<=top+heights[col]; row++) nb[row][col] = 'B'
+    return nb
+}
+
+function is_spin_slot(b, piece, orientation, x, y, slot){
+    var g = new Game()
+    g.board = b
+    g.tetramino = piece
+    g.x = x; g.y = y; g.orientation = orientation
+    if (g.is_collide()) return false
+    for (var [dx, dy] of [[-1, 0], [1, 0], [0, 1]]){
+        g.x = x+dx; g.y = y+dy
+        if (!g.is_collide()) return false
+    }
+    return can_reach(b, piece, slot)
+}
+
+// 4.2 build a map, shuffle the queue and play / restart
+function play_a_map(){
+    var n_build = Config.no_of_piece - 1
+    // pick the spin piece first (not per attempt), so rarer setups like T come up as often
+    var pieces = shuffle([...Config.spin_pieces])
+    var setup = null
+    // Some piece/size combinations are rare or impossible (a T-spin double can't be
+    // built from 2 pieces), so fall back to a nearby size, then to another piece.
+    for (var piece of pieces){
+        Record.spin_piece = piece
+        // a T-spin double needs at least 3 pieces around it
+        var min_build = piece == 'T'? 3: 2
+        var sizes = [n_build, n_build+1, n_build-1, n_build+2].filter(n => n >= min_build && n <= 6)
+        for (var i=0; i<sizes.length && !setup; i++){
+            var give_up = Date.now() + (i == 0? 1200: 600)
+            while (!setup && Date.now() < give_up){
+                Record.deadline = Date.now() + 100
+                setup = try_spin_setup(piece, sizes[i])
+            }
+        }
+        if (setup) break
+    }
+    // last resort: an S or Z spin almost always generates quickly
+    while (!setup){
+        Record.spin_piece = 'SZ'[random_int(2)]
+        Record.deadline = Date.now() + 100
+        setup = try_spin_setup(Record.spin_piece, 3)
+    }
+    Record.spin_lines = setup.lines
+    Record.spin_cells = setup.cells
+    Record.board = [setup.board]
+    Record.build = setup.build
+    // build pieces go in the reverse of the order they were carved out
+    var queue = setup.build.map(p => p.piece).reverse()
+    queue.push(Record.spin_piece)
+    Record.shuffled_queue = get_shuffled_holdable_queue(queue)
+    if (Record.shuffled_queue.length == 0) Record.shuffled_queue = queue
+
     play()
-    game.drawmode = false
     document.getElementById('winning_requirement1').innerHTML =
         `Do ${"SLI".includes(Record.spin_piece)? "an": "a"} ${Record.spin_piece}-Spin ${LINE_NAMES[Record.spin_lines]}`
     document.getElementById('spin_message').textContent = ''
