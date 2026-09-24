@@ -487,13 +487,13 @@ function detect_win(){
     if (game.total_piece == Config.no_of_piece){
         
         if (Config.mode == 'quad' && Record.done_quad && game.board.every(row=>row[Config.blank_col]=="N")){
-            sound['win'].play()
+            report_result(true)
             if (Config.auto_next_ind){
                 play_a_quad_map()}
             Config.no_of_success += 1
         }
         else{
-            sound['lose'].play()
+            report_result(false)
             retry()
         }
             

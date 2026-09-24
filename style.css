@@ -629,3 +629,36 @@ html.portrait-zoom #board {
 }
 /* the Learn from AI level list is 50vh tall, which is huge on the zoomed-out page */
 html.portrait-zoom #scrollable { height: 18rem; }
+
+/* result flash over the board (report_result) */
+#tetris { position: relative; }
+#result_flash {
+    position: absolute;
+    left: 50%;
+    top: 40%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    text-align: center;
+    font-weight: bold;
+    color: #fff;
+    background: rgba(20, 22, 26, 0.85);
+    border: 0.2rem solid;
+    border-radius: 1rem;
+    padding: 0.6rem 1.2rem;
+    max-width: 70%;
+    opacity: 0;
+    z-index: 5;
+}
+#result_flash.won { border-color: rgb(81, 184, 77); }
+#result_flash.lost { border-color: rgb(235, 79, 101); }
+#result_flash .mark { display: block; font-size: 3rem; line-height: 1.1; }
+#result_flash.won .mark { color: rgb(81, 184, 77); }
+#result_flash.lost .mark { color: rgb(235, 79, 101); }
+#result_flash .text { display: block; font-size: 1.1rem; margin-top: 0.3rem; }
+#result_flash.show { animation: result-flash 1.8s ease-out forwards; }
+@keyframes result-flash {
+    0% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+    10% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    75% { opacity: 1; }
+    100% { opacity: 0; }
+}

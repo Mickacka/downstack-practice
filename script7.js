@@ -42,6 +42,7 @@ var Config = {'das':100, 'arr':0, 'delay':0, 'pressing_left':false, 'pressing_ri
 
 Controls.show_answer = null
 Controls.can_play = () => Config.started
+Controls.can_undo = false   // no undo in a timed challenge
 /*
 4. map generation
 */

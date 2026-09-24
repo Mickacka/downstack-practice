@@ -599,13 +599,13 @@ function detect_win(){
         (Config.mode == 'combopc' && game.pc)||
         (Config.mode == 'comboquad' && game.line_clear == 4)||
         (Config.mode == 'combotsd' && game.line_clear == 2 && game.b2b >= 0)))){
-            sound['win'].play()
+            report_result(true)
             if (Config.auto_next_ind){
                 play_a_map()}
             Config.no_of_success += 1
         }
         else{
-            sound['lose'].play()
+            report_result(false)
             retry()
         }
             

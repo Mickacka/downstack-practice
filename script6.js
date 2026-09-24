@@ -877,14 +877,14 @@ function detect_win(){
             (Config.mode == 'cspinquad' && Record.done_tsd && Record.done_tst && Record.done_quad) ||
             (Config.mode == 'fractal' && Record.done_tsd >=2) ||
             (Config.mode == 'stsd' && Record.done_tsd >=2)){
-                sound['win'].play()
+                report_result(true)
                 if (Config.auto_next_ind){
                     play_a_map()}
                 Config.no_of_success += 1
             }
 
         else{
-                sound['lose'].play()
+                report_result(false)
                 retry()   
         }
     }

@@ -193,7 +193,7 @@ function detect_win(){
             Record.quad >= jsondata[mode]["winning_requirement"]['quad'] &&
             Record.pc >= jsondata[mode]["winning_requirement"]['pc'] &&
             Record.max_combo >= jsondata[mode]["winning_requirement"]['max_combo']){
-                sound['win'].play()
+                report_result(true)
                 if (Config.auto_next_ind){
                     play_a_map()}
                 Config.no_of_success += 1
@@ -206,7 +206,7 @@ function detect_win(){
             }
 
         else{
-                sound['lose'].play()
+                report_result(false)
                 retry()   
         }
     }

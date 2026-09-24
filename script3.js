@@ -164,14 +164,14 @@ function detect_win(){
         Config.no_of_trial += 1
     }
     if (game.pc){
-        sound['win'].play()
+        report_result(true)
         if (Config.auto_next_ind){
             play_a_map()}
         Config.no_of_success += 1
     }
     else if (game.total_piece == Config.no_of_piece){
 
-        sound['lose'].play()
+        report_result(false)
         retry()
 
     }

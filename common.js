@@ -2,7 +2,9 @@
 // Page scripts define the globals used here: game, Config, play(), detect_win(), show_ans().
 
 const Keybind = {'keydown':{}, 'keyup':{}}
-var Customized_key = ['ArrowLeft','ArrowRight','ArrowDown','Space','KeyZ','KeyX','KeyA','ShiftLeft','KeyR','KeyP']
+var Customized_key = ['ArrowLeft','ArrowRight','ArrowDown','Space','KeyZ','KeyX','KeyA','ShiftLeft','KeyR','KeyP','KeyU']
+// the settings input for each key above
+const key_input = i => document.getElementById(i == 10? 'input_undo': 'input'+(i+1))
 var board = document.getElementById('board')
 const clone = (items) => items.map(item => Array.isArray(item) ? clone(item) : item);
 
@@ -122,8 +124,14 @@ function render(){
     if (game.combo > 0) ctx.fillText(game.combo+' Combo',10,300)
     if (game.pc) ctx.fillText('All Clear',10,350)
 
+    // this session, then all-time for this mode
     ctx.fillText('Trial:',420,450)
     ctx.fillText(Config.no_of_success+'/'+Config.no_of_trial,420,470)
+    var stats = load_stats()
+    ctx.font = "bold 14px Arial ";
+    ctx.fillText('All time '+stats.solved+'/'+stats.tries,420,500)
+    ctx.fillText('Streak '+stats.streak,420,520)
+    ctx.fillText('Best '+stats.best,420,540)
 
 }
 
@@ -220,6 +228,7 @@ function load_setting(){
         var storage = localStorage.getItem('Customized_key')
         if (storage!= null){
             Customized_key = JSON.parse(storage);
+            if (Customized_key.length < 11) Customized_key.push('KeyU')
             Config.das = parseInt(localStorage.getItem('das'))
             if (! (Config.das>=1 && Config.das<=200)){
                 Config.das = 100}
@@ -235,8 +244,8 @@ function load_setting(){
         localStorage.clear()
         console.log('storage corrupted')
     }
-    for (var i=0; i<10; i++){
-        document.getElementById('input'+(i+1)).value = Customized_key[i]
+    for (var i=0; i<Customized_key.length; i++){
+        if (key_input(i)) key_input(i).value = Customized_key[i]
     }
     document.getElementById('input11').value = Config.das
     document.getElementById('input12').value = Config.arr
@@ -245,8 +254,8 @@ function load_setting(){
 }
 
 function save_setting(){
-    for (var i=0; i<10; i++){
-        Customized_key[i] = document.getElementById('input'+(i+1)).value
+    for (var i=0; i<Customized_key.length; i++){
+        if (key_input(i)) Customized_key[i] = key_input(i).value
     }
     Config.das = parseInt(document.getElementById('input11').value)
     if (! (Config.das>=1 && Config.das<=200)){
@@ -275,6 +284,7 @@ var Controls = {
     after_rotate: () => {},
     show_answer: () => show_ans(),   // null: no Show Answer key
     can_play: () => true,
+    can_undo: true,                  // false: no Undo (the timed challenge)
     bind_options: () => {},          // hook up the page's own options panel
 }
 
@@ -291,13 +301,14 @@ function update_keybind(){
     Keybind.keydown[Customized_key[2]] = e=>{press_down(true)}
     Keybind.keyup[Customized_key[2]] = e=>{release_down(true)}
 
-    add_generic_keybind(Customized_key[3], ()=> Controls.harddrop())
+    add_generic_keybind(Customized_key[3], ()=> harddrop_action())
     add_generic_keybind(Customized_key[4], ()=> (game.rotate_anticlockwise(), Controls.after_rotate()))
     add_generic_keybind(Customized_key[5], ()=> (game.rotate_clockwise(), Controls.after_rotate()))
     add_generic_keybind(Customized_key[6], ()=> (game.rotate_180(), Controls.after_rotate()))
     add_generic_keybind(Customized_key[7], ()=> game.hold())
     add_generic_keybind(Customized_key[8], ()=> retry())
     if (Controls.show_answer) add_generic_keybind(Customized_key[9], ()=> Controls.show_answer())
+    if (Controls.can_undo) add_generic_keybind(Customized_key[10], ()=> undo())
 }
 
 function is_typing(){
@@ -363,7 +374,7 @@ function set_event_listener(){
     }
     press('tc-dr', () => (game.rotate_180(), Controls.after_rotate()))
     press('tc-h', () => game.hold())
-    press('tc-hd', () => Controls.harddrop())
+    press('tc-hd', () => harddrop_action())
     press('tc-l', () => press_left(true))
     release('tc-l', () => release_left(true))
     press('tc-r', () => press_right(true))
@@ -373,4 +384,114 @@ function set_event_listener(){
     press('tc-cc', () => (game.rotate_anticlockwise(), Controls.after_rotate()))
     press('tc-c', () => (game.rotate_clockwise(), Controls.after_rotate()))
     document.getElementById('tcc').addEventListener('contextmenu', e => e.preventDefault())
+}
+
+/*
+Results, stats and undo
+*/
+
+// Stats are kept per page and mode in localStorage: tries, solved, streak, best streak
+function stats_key(){
+    var page = location.pathname.split('/').pop() || 'index.html'
+    return 'stats:' + page + ':' + (Config.mode || '')
+}
+
+// render() shows the stats on every frame, so keep the last read in memory
+var stats_cache = {key: null, value: null}
+
+function load_stats(){
+    var key = stats_key()
+    if (stats_cache.key != key){
+        var stats = null
+        try{ stats = JSON.parse(localStorage.getItem(key)) }
+        catch(err){}
+        stats_cache = {key: key, value: stats || {tries: 0, solved: 0, streak: 0, best: 0}}
+    }
+    return {...stats_cache.value}
+}
+
+function save_stats(stats){
+    stats_cache = {key: stats_key(), value: stats}
+    try{ localStorage.setItem(stats_cache.key, JSON.stringify(stats)) }
+    catch(err){}
+}
+
+// Every mode reports the end of an attempt here: plays the sound, flashes the
+// result over the board and records it. `reason` explains a miss when known.
+function report_result(won, reason){
+    sound[won? 'win': 'lose'].play()
+    var stats = load_stats()
+    stats.tries += 1
+    if (won){
+        stats.solved += 1
+        stats.streak += 1
+        stats.best = Math.max(stats.best, stats.streak)
+    }
+    else stats.streak = 0
+    save_stats(stats)
+    flash_result(won, reason || (won? '': 'Try again'))
+}
+
+function flash_result(won, text){
+    var flash = document.getElementById('result_flash')
+    if (!flash){
+        flash = document.createElement('div')
+        flash.id = 'result_flash'
+        flash.setAttribute('role', 'status')
+        document.getElementById('tetris').appendChild(flash)
+    }
+    flash.className = won? 'won': 'lost'
+    flash.innerHTML = '<span class="mark">' + (won? '✓': '✗') + '</span>' +
+        (text? '<span class="text"></span>': '')
+    if (text) flash.querySelector('.text').textContent = text
+    void flash.offsetWidth   // restart the animation
+    flash.classList.add('show')
+}
+
+// Undo: a snapshot of the game before each hard drop
+var undo_history = []
+
+function snapshot_record(){
+    // the scalar fields each mode keeps on Record (done_tsd, tsd, done_spin, ...)
+    var saved = {}
+    if (typeof Record == 'object')
+        for (var key in Record){
+            var value = Record[key]
+            if (value === null || ['number', 'boolean', 'string'].includes(typeof value)) saved[key] = value
+        }
+    return saved
+}
+
+function take_snapshot(){
+    undo_history.push({
+        game: game,
+        board: clone(game.board),
+        bag: [...game.bag],
+        holdmino: game.holdmino,
+        tetramino: game.tetramino,
+        fields: {total_piece: game.total_piece, combo: game.combo, b2b: game.b2b, pc: game.pc,
+                 line_clear: game.line_clear, total_line_clear: game.total_line_clear},
+        record: snapshot_record(),
+    })
+    if (undo_history.length > 50) undo_history.shift()
+}
+
+function undo(){
+    // snapshots from an earlier attempt (retry or a new map made a new game) don't apply
+    undo_history = undo_history.filter(s => s.game === game)
+    var s = undo_history.pop()
+    if (!s) return
+    game.board = s.board
+    game.bag = s.bag
+    game.holdmino = s.holdmino
+    Object.assign(game, s.fields)
+    if (typeof Record == 'object') Object.assign(Record, s.record)
+    game.update()
+    game.tetramino = s.tetramino
+    render()
+}
+
+function harddrop_action(){
+    take_snapshot()
+    Controls.harddrop()
 }

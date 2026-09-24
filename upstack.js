@@ -514,14 +514,14 @@ function detect_win(){
     if (game.line_clear == 2 && game.b2b >= 0) Record.tsd++
     if (game.line_clear == 4) Record.quad++
     if (Config.mode == 'quad' && Record.tsd+Record.quad >= 3 && game.board.every(row=>row[Config.blank_col]=="N")){
-        sound['win'].play()
+        report_result(true)
         if (Config.auto_next_ind){
             play_3_quad_map(Config.quad_col)}
         Config.no_of_success += 1
         }
     else if (game.total_piece == 21){
 
-        sound['lose'].play()
+        report_result(false)
         retry()
 
             

@@ -453,19 +453,14 @@ function detect_win(){
         Config.no_of_trial += 1}
     if (game.total_piece == Record.shuffled_queue.length){
         if (Record.done_spin){
-            sound['win'].play()
+            report_result(true, 'Solved!')
             Config.no_of_success += 1
-            if (Config.auto_next_ind){
-                play_a_map()
-                show_spin_message('Solved! New map')
-            }
-            else show_spin_message('Solved!')
+            if (Config.auto_next_ind) play_a_map()
         }
         else{
-            sound['lose'].play()
             var why = Record.miss || `No ${Record.spin_piece}-Spin ${LINE_NAMES[Record.spin_lines]}`
+            report_result(false, why)
             retry()
-            show_spin_message(why + '. Try again')
         }
     }
 }
