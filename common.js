@@ -251,6 +251,7 @@ function load_setting(){
     document.getElementById('input12').value = Config.arr
     var auto_next = document.getElementById('input12.1')
     if (auto_next) auto_next.checked = Config.auto_next_ind
+    check_key_conflicts()
 }
 
 function save_setting(){
@@ -270,6 +271,7 @@ function save_setting(){
 
     var auto_next = document.getElementById('input12.1')
     if (auto_next) Config.auto_next_ind = auto_next.checked
+    check_key_conflicts()
     update_keybind()
     localStorage.setItem('auto_next_ind', Config.auto_next_ind)
     localStorage.setItem('Customized_key',JSON.stringify(Customized_key))
@@ -659,3 +661,30 @@ async function load_shared_puzzle(){
     history.replaceState(null, '', location.pathname)
 }
 window.addEventListener('load', load_shared_puzzle)
+
+/*
+Key settings: reset to defaults, and warn when two actions share a key
+*/
+const DEFAULT_KEYS = ['ArrowLeft','ArrowRight','ArrowDown','Space','KeyZ','KeyX','KeyA','ShiftLeft','KeyR','KeyP','KeyU']
+
+function reset_keys(){
+    Customized_key = [...DEFAULT_KEYS]
+    for (var i=0; i<Customized_key.length; i++)
+        if (key_input(i)) key_input(i).value = Customized_key[i]
+    save_setting()
+}
+
+function check_key_conflicts(){
+    var used = {}
+    for (var i=0; i<Customized_key.length; i++)
+        (used[Customized_key[i]] = used[Customized_key[i]] || []).push(i)
+    var clashes = Object.entries(used).filter(([key, actions]) => actions.length > 1)
+    for (var i=0; i<Customized_key.length; i++){
+        var input = key_input(i)
+        if (input) input.classList.toggle('conflict', used[Customized_key[i]].length > 1)
+    }
+    var message = document.getElementById('key_conflict')
+    if (message) message.textContent = clashes.length
+        ? clashes.map(([key]) => key).join(', ') + ' is used for more than one action. '
+        : ''
+}

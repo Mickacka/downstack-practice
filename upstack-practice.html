@@ -62,6 +62,7 @@
                 <tr><td class="setting-label">Retry</td><td><input class='keybind' id="input9" type="text" size="7" value="" readOnly></td></tr>
                 <tr><td class="setting-label">Show Answer</td><td><input class='keybind' id="input10" type="text" size="7" value="" readOnly></td></tr>
                 <tr><td class="setting-label">Undo</td><td><input class='keybind' id="input_undo" type="text" size="7" value="" readOnly></td></tr>
+                <tr><td colspan="2"><span id="key_conflict" role="alert"></span><button type="button" class="mini_button" onclick="reset_keys()">Reset keys to defaults</button></td></tr>
                 <tr><td class="setting-label">DAS (1 to 200)</td><td><input id="input11" type="number" min="1" max='200'></td></tr>
                 <tr><td class="setting-label">ARR (0 to 100)</td><td><input id="input12" type="number" min="0" max='100'></td></tr>
                 <tr><td class="setting-label">Generate New Map on Win</td><td><input id="input12.1" type="checkbox" min="0" max='100'></td></tr>
@@ -101,7 +102,7 @@
                 <table>
                     <tbody>
                         <tr hidden><td><input id="input13" type="number" min="2" max='7' hidden></td><td>Rounds</td></tr>
-                        <tr><td><input id="input15" type="checkbox" checked="checked"></td><td>More holes in the map</td></tr>
+                        <tr><td><input id="input15" type="checkbox" checked="checked"></td><td title="The starting stack may have covered holes">Allow holes in the stack</td></tr>
         
                     </tbody>
                 </table>

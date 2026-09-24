@@ -62,6 +62,7 @@
                 <tr><td class="setting-label">Retry</td><td><input class='keybind' id="input9" type="text" size="7" value="" readOnly></td></tr>
                 <tr><td class="setting-label">Show Answer</td><td><input class='keybind' id="input10" type="text" size="7" value="" readOnly></td></tr>
                 <tr><td class="setting-label">Undo</td><td><input class='keybind' id="input_undo" type="text" size="7" value="" readOnly></td></tr>
+                <tr><td colspan="2"><span id="key_conflict" role="alert"></span><button type="button" class="mini_button" onclick="reset_keys()">Reset keys to defaults</button></td></tr>
                 <tr><td class="setting-label">DAS (1 to 200)</td><td><input id="input11" type="number" min="1" max='200'></td></tr>
                 <tr><td class="setting-label">ARR (0 to 100)</td><td><input id="input12" type="number" min="0" max='100'></td></tr>
                 <tr><td class="setting-label">Generate New Map on Win</td><td><input id="input12.1" type="checkbox" min="0" max='100'></td></tr>
@@ -102,7 +103,7 @@
                 <table>
                     <tbody>
                         <tr><td><input id="input13" type="number" min="3" max="7"></td><td>Pieces, about (the setup + the spin piece)</td></tr>
-                        <tr><td><input id="input16" type="checkbox"></td><td>Generate unique pieces</td></tr>
+                        <tr><td><input id="input16" type="checkbox"></td><td title="Each piece type appears at most once in the queue">No repeated pieces</td></tr>
                         <tr><td colspan="2">Spin pieces:<br><label class="spin_piece"><input id="spin_S" type="checkbox"> S</label> <label class="spin_piece"><input id="spin_Z" type="checkbox"> Z</label> <label class="spin_piece"><input id="spin_L" type="checkbox"> L</label> <label class="spin_piece"><input id="spin_J" type="checkbox"> J</label> <label class="spin_piece"><input id="spin_I" type="checkbox"> I</label> <label class="spin_piece"><input id="spin_T" type="checkbox"> T</label></td></tr>
                     </tbody>
                 </table>

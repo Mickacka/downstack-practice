@@ -662,3 +662,8 @@ html.portrait-zoom #scrollable { height: 18rem; }
     75% { opacity: 1; }
     100% { opacity: 0; }
 }
+
+/* key settings */
+#setting input.keybind.conflict { outline: 0.2rem solid rgb(235, 79, 101); }
+#key_conflict { display: block; color: rgb(235, 79, 101); margin-bottom: 0.4rem; }
+#setting .mini_button { cursor: pointer; }
