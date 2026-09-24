@@ -69,128 +69,13 @@ function save_gamemode(){
 
 
 
-function update_keybind(){
-    Keybind.keydown = {}
-    Keybind.keyup = {}
 
-    Keybind.keydown[Customized_key[0]] = e=>{press_left(true)}
-    Keybind.keyup[Customized_key[0]] = e=>{release_left(true)}
-
-    Keybind.keydown[Customized_key[1]] = e=>{press_right(true)}
-    Keybind.keyup[Customized_key[1]] = e=>{release_right(true)}
-
-    Keybind.keydown[Customized_key[2]] = e=>{press_down(true)}
-    Keybind.keyup[Customized_key[2]] = e=>{release_down(true)}
-
-    add_generic_keybind(Customized_key[3], ()=> (game.harddrop(), play_sound(), detect_win()))
-    add_generic_keybind(Customized_key[4], ()=> game.rotate_anticlockwise())
-    add_generic_keybind(Customized_key[5], ()=> game.rotate_clockwise())
-    add_generic_keybind(Customized_key[6], ()=> game.rotate_180())
-    add_generic_keybind(Customized_key[7], ()=> game.hold())
-    add_generic_keybind(Customized_key[8], ()=> retry())
-    add_generic_keybind(Customized_key[9], ()=> show_ans())
-    
-}
-
-function set_event_listener(){
-    document.onkeydown = (e => {
-        var func = Keybind.keydown[e.code];
-        if (['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)){
-            e.preventDefault()}
-        if (document.activeElement.className == 'keybind'){
-            document.activeElement.value = e.code
-            save_setting()
-            
-        }
-        if (document.activeElement.tagName != 'INPUT' && func != undefined){
-            board.focus()
-            func()
-        }
-
-
-    })
-
-    document.onkeyup = (e => {
-        var func = Keybind.keyup[e.code];
-        if (func != undefined){
-            func()
-        }
-        })
-
-    board.onfocus = (e =>{
-        render()
-
-    })
-
-    board.onblur = (e =>{
-        var ctx = document.getElementById("board").getContext('2d');
-        if (!Config.on_focus){
-            ctx.font = "bold 40px Arial ";
-
-            ctx.fillStyle = 'rgba(234,200,0,0.5)'
-            ctx.fillText('          OUT OF FOCUS',0,300)
-            
-        }
-
-    })
-    document.getElementById('input11').oninput = e=>{save_setting()}
-    document.getElementById('input12').oninput = e=>{save_setting()}
-    document.getElementById('input12.1').onchange = e=>{save_setting()}
+Controls.bind_options = () => {
     document.getElementById('input13').oninput = e=>{save_gamemode()}
     document.getElementById('input14').onchange = e=>{save_gamemode()}
     document.getElementById('input15').onchange = e=>{save_gamemode()}
     document.getElementById('input16').onchange = e=>{save_gamemode()}
     document.getElementById('input17').onchange = e=>{save_gamemode()}
-    setup_touch_controls();
-
-    
-    document.getElementById('tc-dr').addEventListener('touchstart', function (e) {
-        game.rotate_180()
-        render()
-    });
-    document.getElementById('tc-h').addEventListener('touchstart', function (e) {
-        game.hold()
-        render()
-    });
-    document.getElementById('tc-hd').addEventListener('touchstart', function (e) {
-        game.harddrop()
-        play_sound()
-        detect_win()
-        render()
-    });
-    document.getElementById('tc-l').addEventListener('touchstart', function (e) {
-        press_left(true)
-        render()
-    });
-    document.getElementById('tc-l').addEventListener('touchend', function (e) {
-        release_left(true)
-        render()
-    });
-    document.getElementById('tc-r').addEventListener('touchstart', function (e) {
-        press_right(true)
-        render()
-    });
-    document.getElementById('tc-r').addEventListener('touchend', function (e) {
-        release_right(true)
-        render()
-    });
-    document.getElementById('tc-d').addEventListener('touchstart', function (e) {
-        press_down(true)
-        render()
-    });
-    document.getElementById('tc-d').addEventListener('touchend', function (e) {
-        release_down(true)
-        render()
-    });
-    document.getElementById('tc-cc').addEventListener('touchstart', function (e) {
-        game.rotate_anticlockwise()
-        render()
-    });
-    document.getElementById('tc-c').addEventListener('touchstart', function (e) {
-        game.rotate_clockwise()
-        render()
-    });
-
 }
 /*
 4. map generation

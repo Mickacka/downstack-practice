@@ -106,80 +106,13 @@ function show_spin_message(text){
 /*
 3. keybind
 */
-function update_keybind(){
-    Keybind.keydown = {}
-    Keybind.keyup = {}
 
-    Keybind.keydown[Customized_key[0]] = e=>{press_left(true)}
-    Keybind.keyup[Customized_key[0]] = e=>{release_left(true)}
-
-    Keybind.keydown[Customized_key[1]] = e=>{press_right(true)}
-    Keybind.keyup[Customized_key[1]] = e=>{release_right(true)}
-
-    Keybind.keydown[Customized_key[2]] = e=>{press_down(true)}
-    Keybind.keyup[Customized_key[2]] = e=>{release_down(true)}
-
-    add_generic_keybind(Customized_key[3], ()=> do_harddrop())
-    add_generic_keybind(Customized_key[4], ()=> game.rotate_anticlockwise())
-    add_generic_keybind(Customized_key[5], ()=> game.rotate_clockwise())
-    add_generic_keybind(Customized_key[6], ()=> game.rotate_180())
-    add_generic_keybind(Customized_key[7], ()=> game.hold())
-    add_generic_keybind(Customized_key[8], ()=> retry())
-    add_generic_keybind(Customized_key[9], ()=> show_ans())
-}
-
-function set_event_listener(){
-    document.onkeydown = (e => {
-        var func = Keybind.keydown[e.code];
-        if (['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)){
-            e.preventDefault()}
-        if (document.activeElement.className == 'keybind'){
-            document.activeElement.value = e.code
-            save_setting()
-        }
-        if (document.activeElement.tagName != 'INPUT' && func != undefined){
-            board.focus()
-            func()
-        }
-    })
-
-    document.onkeyup = (e => {
-        var func = Keybind.keyup[e.code];
-        if (func != undefined){
-            func()
-        }
-    })
-
-    board.onfocus = (e => render())
-
-    board.onblur = (e =>{
-        var ctx = document.getElementById("board").getContext('2d');
-        ctx.font = "bold 40px Arial ";
-        ctx.fillStyle = 'rgba(234,200,0,0.5)'
-        ctx.fillText('          OUT OF FOCUS',0,300)
-    })
-
-    document.getElementById('input11').oninput = e=>{save_setting()}
-    document.getElementById('input12').oninput = e=>{save_setting()}
-    document.getElementById('input12.1').onchange = e=>{save_setting()}
+Controls.harddrop = () => do_harddrop()
+Controls.bind_options = () => {
     document.getElementById('input13').oninput = e=>{save_gamemode()}
     for (var id of ['input14', 'input16', 'input17', 'spin_S', 'spin_Z', 'spin_L', 'spin_J', 'spin_I', 'spin_T']){
         document.getElementById(id).onchange = e=>{save_gamemode()}
     }
-    setup_touch_controls();
-
-    const touch = (id, type, func) => document.getElementById(id).addEventListener(type, e => {func(); render()})
-    touch('tc-dr', 'touchstart', () => game.rotate_180())
-    touch('tc-h', 'touchstart', () => game.hold())
-    touch('tc-hd', 'touchstart', () => do_harddrop())
-    touch('tc-l', 'touchstart', () => press_left(true))
-    touch('tc-l', 'touchend', () => release_left(true))
-    touch('tc-r', 'touchstart', () => press_right(true))
-    touch('tc-r', 'touchend', () => release_right(true))
-    touch('tc-d', 'touchstart', () => press_down(true))
-    touch('tc-d', 'touchend', () => release_down(true))
-    touch('tc-cc', 'touchstart', () => game.rotate_anticlockwise())
-    touch('tc-c', 'touchstart', () => game.rotate_clockwise())
 }
 
 /*

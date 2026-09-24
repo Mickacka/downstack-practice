@@ -236,3 +236,96 @@ function save_setting(){
     localStorage.setItem('das',Config.das)
     localStorage.setItem('arr',Config.arr)
 }
+
+// What the keys and touch buttons do. A page script can override any of these
+// before set_event_listener() runs.
+var Controls = {
+    harddrop: () => { game.harddrop(); play_sound(); detect_win() },
+    after_rotate: () => {},
+    show_answer: () => show_ans(),   // null: no Show Answer key
+    can_play: () => true,
+    bind_options: () => {},          // hook up the page's own options panel
+}
+
+function update_keybind(){
+    Keybind.keydown = {}
+    Keybind.keyup = {}
+
+    Keybind.keydown[Customized_key[0]] = e=>{press_left(true)}
+    Keybind.keyup[Customized_key[0]] = e=>{release_left(true)}
+
+    Keybind.keydown[Customized_key[1]] = e=>{press_right(true)}
+    Keybind.keyup[Customized_key[1]] = e=>{release_right(true)}
+
+    Keybind.keydown[Customized_key[2]] = e=>{press_down(true)}
+    Keybind.keyup[Customized_key[2]] = e=>{release_down(true)}
+
+    add_generic_keybind(Customized_key[3], ()=> Controls.harddrop())
+    add_generic_keybind(Customized_key[4], ()=> (game.rotate_anticlockwise(), Controls.after_rotate()))
+    add_generic_keybind(Customized_key[5], ()=> (game.rotate_clockwise(), Controls.after_rotate()))
+    add_generic_keybind(Customized_key[6], ()=> (game.rotate_180(), Controls.after_rotate()))
+    add_generic_keybind(Customized_key[7], ()=> game.hold())
+    add_generic_keybind(Customized_key[8], ()=> retry())
+    if (Controls.show_answer) add_generic_keybind(Customized_key[9], ()=> Controls.show_answer())
+}
+
+function is_typing(){
+    var tag = document.activeElement.tagName
+    return tag == 'INPUT' || tag == 'TEXTAREA' || tag == 'SELECT'
+}
+
+function set_event_listener(){
+    document.onkeydown = (e => {
+        var func = Keybind.keydown[e.code];
+        if (['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code) && !is_typing()){
+            e.preventDefault()}
+        if (document.activeElement.className == 'keybind'){
+            document.activeElement.value = e.code
+            save_setting()
+        }
+        if (!is_typing() && func != undefined && Controls.can_play()){
+            board.focus()
+            func()
+        }
+    })
+
+    document.onkeyup = (e => {
+        var func = Keybind.keyup[e.code];
+        if (func != undefined){
+            func()
+        }
+    })
+
+    board.onfocus = (e => render())
+
+    board.onblur = (e =>{
+        var ctx = board.getContext('2d');
+        ctx.font = "bold 40px Arial ";
+        ctx.fillStyle = 'rgba(234,200,0,0.5)'
+        ctx.fillText('          OUT OF FOCUS',0,300)
+    })
+
+    document.getElementById('input11').oninput = e=>{save_setting()}
+    document.getElementById('input12').oninput = e=>{save_setting()}
+    var auto_next = document.getElementById('input12.1')
+    if (auto_next) auto_next.onchange = e=>{save_setting()}
+    Controls.bind_options()
+    setup_touch_controls();
+
+    const touch = (id, type, func) => document.getElementById(id).addEventListener(type, e => {
+        if (!Controls.can_play()) return
+        func()
+        render()
+    })
+    touch('tc-dr', 'touchstart', () => (game.rotate_180(), Controls.after_rotate()))
+    touch('tc-h', 'touchstart', () => game.hold())
+    touch('tc-hd', 'touchstart', () => Controls.harddrop())
+    touch('tc-l', 'touchstart', () => press_left(true))
+    touch('tc-l', 'touchend', () => release_left(true))
+    touch('tc-r', 'touchstart', () => press_right(true))
+    touch('tc-r', 'touchend', () => release_right(true))
+    touch('tc-d', 'touchstart', () => press_down(true))
+    touch('tc-d', 'touchend', () => release_down(true))
+    touch('tc-cc', 'touchstart', () => (game.rotate_anticlockwise(), Controls.after_rotate()))
+    touch('tc-c', 'touchstart', () => (game.rotate_clockwise(), Controls.after_rotate()))
+}
