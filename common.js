@@ -593,3 +593,69 @@ function replay_answer(){
         if (same_game) retry()
     }, 900 * frames.length + 1200))
 }
+
+/*
+Share a puzzle: the link carries the generated map itself (the generator's Record,
+the mode's settings and the goal text), compressed into the part after #.
+*/
+const SHARED_CONFIG = ['mode', 'no_of_piece', 'no_of_unreserved_piece', 'blank_col', 'quad_col']
+
+async function compress(text){
+    if (!window.CompressionStream) return 'j' + btoa(unescape(encodeURIComponent(text)))
+    var stream = new Blob([text]).stream().pipeThrough(new CompressionStream('deflate-raw'))
+    var bytes = new Uint8Array(await new Response(stream).arrayBuffer())
+    var binary = ''
+    for (var b of bytes) binary += String.fromCharCode(b)
+    return 'z' + btoa(binary)
+}
+
+async function decompress(code){
+    if (code[0] == 'j') return decodeURIComponent(escape(atob(code.slice(1))))
+    var bytes = Uint8Array.from(atob(code.slice(1)), c => c.charCodeAt(0))
+    var stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate-raw'))
+    return await new Response(stream).text()
+}
+
+const to_url_safe = s => s.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+const from_url_safe = s => s.replace(/-/g, '+').replace(/_/g, '/')
+
+async function puzzle_url(){
+    var config = {}
+    for (var key of SHARED_CONFIG) if (key in Config) config[key] = Config[key]
+    var requirement = document.getElementById('winning_requirement')
+    var data = {record: Record, config: config, goal: requirement? requirement.innerHTML: ''}
+    var code = to_url_safe(await compress(JSON.stringify(data)))
+    return location.origin + location.pathname + '#p=' + code
+}
+
+async function share_link(){
+    var url = await puzzle_url()
+    try{
+        await navigator.clipboard.writeText(url)
+        flash_result(true, 'Link copied')
+    }
+    catch(err){
+        window.prompt('Copy this link', url)
+    }
+    return url
+}
+
+async function load_shared_puzzle(){
+    var match = location.hash.match(/^#p=(.+)$/)
+    if (!match) return
+    try{
+        var data = JSON.parse(await decompress(from_url_safe(match[1])))
+        Object.assign(Record, data.record)
+        Object.assign(Config, data.config)
+        var requirement = document.getElementById('winning_requirement')
+        if (requirement && data.goal) requirement.innerHTML = data.goal
+        retry()
+        flash_result(true, 'Shared puzzle')
+    }
+    catch(err){
+        flash_result(false, 'This puzzle link is broken')
+    }
+    // leave the address clean so New Map / reload don't come back to it
+    history.replaceState(null, '', location.pathname)
+}
+window.addEventListener('load', load_shared_puzzle)
