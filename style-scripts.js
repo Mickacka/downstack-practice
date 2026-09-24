@@ -54,6 +54,8 @@ function apply_touch_controls() {
     const setting = get_touch_setting();
     const show = setting === 'on' || (setting === 'auto' && is_touch_device());
     tcc.classList.toggle('show', show);
+    // lets the stylesheet switch to the phone layouts
+    document.body.classList.toggle('touch', show);
     const board = document.getElementById('board');
     // Tapping the touch buttons would otherwise blur the board and show "OUT OF FOCUS"
     if (board && show) board.onblur = (e => e.preventDefault());

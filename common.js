@@ -329,20 +329,34 @@ function set_event_listener(){
     Controls.bind_options()
     setup_touch_controls();
 
-    const touch = (id, type, func) => document.getElementById(id).addEventListener(type, e => {
+    // preventDefault stops Android's long-press menu / text selection and the
+    // emulated mouse click; that needs a non-passive listener
+    const press = (id, func) => document.getElementById(id).addEventListener('touchstart', e => {
+        e.preventDefault()
         if (!Controls.can_play()) return
         func()
         render()
-    })
-    touch('tc-dr', 'touchstart', () => (game.rotate_180(), Controls.after_rotate()))
-    touch('tc-h', 'touchstart', () => game.hold())
-    touch('tc-hd', 'touchstart', () => Controls.harddrop())
-    touch('tc-l', 'touchstart', () => press_left(true))
-    touch('tc-l', 'touchend', () => release_left(true))
-    touch('tc-r', 'touchstart', () => press_right(true))
-    touch('tc-r', 'touchend', () => release_right(true))
-    touch('tc-d', 'touchstart', () => press_down(true))
-    touch('tc-d', 'touchend', () => release_down(true))
-    touch('tc-cc', 'touchstart', () => (game.rotate_anticlockwise(), Controls.after_rotate()))
-    touch('tc-c', 'touchstart', () => (game.rotate_clockwise(), Controls.after_rotate()))
+    }, {passive: false})
+    // a held button is released on touchend, and also on touchcancel (the system
+    // took over the touch), otherwise the piece would keep moving
+    const release = (id, func) => {
+        for (var type of ['touchend', 'touchcancel'])
+            document.getElementById(id).addEventListener(type, e => {
+                e.preventDefault()
+                func()
+                render()
+            }, {passive: false})
+    }
+    press('tc-dr', () => (game.rotate_180(), Controls.after_rotate()))
+    press('tc-h', () => game.hold())
+    press('tc-hd', () => Controls.harddrop())
+    press('tc-l', () => press_left(true))
+    release('tc-l', () => release_left(true))
+    press('tc-r', () => press_right(true))
+    release('tc-r', () => release_right(true))
+    press('tc-d', () => press_down(true))
+    release('tc-d', () => release_down(true))
+    press('tc-cc', () => (game.rotate_anticlockwise(), Controls.after_rotate()))
+    press('tc-c', () => (game.rotate_clockwise(), Controls.after_rotate()))
+    document.getElementById('tcc').addEventListener('contextmenu', e => e.preventDefault())
 }
