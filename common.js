@@ -325,7 +325,7 @@ function set_event_listener(){
             document.activeElement.value = e.code
             save_setting()
         }
-        if (!is_typing() && func != undefined && Controls.can_play()){
+        if (!is_typing() && func != undefined && Controls.can_play() && !answer_replay.running){
             board.focus()
             func()
         }
@@ -358,7 +358,7 @@ function set_event_listener(){
     // emulated mouse click; that needs a non-passive listener
     const press = (id, func) => document.getElementById(id).addEventListener('touchstart', e => {
         e.preventDefault()
-        if (!Controls.can_play()) return
+        if (!Controls.can_play() || answer_replay.running) return
         func()
         render()
     }, {passive: false})
@@ -494,4 +494,102 @@ function undo(){
 function harddrop_action(){
     take_snapshot()
     Controls.harddrop()
+}
+
+/*
+Show Answer, step by step, for the generated modes.
+Record.board[k] is the solution after k+1 pieces were carved out of the finished
+map: piece letters are pieces still to place, full rows are garbage they clear.
+Replaying it backwards gives the player's order.
+*/
+var answer_replay = {timers: [], running: false}
+
+function stop_replay(){
+    answer_replay.timers.forEach(clearTimeout)
+    answer_replay = {timers: [], running: false}
+}
+
+// The cells of the piece carved going from `before` to `after`. `after` is `before` with
+// full garbage rows inserted, then some garbage cells turned into the new piece. Line the
+// rows up (dynamic programming) so that as few cells as possible count as new: rows match
+// when they are equal except for garbage that became piece; unmatched rows must be full.
+function carved_cells(before, after){
+    var is_piece = c => !'NG'.includes(c)
+    var match_cost = (a, b) => {   // new-piece cells if after-row a is before-row b, or -1
+        var cost = 0
+        for (var col=0; col<10; col++){
+            if (a[col] == b[col]) continue
+            if (is_piece(a[col]) && b[col] == 'G') cost++
+            else return -1
+        }
+        return cost
+    }
+    var INF = 1e9, n = 20
+    var f = Array.from({length: n+1}, () => Array(n+1).fill(INF))
+    var how = Array.from({length: n+1}, () => Array(n+1).fill(null))
+    f[0][0] = 0
+    for (var i=0; i<n; i++)
+        for (var j=0; j<=n; j++){
+            if (f[i][j] == INF) continue
+            var row = after[i]
+            if (j < n){
+                var c = match_cost(row, before[j])
+                if (c >= 0 && f[i][j] + c < f[i+1][j+1]){ f[i+1][j+1] = f[i][j] + c; how[i+1][j+1] = 'match' }
+            }
+            if (row.every(c => c != 'N')){
+                var c2 = row.filter(is_piece).length
+                if (f[i][j] + c2 < f[i+1][j]){ f[i+1][j] = f[i][j] + c2; how[i+1][j] = 'insert' }
+            }
+        }
+    // rows of `before` pushed off the top must have been empty
+    var best = -1
+    for (var j=n; j>=0; j--){
+        if (before.slice(j).some(r => r.some(c => c != 'N'))) break
+        if (f[n][j] < INF && (best < 0 || f[n][j] < f[n][best])) best = j
+    }
+    if (best < 0) return []
+    var cells = [], i = n, j = best
+    while (i > 0){
+        var row = after[i-1]
+        if (how[i][j] == 'match'){
+            for (var col=0; col<10; col++)
+                if (is_piece(row[col]) && before[j-1][col] == 'G') cells.push([col, i-1])
+            j--
+        }
+        else for (var col=0; col<10; col++) if (is_piece(row[col])) cells.push([col, i-1])
+        i--
+    }
+    return cells
+}
+
+// the board the player sees: pieces still to place are empty
+const strip_pieces = b => b.map(row => row.map(c => c == 'G'? 'G': 'N'))
+
+function replay_answer(){
+    if (answer_replay.running || !Record.board || Record.board.length == 0) return
+    stop_replay()
+    answer_replay.running = true
+    var boards = Record.board
+    var frames = []
+    for (var k=boards.length-1; k>=0; k--){
+        var before = k > 0? boards[k-1]: Record.finished_map
+        var frame = strip_pieces(boards[k])
+        for (var [col, row] of carved_cells(before, boards[k])) frame[row][col] = boards[k][row][col]
+        frames.push(frame)
+    }
+    frames.push(strip_pieces(Record.finished_map))
+    var replay_game = game
+    var show = frame => {
+        // a new map or retry made a new game: stop replaying over it
+        if (game !== replay_game) return stop_replay()
+        game.board = clone(frame)
+        game.tetramino = 'G'   // hide the falling piece while replaying
+        render()
+    }
+    frames.forEach((frame, i) => answer_replay.timers.push(setTimeout(() => show(frame), 900 * i)))
+    answer_replay.timers.push(setTimeout(() => {
+        var same_game = game === replay_game
+        stop_replay()
+        if (same_game) retry()
+    }, 900 * frames.length + 1200))
 }
