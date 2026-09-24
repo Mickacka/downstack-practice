@@ -10,7 +10,7 @@ This is a fork of [himitsuconfidential/downstack-practice](https://github.com/hi
 
 | Page | What you practise |
 | --- | --- |
-| [Downstack Practice](https://mickacka.github.io/downstack-practice/) | Combo, combo into PC / quad / TSD, and pure downstack maps |
+| [Downstack Practice](https://mickacka.github.io/downstack-practice/downstack.html) | Combo, combo into PC / quad / TSD, and pure downstack maps |
 | [T-Spin Challenge](https://mickacka.github.io/downstack-practice/tspin-challenge.html) | Solve as many T-spin puzzles as you can and get on the leaderboard (try to reach the top 50 :>) |
 | [T-Spin Practice](https://mickacka.github.io/downstack-practice/tspin-practice.html) | T-spin setups |
 | [Advanced T-Spin Practice](https://mickacka.github.io/downstack-practice/advance-tspin-practice.html) | Harder T-spin setups |

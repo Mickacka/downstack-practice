@@ -12,23 +12,21 @@
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <title>Tetris Downstack Puzzle</title>
+    <title>Tetris Practice</title>
+    <meta name="description" content="Practise Tetris downstacking, T-spins, all-spins, quads and perfect clears with generated puzzles.">
     <link rel="icon" href="/downstack-practice/favicon.svg" type="image/svg+xml">
     <link rel="stylesheet" href="style.css">
     <script src="style-scripts.js"></script>
-    
 </head>
-<body>
+<body class="home">
     <div class="banner">
-        <h1 hidden> Downstack Puzzle</h1>
-        <a class="title" href="/downstack-practice/"> Tetris Downstack Puzzle - Practice</a>
-        <button type="button" class="setting_icon" onclick="toggleSettings()" aria-label="Settings" title="Settings">⚙️</button>
+        <h1 hidden>Tetris Practice</h1>
+        <a class="title" href="/downstack-practice/">Tetris Practice</a>
         <div class="nav">
             <ul class="dropdown">
-                <li><a href="javascript:void(0);" onclick="toggleSettings()">Settings</a></li>
+                <li><a href="/downstack-practice/">Home</a></li>
                 <li><a href="/downstack-practice/tspin-challenge.html">T-Spin Challenge</a></li>
-                <li><a href="/downstack-practice/">Downstack Practice</a></li>
+                <li><a href="/downstack-practice/downstack.html">Downstack Practice</a></li>
                 <li><a href="/downstack-practice/pc-practice.html">Mid-game PC Practice</a></li>
                 <li><a href="/downstack-practice/usermode.html">Usermode (Includes PC Practice)</a></li>
                 <li><a href="/downstack-practice/tspin-practice.html">T-Spin Practice</a></li>
@@ -45,92 +43,114 @@
         </button>
     </div>
 
-    <div id="setting">
-        <div class="settings-container">
-            <h1>Settings</h1>
-            <a class="close-button" href="javascript:void(0);" onclick="closeSettings()" aria-label="Close settings"></a>
-            <table>
-                <tbody>
-                <tr><td class="setting-label">Move Left</td><td><input class='keybind' id="input1" type="text" size="7" value="" readOnly></td></tr>
-                <tr><td class="setting-label">Move Right</td><td><input class='keybind' id="input2" type="text" size="7" value="" readOnly></td></tr>
-                <tr><td class="setting-label">Soft Drop</td><td><input class='keybind' id="input3" type="text" size="7" value="" readOnly></td></tr>
-                <tr><td class="setting-label">Hard Drop</td><td><input class='keybind' id="input4" type="text" size="7" value="" readOnly></td></tr>
-                <tr><td class="setting-label">Rotate Left</td><td><input class='keybind' id="input5" type="text" size="7" value="" readOnly></td></tr>
-                <tr><td class="setting-label">Rotate Right</td><td><input class='keybind' id="input6" type="text" size="7" value="" readOnly></td></tr>
-                <tr><td class="setting-label">Rotate 180</td><td><input class='keybind' id="input7" type="text" size="7" value="" readOnly></td></tr>
-                <tr><td class="setting-label">Hold</td><td><input class='keybind' id="input8" type="text" size="7" value="" readOnly></td></tr>
-                <tr><td class="setting-label">Retry</td><td><input class='keybind' id="input9" type="text" size="7" value="" readOnly></td></tr>
-                <tr><td class="setting-label">Show Answer</td><td><input class='keybind' id="input10" type="text" size="7" value="" readOnly></td></tr>
-                <tr><td class="setting-label">Undo</td><td><input class='keybind' id="input_undo" type="text" size="7" value="" readOnly></td></tr>
-                <tr><td colspan="2"><span id="key_conflict" role="alert"></span><button type="button" class="mini_button" onclick="reset_keys()">Reset keys to defaults</button></td></tr>
-                <tr><td class="setting-label">DAS (1 to 200)</td><td><input id="input11" type="number" min="1" max='200'></td></tr>
-                <tr><td class="setting-label">ARR (0 to 100)</td><td><input id="input12" type="number" min="0" max='100'></td></tr>
-                <tr><td class="setting-label">Generate New Map on Win</td><td><input id="input12.1" type="checkbox" min="0" max='100'></td></tr>
-                <tr><td class="setting-label">Touch Controls</td><td><select id="touch_controls"><option value="auto">Auto</option><option value="on">On</option><option value="off">Off</option></select></td></tr>
-                
-                </tbody>
-            </table>
-        </div>
-    </div>
+    <main class="home-main">
+        <p class="home-intro">Generated puzzles to practise one skill at a time. Pick a mode:</p>
+        <div class="mode-grid" id="mode-grid"></div>
+        <p class="home-foot">
+            Settings (keys, DAS/ARR, touch controls) are in the ⚙️ menu on every practice page and shared between them.
+            <a href="https://github.com/Mickacka/downstack-practice">Source on GitHub</a> ·
+            fork of <a href="https://github.com/himitsuconfidential/downstack-practice">himitsuconfidential/downstack-practice</a>
+        </p>
+    </main>
 
-    <div class="flex">
-        <div id="leftpanel" class="panel">
-            
-            <h2>Winning Requirement</h2>
-            <div id="winning_requirement">
-                <p id="winning_requirement1">6 Combo</p>
-                <p id="winning_requirement2">All Clear at the end</p>
-            </div>
+    <script>
+    // One card per mode. `board` is a small picture, top row first (. empty, G garbage,
+    // IJLOSTZ pieces); `spin` lists the cells of the piece to play, counted from the bottom.
+    const MODES = [
+        {page: 'downstack.html', name: 'Downstack Practice', tag: 'Downstack',
+         text: 'Clear the garbage with combos, then finish with a PC, quad or TSD.',
+         board: ['..........', '....TTT...', 'GGG..T.GGG', 'GGGG.GGGGG', 'GGG.GGGGGG', 'GGGGG.GGGG']},
+        {page: 'tspin-practice.html', name: 'T-Spin Practice', tag: 'T-Spin',
+         text: 'Build and clear T-spin doubles, alone or followed by a quad.',
+         board: ['..........', '..........', 'GGGG......', 'GGG...GGGG', 'GGGG.GGGGG', 'GGGGGGGG.G'], spin: [[3,2],[4,2],[5,2],[4,1]], color: 'T'},
+        {page: 'advance-tspin-practice.html', name: 'Advanced T-Spin', tag: 'T-Spin',
+         text: 'C-spins, DT cannons, fractals and STSDs: chained T-spins.',
+         board: ['..........', 'GGG.......', 'GG....GGGG', 'GGG..GGGGG', 'GGG.GGGGGG', 'GGG..GGGGG']},
+        {page: 'allspin-practice.html', name: 'All-Spin Practice', tag: 'New',
+         text: 'Build an S, Z, L, J, I or T spin setup in a flat well, then spin in.',
+         board: ['GGIIII..GG', 'GGJJZZ..GG', 'GGJOOZZ.GG', 'GGJOO...GG', 'GGGG.GGGGG', 'GGGG.GGGGG'], spin: [[5,2],[6,2],[7,2],[7,3]], color: 'L'},
+        {page: 'quad-practice.html', name: 'Quad Practice', tag: 'Quad',
+         text: 'Stack cleanly and clear four lines at once.',
+         board: ['..........', 'GGGGGGGG..', 'GGGGGGGGG.', 'GGGGGGGGG.', 'GGGGGGGGG.', 'GGGGGGGGG.'], spin: [[9,0],[9,1],[9,2],[9,3]], color: 'I'},
+        {page: 'upstack-practice.html', name: 'Upstack Practice', tag: 'Stacking',
+         text: 'Keep a clean stack while you build for quads and TSDs.',
+         board: ['..........', '..........', 'LL......SS', 'LJJ.ZZ.SSO', 'LJOOTZZIOO', 'GGGGGGGGG.']},
+        {page: 'pc-practice.html', name: 'Mid-game PC', tag: 'Perfect clear',
+         text: 'Find the perfect clear from a mid-game board.',
+         board: ['..........', '..........', 'GGG....GGG', 'GGGG..GGGG', 'GGGGG.GGGG', 'GGGGGGG..G']},
+        {page: 'usermode.html', name: 'Usermode', tag: 'Custom',
+         text: 'Your own board and queue, with PC and sfinder help. Shareable by URL.',
+         board: ['..........', '..........', 'LLL.......', 'SSLOO.....', 'SSTJOO....', 'ZZTTJJJ...']},
+        {page: 'tspin-challenge.html', name: 'T-Spin Challenge', tag: 'Timed',
+         text: 'Solve as many T-spin puzzles as you can against the clock.',
+         board: ['..........', '....T.....', '...TTT....', 'GGG...GGGG', 'GGGG.GGGGG', 'GGGGG.GGGG']},
+        {page: 'learnfromai.html', name: 'Learn from AI', tag: 'Levels',
+         text: 'Puzzles taken from the ZZZTOJ bot, level by level.',
+         board: ['..........', '..........', 'GGG....GGG', 'GGGG..GGGG', 'G.GGGGGGGG', 'G.GGGGGGGG']},
+        {page: 'library.html', name: 'PC Setup Library', tag: 'Reference',
+         text: 'Ready-made perfect clear openers to practise in Usermode.',
+         board: ['..........', '..........', 'LLL.....SS', 'LOO....SSJ', 'IOO...ZZ.J', 'III..ZZ.JJ']},
+    ]
+    const COLORS = {Z: 'red', L: 'orange', O: 'yellow', S: 'lime', I: 'cyan', J: 'blue', T: 'magenta', G: 'silver'}
 
-            <button class="game_button orange" onclick="retry(); board.focus()">Retry</button>
-            <button class="game_button" onclick="undo(); board.focus()" title="Take back the last piece (U)">Undo</button>
-            <button class="game_button" onclick="share_link()" title="Copy a link to this exact puzzle">Copy puzzle link</button>
-            <button class="game_button red" onclick="show_ans(); board.focus()">Show Answer</button>
-            <button id="hint_button" class="game_button green" onclick="show_hint(); board.focus()">Show Hint</button>
+    // solved / tries for a page, summed over its modes (stats saved by the practice pages)
+    function page_stats(page){
+        var solved = 0, tries = 0
+        try{
+            for (var i=0; i<localStorage.length; i++){
+                var key = localStorage.key(i)
+                if (!key.startsWith('stats:' + page + ':')) continue
+                var stats = JSON.parse(localStorage.getItem(key))
+                solved += stats.solved || 0
+                tries += stats.tries || 0
+            }
+        }
+        catch(err){}
+        return {solved: solved, tries: tries}
+    }
 
-        </div>
-        <div id="tetris">
-            <canvas id="board" tabindex='1' width="520" height="610" z-index="4"></canvas>
-        </div>
+    function draw_preview(canvas, mode){
+        var cell = 12, rows = mode.board.length
+        var dpr = Math.min(window.devicePixelRatio || 1, 3)
+        canvas.width = 10 * cell * dpr
+        canvas.height = rows * cell * dpr
+        canvas.style.width = 10 * cell + 'px'
+        canvas.style.height = rows * cell + 'px'
+        var ctx = canvas.getContext('2d')
+        ctx.scale(dpr, dpr)
+        ctx.fillStyle = '#000'
+        ctx.fillRect(0, 0, 10 * cell, rows * cell)
+        var paint = (col, row, color, alpha) => {
+            ctx.globalAlpha = alpha
+            ctx.fillStyle = color
+            ctx.fillRect(col * cell + 1, row * cell + 1, cell - 2, cell - 2)
+            ctx.globalAlpha = 1
+        }
+        mode.board.forEach((line, row) => [...line].forEach((c, col) => {
+            if (c != '.') paint(col, row, COLORS[c], c == 'G'? 0.55: 1)
+        }))
+        // the piece to play: `spin` cells are given bottom-up like the game board
+        for (var [col, y] of mode.spin || []) paint(col, rows - 1 - y, COLORS[mode.color], 1)
+    }
 
-        <div id="rightpanel" class="panel">
-            
-            <h2>Modes</h2>
-            <button class="game_button blue" onclick="play_a_combopc_map(); board.focus()">Combo into PC</button>
-            <button class="game_button blue" onclick="play_a_combo_map(); board.focus()">Combo</button>
-            <button class="game_button cyan" onclick="play_a_comboquad_map(); board.focus()">Combo into Quad</button>
-            <button class="game_button purple" onclick="play_a_combotsd_map(); board.focus()">Combo into TSD</button>
-            <button class="game_button red" onclick="play_a_downstack_map(); board.focus()">Downstack !NEW</button>
-            <button id="game_button" class="game_button yellow" onclick="toggleOptions()">Hide Options</button>
-            <div id="gamemode" class="open">
-                <table>
-                    <tbody>
-                        <tr><td><input id="input13" type="number" min="2" max='7'></td><td title="How many pieces the puzzle uses (fewer is easier)">Pieces in the queue</td></tr>
-                        <tr><td><input id="input14" type="checkbox" checked="checked"></td><td title="The solution clears garbage lines along the way">Line clears while solving (skims)</td></tr>
-                        <tr><td><input id="input15" type="checkbox" checked="checked"></td><td title="The starting stack may have covered holes">Allow holes in the stack</td></tr>
-                        <tr><td><input id="input16" type="checkbox" checked="checked"></td><td title="Each piece type appears at most once in the queue">No repeated pieces</td></tr>
-                        <tr><td><input id="input17" type="checkbox" checked="checked"></td><td title="Keep the starting stack surface smooth">Flatter stack</td></tr>
-                    </tbody>
-                </table>
-            </div>
-
-        </div>
-    </div>
-
-    <div id="tcc" class="tc">
-        <span id="tc-dr">↺</span>
-        <span id="tc-h">⇄</span>
-        <span id="tc-hd">⤓</span>
-        <span id="tc-l">←</span>
-        <span id="tc-r">→</span>
-        <span id="tc-d">↓</span>
-        <span id="tc-cc">↰</span>
-        <span id="tc-c">↱</span>
-    </div>
-    <script src="header.js"></script>
-    <script src="common.js"></script>
-    <script src="mapgen.js"></script>
-    <script src="script.js"></script>
-
+    var grid = document.getElementById('mode-grid')
+    for (var mode of MODES){
+        var card = document.createElement('a')
+        card.className = 'mode-card'
+        card.href = mode.page
+        var stats = page_stats(mode.page)
+        card.innerHTML =
+            '<canvas class="mode-preview" aria-hidden="true"></canvas>' +
+            '<span class="mode-text"><span class="mode-tag"></span><strong class="mode-name"></strong>' +
+            '<span class="mode-desc"></span>' +
+            (stats.tries? '<span class="mode-stats"></span>': '') + '</span>'
+        card.querySelector('.mode-tag').textContent = mode.tag
+        card.querySelector('.mode-name').textContent = mode.name
+        card.querySelector('.mode-desc').textContent = mode.text
+        if (stats.tries) card.querySelector('.mode-stats').textContent = 'Solved ' + stats.solved + ' of ' + stats.tries
+        draw_preview(card.querySelector('canvas'), mode)
+        grid.appendChild(card)
+    }
+    </script>
 </body>
 </html>

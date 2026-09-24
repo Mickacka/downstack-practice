@@ -13,7 +13,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <title>Learn Tetris skill from ZZZTOJ(AI)</title>
+    <title>Tetris Downstack Puzzle</title>
     <link rel="icon" href="/downstack-practice/favicon.svg" type="image/svg+xml">
     <link rel="stylesheet" href="style.css">
     <script src="style-scripts.js"></script>
@@ -21,8 +21,8 @@
 </head>
 <body>
     <div class="banner">
-        <h1 hidden> PC Puzzle</h1>
-        <a class="title" href="/downstack-practice/learnfromai.html"> Learn from AI (ZZZTOJ) - Practice</a>
+        <h1 hidden> Downstack Puzzle</h1>
+        <a class="title" href="/downstack-practice/"> Tetris Downstack Puzzle - Practice</a>
         <button type="button" class="setting_icon" onclick="toggleSettings()" aria-label="Settings" title="Settings">⚙️</button>
         <div class="nav">
             <ul class="dropdown">
@@ -76,18 +76,18 @@
 
     <div class="flex">
         <div id="leftpanel" class="panel">
-
+            
             <h2>Winning Requirement</h2>
             <div id="winning_requirement">
-                <p id="winning_requirement1"></p>
-                <p id="winning_requirement2"></p>
-                <p id="winning_requirement3"></p>
-                <p id="winning_requirement4"></p>
-
+                <p id="winning_requirement1">6 Combo</p>
+                <p id="winning_requirement2">All Clear at the end</p>
             </div>
 
             <button class="game_button orange" onclick="retry(); board.focus()">Retry</button>
             <button class="game_button" onclick="undo(); board.focus()" title="Take back the last piece (U)">Undo</button>
+            <button class="game_button" onclick="share_link()" title="Copy a link to this exact puzzle">Copy puzzle link</button>
+            <button class="game_button red" onclick="show_ans(); board.focus()">Show Answer</button>
+            <button id="hint_button" class="game_button green" onclick="show_hint(); board.focus()">Show Hint</button>
 
         </div>
         <div id="tetris">
@@ -96,16 +96,26 @@
 
         <div id="rightpanel" class="panel">
             
-            <h2>Select level</h2>
-            <div id="gamemode" class="open"> 
-                <h3 id='input13'>Loading levels</h3>
-                <span id="field_error"></span>
-            <div id="scrollable" >
-
+            <h2>Modes</h2>
+            <button class="game_button blue" onclick="play_a_combopc_map(); board.focus()">Combo into PC</button>
+            <button class="game_button blue" onclick="play_a_combo_map(); board.focus()">Combo</button>
+            <button class="game_button cyan" onclick="play_a_comboquad_map(); board.focus()">Combo into Quad</button>
+            <button class="game_button purple" onclick="play_a_combotsd_map(); board.focus()">Combo into TSD</button>
+            <button class="game_button red" onclick="play_a_downstack_map(); board.focus()">Downstack !NEW</button>
+            <button id="game_button" class="game_button yellow" onclick="toggleOptions()">Hide Options</button>
+            <div id="gamemode" class="open">
+                <table>
+                    <tbody>
+                        <tr><td><input id="input13" type="number" min="2" max='7'></td><td title="How many pieces the puzzle uses (fewer is easier)">Pieces in the queue</td></tr>
+                        <tr><td><input id="input14" type="checkbox" checked="checked"></td><td title="The solution clears garbage lines along the way">Line clears while solving (skims)</td></tr>
+                        <tr><td><input id="input15" type="checkbox" checked="checked"></td><td title="The starting stack may have covered holes">Allow holes in the stack</td></tr>
+                        <tr><td><input id="input16" type="checkbox" checked="checked"></td><td title="Each piece type appears at most once in the queue">No repeated pieces</td></tr>
+                        <tr><td><input id="input17" type="checkbox" checked="checked"></td><td title="Keep the starting stack surface smooth">Flatter stack</td></tr>
+                    </tbody>
+                </table>
             </div>
 
         </div>
-    </div>
     </div>
 
     <div id="tcc" class="tc">
@@ -120,7 +130,8 @@
     </div>
     <script src="header.js"></script>
     <script src="common.js"></script>
-    <script src="script8.js"></script>
+    <script src="mapgen.js"></script>
+    <script src="script.js"></script>
 
 </body>
 </html>

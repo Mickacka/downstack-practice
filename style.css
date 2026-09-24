@@ -667,3 +667,52 @@ html.portrait-zoom #scrollable { height: 18rem; }
 #setting input.keybind.conflict { outline: 0.2rem solid rgb(235, 79, 101); }
 #key_conflict { display: block; color: rgb(235, 79, 101); margin-bottom: 0.4rem; }
 #setting .mini_button { cursor: pointer; }
+
+/* ---------- home page ---------- */
+.home-main {
+    max-width: 68rem;
+    margin: 0 auto;
+    padding: 1.5rem 1rem 3rem;
+    color: #dcddde;
+}
+.home-intro { font-size: 1.2rem; margin: 0 0 1.2rem; }
+.mode-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(19rem, 1fr));
+    gap: 1rem;
+}
+.mode-card {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    padding: 1rem;
+    background: #2a2c30;
+    border: 0.15rem solid #44474f;
+    border-radius: 0.8rem;
+    color: #dcddde;
+    transition: border-color 150ms ease, transform 150ms ease;
+}
+.mode-card:hover, .mode-card:focus-visible {
+    border-color: rgb(66, 175, 225);
+    transform: translateY(-2px);
+    outline: none;
+}
+.mode-preview { flex: none; border-radius: 0.2rem; }
+.mode-text { display: flex; flex-direction: column; gap: 0.25rem; min-width: 0; }
+.mode-tag {
+    align-self: flex-start;
+    font-size: 0.75rem;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: rgb(246, 208, 60);
+}
+.mode-name { font-size: 1.15rem; }
+.mode-desc { font-size: 0.9rem; color: #b5b7bb; line-height: 1.3; }
+.mode-stats { font-size: 0.85rem; color: rgb(81, 184, 77); font-weight: bold; }
+.home-foot { margin-top: 2rem; font-size: 0.9rem; color: #9a9ca1; line-height: 1.5; }
+.home-foot a { color: rgb(66, 175, 225); }
+@media (max-width: 480px) {
+    .banner .title { font-size: 1.3rem; }
+    .mode-card { padding: 0.8rem; gap: 0.8rem; }
+}
