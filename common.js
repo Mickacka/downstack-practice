@@ -574,13 +574,17 @@ function replay_answer(){
     answer_replay.running = true
     var boards = Record.board
     var frames = []
+    // play it forward: each frame shows the next piece where it goes; placed pieces keep
+    // their colour and full rows clear, exactly as in the game
+    var current = strip_pieces(boards[boards.length-1])
     for (var k=boards.length-1; k>=0; k--){
         var before = k > 0? boards[k-1]: Record.finished_map
-        var frame = strip_pieces(boards[k])
-        for (var [col, row] of carved_cells(before, boards[k])) frame[row][col] = boards[k][row][col]
-        frames.push(frame)
+        for (var [col, row] of carved_cells(before, boards[k])) current[row][col] = boards[k][row][col]
+        frames.push(clone(current))
+        current = current.filter(row => row.some(c => c == 'N'))
+        while (current.length < 20) current.push(Array(10).fill('N'))
     }
-    frames.push(strip_pieces(Record.finished_map))
+    frames.push(current)
     var replay_game = game
     var show = frame => {
         // a new map or retry made a new game: stop replaying over it
