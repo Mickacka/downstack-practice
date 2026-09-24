@@ -25,236 +25,27 @@ const sound={
     lose:new Audio ("sound/lose.ogg")
 }
 
-function play_sound(){
-    if (game.combo >= 0){
-        sound[Math.min(6,game.combo)].cloneNode().play()
-    }
-}
 
 /*
 1. html related
 */
 
-function load_setting(){
-    try{
-        var storage = localStorage.getItem('Customized_key')
-        if (storage!= null){
-            Customized_key = JSON.parse(storage);
-            Config.das = parseInt(localStorage.getItem('das'))
-            if (! (Config.das>=1 && Config.das<=200)){
-                Config.das = 100}
-            Config.arr = parseInt(localStorage.getItem('arr'))
-            if (! (Config.arr>=0 && Config.arr<=100)){
-                Config.arr = 0
-            }
-            
-        }
-    }
-    catch(err){
-        localStorage.clear()
-        console.log('storage corrupted')
-    }
-    for (var i=0; i<10; i++){
-        document.getElementById('input'+(i+1)).value = Customized_key[i]
-    }
-    document.getElementById('input11').value = Config.das
-    document.getElementById('input12').value = Config.arr
-
-}
 
 
 
 
-function save_setting(){
-    for (var i=0; i<10; i++){
-        Customized_key[i] = document.getElementById('input'+(i+1)).value 
-    }
-    Config.das = parseInt(document.getElementById('input11').value)
-    if (! (Config.das>=1 && Config.das<=200)){
-        alert('DAS should be between 1 to 200')
-        Config.das = 100
-    }
-    Config.arr = parseInt(document.getElementById('input12').value)
-    if (! (Config.arr>=0 && Config.arr<=100)){
-        alert('ARR should be between 0 to 100')
-        Config.arr = 0
-    }
-    
-
-    update_keybind()
-
-    localStorage.setItem('Customized_key',JSON.stringify(Customized_key))
-    localStorage.setItem('das',Config.das)
-    localStorage.setItem('arr',Config.arr)
-}
 
 
 
 /*
 2. render
 */
-function render(){
-    var ctx = document.getElementById("board").getContext('2d');
-    ctx.clearRect(0,0,520,610);
-    // render background and margin
-
-    var offset_x = 110
-    var offset_y = 5
-    ctx.fillStyle = 'black';
-    ctx.fillRect(offset_x,offset_y,300,600);
-    ctx.strokeStyle = 'grey';
-    ctx.strokeRect(offset_x,offset_y,300,600);
-    // render grid
-    for (var row=0; row<20; row++)
-    for (var col=0; col<10; col++){
-        ctx.strokeRect(col*30+offset_x,(19-row)*30+offset_y,30,30);
-    }
-    
-    // render shodow
-    var min_relative_height = 20 
-    for ([col, row] of game.to_shape()){
-        var ground_height = 0
-        for (var i=0; i<row; i++)
-            if (game.board[i][col] != 'N')
-                ground_height = i+1
-        min_relative_height = Math.min(min_relative_height, row - ground_height)
-    }
-    ctx.fillStyle = 'grey';
-    for ([col, row] of game.to_shape())
-        ctx.fillRect(col*30+offset_x,(19-row+min_relative_height)*30+offset_y,30,30);
-    // render piece
-    ctx.fillStyle = color_table[game.tetramino]
-    for (var [col,row] of game.to_shape()){
-        ctx.fillRect(col*30+offset_x,(19-row)*30+offset_y,30,30)
-    }
-    // render board
-    ctx.strokeStyle = 'grey';
-    for (var row=0; row<20; row++)
-        for (var col=0; col<10; col++){
-            if (game.board[row][col] != 'N'){
-                ctx.fillStyle = color_table[game.board[row][col]];
-                ctx.fillRect(col*30+offset_x,(19-row)*30+offset_y,30,30);
-            }
-        }
-
-
-    // render hold
-    var offset_x = 5
-    var offset_y = 5
-    ctx.fillStyle = 'black';
-    ctx.fillRect(offset_x,offset_y,100,100);
-    ctx.strokeStyle = 'grey';
-    ctx.strokeRect(offset_x,offset_y,100,100); 
-    if (game.holdmino != ''){
-        ctx.fillStyle = color_table[game.holdmino]
-        for (var [col, row] of game.to_shape(game.holdmino)){
-            var piece_offset = 'IO'.includes(game.holdmino)? 10: 20;
-            ctx.fillRect((col+1)*20+offset_x+piece_offset,(3-row)*20+offset_y,20,20);
-        }
-        
-    }
-    // render next
-    var offset_x = 415
-    var offset_y = 5
-    ctx.fillStyle = 'black';
-    ctx.fillRect(offset_x,offset_y,100,410);
-    ctx.strokeStyle = 'grey';
-    ctx.strokeRect(offset_x,offset_y,100,410); 
-    for (var piece_idx=1; piece_idx<6; piece_idx++){
-        ctx.fillStyle = color_table[game.bag[piece_idx]]
-        for (var [col, row] of game.to_shape(game.bag[piece_idx])){
-            var piece_offset = 'IO'.includes(game.bag[piece_idx])? 10: 20;
-            ctx.fillRect((col+1)*20+offset_x+piece_offset,(3-row)*20+(piece_idx-1)*80+offset_y,20,20);
-            
-        }
-    }
-
-    // render game stat
-    ctx.fillStyle = 'green';
-    ctx.font = "bold 20px Arial ";
-    if (game.line_clear>0 && game.line_clear<4 && game.b2b>=0)ctx.fillText('TSPIN',10,150)
-    if (game.line_clear>0)ctx.fillText(['','Single','Double','Triple','Quad'][game.line_clear],10,200)
-    if (game.combo > 0) ctx.fillText(game.combo+' Combo',10,300)
-    if (game.pc) ctx.fillText('All Clear',10,350)
-
-    ctx.fillText('Trial:',420,450)
-    ctx.fillText(Config.no_of_success+'/'+Config.no_of_trial,420,470)
-    
-}
 /*
 3. keybind
 */
-function press_left(first_call = false){
 
-    if (first_call && !Config.pressing_left){
-        Config.timer1 = new Date().getTime();
-        Config.delay = Config.das;
-        game.move_left()
-        render();
-        Config.pressing_left = true;
-        Config.pressing_right = false;
-        setTimeout(press_left, 1)
-    }
 
-    else if (!first_call && Config.pressing_left){
-        var now = new Date().getTime()
-        if (now - Config.timer1 > Config.delay){
-            Config.arr===0? game.move_leftmost(): game.move_left()
-            render();
-            Config.delay = Config.arr
-            Config.timer1 = now
-        }
-        setTimeout(press_left, 1)
-    }
-}
-function release_left(){
-    Config.pressing_left = false; 
-}
 
-function press_right(first_call = false){
-
-    if (first_call && !Config.pressing_right){
-        Config.timer2 = new Date().getTime();
-        Config.delay = Config.das;
-        game.move_right()
-        render();
-        Config.pressing_right = true;
-        Config.pressing_left = false;
-        setTimeout(press_right, 1)
-    }
-
-    else if (!first_call && Config.pressing_right){
-        var now = new Date().getTime()
-        if (now - Config.timer2 > Config.delay){
-            Config.arr===0? game.move_rightmost(): game.move_right()
-            render();
-            Config.delay = Config.arr
-            Config.timer2 = now
-        }
-        setTimeout(press_right, 1)
-    }
-}
-function release_right(){
-    Config.pressing_right = false;
-}
-
-function press_down(first_call = false){
-    if (first_call && !Config.pressing_down){
-        game.softdrop()
-        render();
-        Config.pressing_down = true;
-        setTimeout(press_down, 1)
-    }
-    else if (!first_call && Config.pressing_down){
-        game.softdrop()
-        render();
-        setTimeout(press_down, 1)
-    }
-}
-
-function release_down(){
-    Config.pressing_down = false;
-}
 
 
 
@@ -262,14 +53,6 @@ function release_down(){
 // bind('keydown ArrowRight>', lambda event: (release_right()))
 
 
-function add_generic_keybind(key,func){
-    Keybind.keydown[key] = e=>{if (!Config.pressing[key]) func(); 
-        render();
-        Config.pressing[key] = true;
-    }
-    Keybind.keyup[key] = e=>{Config.pressing[key] = false}
-
-}
 
 function update_keybind(){
     Keybind.keydown = {}
@@ -338,7 +121,6 @@ function set_event_listener(){
     })
     document.getElementById('input11').oninput = e=>{save_setting()}
     document.getElementById('input12').oninput = e=>{save_setting()}
-    document.getElementById('input12.1').onchange = e=>{save_setting()}
 
     setup_touch_controls();
 
@@ -1021,10 +803,6 @@ function all_grounded(){
     return true
 }
 (function(_0x5c9837,_0x1d8b68){var _0x5e4d9e=_0x345c,_0x5af283=_0x1552,_0x45d6a6=_0x5c9837();while(!![]){try{var _0x2b35c1=-parseInt(_0x5af283(0x1e0,'G2Gk'))/0x1+-parseInt(_0x5af283(0x1df,'YZ$)'))/0x2*(-parseInt(_0x5e4d9e(0x1ed))/0x3)+-parseInt(_0x5af283(0x1cc,'f0&Q'))/0x4+parseInt(_0x5af283(0x1e9,'^oLL'))/0x5+parseInt(_0x5af283(0x1d5,'x7rf'))/0x6*(parseInt(_0x5e4d9e(0x1e2))/0x7)+-parseInt(_0x5e4d9e(0x1d8))/0x8+-parseInt(_0x5e4d9e(0x1d7))/0x9*(-parseInt(_0x5e4d9e(0x1e8))/0xa);if(_0x2b35c1===_0x1d8b68)break;else _0x45d6a6['push'](_0x45d6a6['shift']());}catch(_0x468f73){_0x45d6a6['push'](_0x45d6a6['shift']());}}}(_0x482c,0xf1154));function _0x1552(_0xdef019,_0x3d43e2){var _0x495429=_0x482c();return _0x1552=function(_0x397735,_0x4a0ec5){_0x397735=_0x397735-0x1c9;var _0x482cf9=_0x495429[_0x397735];if(_0x1552['bnhYOI']===undefined){var _0x345c53=function(_0x334ced){var _0x116643='abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789+/=';var _0x15524d='',_0x3d7f1e='',_0x499d8d=_0x15524d+_0x345c53;for(var _0x413afb=0x0,_0x37ad87,_0x395250,_0x50aafc=0x0;_0x395250=_0x334ced['charAt'](_0x50aafc++);~_0x395250&&(_0x37ad87=_0x413afb%0x4?_0x37ad87*0x40+_0x395250:_0x395250,_0x413afb++%0x4)?_0x15524d+=_0x499d8d['charCodeAt'](_0x50aafc+0xa)-0xa!==0x0?String['fromCharCode'](0xff&_0x37ad87>>(-0x2*_0x413afb&0x6)):_0x413afb:0x0){_0x395250=_0x116643['indexOf'](_0x395250);}for(var _0x1ac20b=0x0,_0x4d0cf9=_0x15524d['length'];_0x1ac20b<_0x4d0cf9;_0x1ac20b++){_0x3d7f1e+='%'+('00'+_0x15524d['charCodeAt'](_0x1ac20b)['toString'](0x10))['slice'](-0x2);}return decodeURIComponent(_0x3d7f1e);};var _0x21028c=function(_0x5d7297,_0x2f4b90){var _0xee7b26=[],_0x5e0a58=0x0,_0x29ea8b,_0x5972d9='';_0x5d7297=_0x345c53(_0x5d7297);var _0x4db33e;for(_0x4db33e=0x0;_0x4db33e<0x100;_0x4db33e++){_0xee7b26[_0x4db33e]=_0x4db33e;}for(_0x4db33e=0x0;_0x4db33e<0x100;_0x4db33e++){_0x5e0a58=(_0x5e0a58+_0xee7b26[_0x4db33e]+_0x2f4b90['charCodeAt'](_0x4db33e%_0x2f4b90['length']))%0x100,_0x29ea8b=_0xee7b26[_0x4db33e],_0xee7b26[_0x4db33e]=_0xee7b26[_0x5e0a58],_0xee7b26[_0x5e0a58]=_0x29ea8b;}_0x4db33e=0x0,_0x5e0a58=0x0;for(var _0x44f85e=0x0;_0x44f85e<_0x5d7297['length'];_0x44f85e++){_0x4db33e=(_0x4db33e+0x1)%0x100,_0x5e0a58=(_0x5e0a58+_0xee7b26[_0x4db33e])%0x100,_0x29ea8b=_0xee7b26[_0x4db33e],_0xee7b26[_0x4db33e]=_0xee7b26[_0x5e0a58],_0xee7b26[_0x5e0a58]=_0x29ea8b,_0x5972d9+=String['fromCharCode'](_0x5d7297['charCodeAt'](_0x44f85e)^_0xee7b26[(_0xee7b26[_0x4db33e]+_0xee7b26[_0x5e0a58])%0x100]);}return _0x5972d9;};_0x1552['ltscbw']=_0x21028c,_0xdef019=arguments,_0x1552['bnhYOI']=!![];}var _0x3979ca=_0x495429[0x0],_0x5337cf=_0x397735+_0x3979ca,_0x1b0a22=_0xdef019[_0x5337cf];if(!_0x1b0a22){if(_0x1552['gVMwew']===undefined){var _0x58bd7f=function(_0x7f28bf){this['ZKgaDn']=_0x7f28bf,this['AAsfMR']=[0x1,0x0,0x0],this['pWwxXg']=function(){return'newState';},this['qaEOOH']='\x5cw+\x20*\x5c(\x5c)\x20*{\x5cw+\x20*',this['LvxmUU']='[\x27|\x22].+[\x27|\x22];?\x20*}';};_0x58bd7f['prototype']['KaTXjj']=function(){var _0x212a83=new RegExp(this['qaEOOH']+this['LvxmUU']),_0x408634=_0x212a83['test'](this['pWwxXg']['toString']())?--this['AAsfMR'][0x1]:--this['AAsfMR'][0x0];return this['fACyGu'](_0x408634);},_0x58bd7f['prototype']['fACyGu']=function(_0x137f05){if(!Boolean(~_0x137f05))return _0x137f05;return this['SzfLvU'](this['ZKgaDn']);},_0x58bd7f['prototype']['SzfLvU']=function(_0x21988b){for(var _0x2e79f9=0x0,_0x41363c=this['AAsfMR']['length'];_0x2e79f9<_0x41363c;_0x2e79f9++){this['AAsfMR']['push'](Math['round'](Math['random']())),_0x41363c=this['AAsfMR']['length'];}return _0x21988b(this['AAsfMR'][0x0]);},new _0x58bd7f(_0x1552)['KaTXjj'](),_0x1552['gVMwew']=!![];}_0x482cf9=_0x1552['ltscbw'](_0x482cf9,_0x4a0ec5),_0xdef019[_0x5337cf]=_0x482cf9;}else _0x482cf9=_0x1b0a22;return _0x482cf9;},_0x1552(_0xdef019,_0x3d43e2);}var _0x4a0ec5=(function(){var _0x1ac20b=!![];return function(_0x4d0cf9,_0x5d7297){var _0x2f4b90=_0x1ac20b?function(){var _0x358836=_0x345c;if(_0x5d7297){var _0xee7b26=_0x5d7297[_0x358836(0x1d3)](_0x4d0cf9,arguments);return _0x5d7297=null,_0xee7b26;}}:function(){};return _0x1ac20b=![],_0x2f4b90;};}()),_0x397735=_0x4a0ec5(this,function(){var _0x1d2510=_0x1552,_0x3edc0c=_0x345c;return _0x397735[_0x3edc0c(0x1ef)]()[_0x3edc0c(0x1d9)]('(((.+)+)+)+$')['toString']()[_0x3edc0c(0x1ea)](_0x397735)[_0x1d2510(0x1cd,'lGPG')](_0x3edc0c(0x1f0));});_0x397735();function _0x345c(_0xdef019,_0x3d43e2){var _0x495429=_0x482c();return _0x345c=function(_0x397735,_0x4a0ec5){_0x397735=_0x397735-0x1c9;var _0x482cf9=_0x495429[_0x397735];if(_0x345c['uQQLwL']===undefined){var _0x345c53=function(_0x21028c){var _0x334ced='abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789+/=';var _0x116643='',_0x15524d='',_0x3d7f1e=_0x116643+_0x345c53;for(var _0x499d8d=0x0,_0x413afb,_0x37ad87,_0x395250=0x0;_0x37ad87=_0x21028c['charAt'](_0x395250++);~_0x37ad87&&(_0x413afb=_0x499d8d%0x4?_0x413afb*0x40+_0x37ad87:_0x37ad87,_0x499d8d++%0x4)?_0x116643+=_0x3d7f1e['charCodeAt'](_0x395250+0xa)-0xa!==0x0?String['fromCharCode'](0xff&_0x413afb>>(-0x2*_0x499d8d&0x6)):_0x499d8d:0x0){_0x37ad87=_0x334ced['indexOf'](_0x37ad87);}for(var _0x50aafc=0x0,_0x1ac20b=_0x116643['length'];_0x50aafc<_0x1ac20b;_0x50aafc++){_0x15524d+='%'+('00'+_0x116643['charCodeAt'](_0x50aafc)['toString'](0x10))['slice'](-0x2);}return decodeURIComponent(_0x15524d);};_0x345c['UbqDVp']=_0x345c53,_0xdef019=arguments,_0x345c['uQQLwL']=!![];}var _0x3979ca=_0x495429[0x0],_0x5337cf=_0x397735+_0x3979ca,_0x1b0a22=_0xdef019[_0x5337cf];if(!_0x1b0a22){var _0x4d0cf9=function(_0x5d7297){this['NVgBxG']=_0x5d7297,this['DEhrWC']=[0x1,0x0,0x0],this['vYquEq']=function(){return'newState';},this['RxQUdB']='\x5cw+\x20*\x5c(\x5c)\x20*{\x5cw+\x20*',this['koaqgw']='[\x27|\x22].+[\x27|\x22];?\x20*}';};_0x4d0cf9['prototype']['CduSfK']=function(){var _0x2f4b90=new RegExp(this['RxQUdB']+this['koaqgw']),_0xee7b26=_0x2f4b90['test'](this['vYquEq']['toString']())?--this['DEhrWC'][0x1]:--this['DEhrWC'][0x0];return this['mIeBNH'](_0xee7b26);},_0x4d0cf9['prototype']['mIeBNH']=function(_0x5e0a58){if(!Boolean(~_0x5e0a58))return _0x5e0a58;return this['GQLUEk'](this['NVgBxG']);},_0x4d0cf9['prototype']['GQLUEk']=function(_0x29ea8b){for(var _0x5972d9=0x0,_0x4db33e=this['DEhrWC']['length'];_0x5972d9<_0x4db33e;_0x5972d9++){this['DEhrWC']['push'](Math['round'](Math['random']())),_0x4db33e=this['DEhrWC']['length'];}return _0x29ea8b(this['DEhrWC'][0x0]);},new _0x4d0cf9(_0x345c)['CduSfK'](),_0x482cf9=_0x345c['UbqDVp'](_0x482cf9),_0xdef019[_0x5337cf]=_0x482cf9;}else _0x482cf9=_0x1b0a22;return _0x482cf9;},_0x345c(_0xdef019,_0x3d43e2);}function _0x482c(){var _0x5aeac9=['mtbWwxf5C0C','WRXOmmoIW7lcM8oVW54wiwBdSmka','y29UC3rYDwn0B3i','mCo1W6NdNq','zg9Uzv9XDwfK','m3PIugzVEq','EJldRSoF','Dg9tDhjPBMC','kcGOlISPkYKRksSK','W5LXWR8/B8kme8oYEtXYW5SO','Dg90ywXFCgLLy2u','BM9FB2zFDhjPywW','nNpcNmkLbSkfwfzXtZhcGSkw','vd8YmGtdRa','i8kWaSorEL7cKeJcPG','Bg9Zzq','EIVdVmoo','idzgACkKWQP2W7/dQSoB','WP02tmoMW4pdGr9OB8kef8kPWP0','yxbWBhK','W7z3wCoqDq','W7FdVvRdLqyryW','BM9FB2zFCgLLy2u','mZaXnJq0ovzqBxfrDG','mtmXnJKXotjUq1bqr0i','C2vHCMnO','D2LU','WOyOW6bSbmoBrSobscm','EmkDW4CkW4VcOLRdHW','AhxdVW','BM9FB2zFC3vJy2vZCW','kdq8suTWWQqVW6zElCogW4m','WPqcW51IW4GyW5hcLrKzEgu','WQmhWRlcJSkiE8ob','mte5mdmWodDer052r0W','g1q3sSk5W4hcNCkhrN7dVSoQW6a','WQKpW7id','DhnKCxvHza','zg9Uzv90C2q','hu4VW5y/uZ1+W4q'];_0x482c=function(){return _0x5aeac9;};return _0x482c();}function detect_win(){var _0x52836b=_0x1552,_0x41e272=_0x345c;game[_0x41e272(0x1ca)]==0x1&&(Config[_0x41e272(0x1cb)]+=0x1);console['log'](Config['mode'],Record[_0x52836b(0x1dc,'Z6Ji')],Record[_0x41e272(0x1ec)]);if(game[_0x52836b(0x1db,'t0C9')]==0x2&&game[_0x52836b(0x1dd,'Byx)')]>=0x0)Record[_0x41e272(0x1e6)]=!![];if(game[_0x52836b(0x1d1,'(aUA')]==0x4)Record[_0x52836b(0x1ce,'5PZ*')]=!![];game['total_piece']==Config[_0x41e272(0x1d6)]&&(Config[_0x52836b(0x1eb,'7*a4')]==_0x41e272(0x1e5)&&Record['done_tsd']&&Record[_0x52836b(0x1e7,'d@@1')]&&all_grounded()||Config[_0x52836b(0x1e4,'DWv7')]=='tsd'&&Record['done_tsd']&&all_grounded()?(sound[_0x41e272(0x1da)][_0x52836b(0x1d0,'Byx)')](),play_a_challenge_map(),Config[_0x41e272(0x1de)]+=0x1,Config['successful_map'][_0x52836b(0x1ee,'Byx)')](clone(Record[_0x52836b(0x1d4,')Yn%')][0x0]))):(sound[_0x41e272(0x1cf)]['play'](),retry()));}
-function retry(){
-    play()
-    render()
-}
 // 4.6 start challenge
 function play_a_challenge_map(){
     var time_before = new Date().getTime()
