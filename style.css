@@ -590,3 +590,37 @@ body.touch #tcc {
     body.touch #gamemode { padding: 0.3rem; }
 }
 
+
+/* phone held upright: the page is laid out 1300px wide and zoomed out to fit
+   (see update_viewport). Panels side by side on top, the board takes the rest
+   of the height above the touch buttons, so nothing needs scrolling. */
+html.portrait-zoom .flex {
+    display: grid;
+    align-items: stretch;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: 1.5rem 3rem;
+    padding: 1.5rem 3rem 0;
+    box-sizing: border-box;
+    /* page height minus the header and the two rows of touch buttons */
+    height: calc(var(--vh) - 5rem - 2 * var(--tc-size) - 50px);
+}
+html.portrait-zoom .panel { width: auto; margin: 0; align-self: start; }
+html.portrait-zoom #leftpanel { grid-column: 1; grid-row: 1; }
+html.portrait-zoom #rightpanel { grid-column: 2; grid-row: 1; }
+html.portrait-zoom #rightpanel h2, html.portrait-zoom #leftpanel h2 { margin-top: 0; }
+html.portrait-zoom #tetris {
+    grid-column: 1 / 3;
+    grid-row: 2;
+    min-height: 0;
+    display: flex;
+    justify-content: center;
+}
+html.portrait-zoom #board {
+    height: 100%;
+    width: auto;
+    max-width: 100%;
+    box-sizing: border-box;
+    /* keep the board's shape when the width is the limit */
+    object-fit: contain;
+}

@@ -100,7 +100,10 @@ function update_viewport() {
     const setting = get_touch_setting();
     const touch = setting === 'on' || (setting === 'auto' && is_touch_device());
     const portrait = window.matchMedia('(orientation: portrait)').matches;
-    const content = (touch && portrait) ? 'width=1300' : 'width=device-width, initial-scale=1';
+    const zoom = touch && portrait;
+    const content = zoom ? 'width=1300' : 'width=device-width, initial-scale=1';
+    // lets the stylesheet use the portrait layout (panels on top, big board)
+    document.documentElement.classList.toggle('portrait-zoom', zoom);
     if (meta.content !== content) meta.content = content;
 }
 update_viewport();

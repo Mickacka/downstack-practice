@@ -538,7 +538,7 @@ function play_a_challenge_map(){
     Config.starttime += time_after - time_before
 }
 function start_challenge(){
-    document.getElementsByClassName('flex')[0].style.display='flex'
+    document.getElementsByClassName('flex')[0].style.display=''  // back to the stylesheet's layout
     document.getElementById('startpanel').style.display = 'none'
     
     Config.no_of_trial = 0
