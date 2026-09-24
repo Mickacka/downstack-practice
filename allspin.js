@@ -68,9 +68,14 @@ function do_harddrop(){
     var piece = game.tetramino
     var spin = /^[za]/.test(game.lastmove) && is_immobile()
     game.harddrop()
-    if (spin && game.line_clear > 0){
-        show_spin_message(`${piece}-Spin ${LINE_NAMES[game.line_clear]}!`)
-        if (piece == Record.spin_piece) Record.done_spin = true
+    var lines = game.line_clear
+    if (spin && lines > 0) show_spin_message(`${piece}-Spin ${LINE_NAMES[lines]}!`)
+    // Only the requested spin counts: the right piece, a real spin, the right number of lines
+    if (piece == Record.spin_piece && !Record.done_spin){
+        if (spin && lines == Record.spin_lines) Record.done_spin = true
+        else if (!spin) Record.miss = `The ${piece} wasn't a spin: rotate it into the slot as its last move`
+        else if (lines == 0) Record.miss = `${piece}-Spin, but it cleared no lines`
+        else Record.miss = `That was a ${piece}-Spin ${LINE_NAMES[lines]}, not a ${LINE_NAMES[Record.spin_lines]}`
     }
     play_sound()
     detect_win()
@@ -425,6 +430,7 @@ function play_a_map(){
 function play(){
     game = new Game()
     Record.done_spin = false
+    Record.miss = null
     game.bag = Record.shuffled_queue.concat(Array(14).fill('G'))
     game.update()
     game.holdmino = ''
@@ -447,11 +453,17 @@ function detect_win(){
         if (Record.done_spin){
             sound['win'].play()
             Config.no_of_success += 1
-            if (Config.auto_next_ind) play_a_map()
+            if (Config.auto_next_ind){
+                play_a_map()
+                show_spin_message('Solved! New map')
+            }
+            else show_spin_message('Solved!')
         }
         else{
             sound['lose'].play()
+            var why = Record.miss || `No ${Record.spin_piece}-Spin ${LINE_NAMES[Record.spin_lines]}`
             retry()
+            show_spin_message(why + '. Try again')
         }
     }
 }
