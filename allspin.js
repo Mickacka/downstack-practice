@@ -160,9 +160,6 @@ function can_reach(test_board, piece, target){
     return false
 }
 
-// The player sees a flat garbage floor. The spin rows are garbage except a
-// "build area" around the slot; the player fills that area and builds the
-// overhang, which reveals the slot, then spins into it.
 const cell_key = (col, row) => col + ',' + row
 
 function is_even_distributed(bag){
@@ -225,74 +222,110 @@ function carve(b, cells, used){
     return null
 }
 
+// The board is a flat stack with a 3-5 wide well. The player builds the setup
+// inside the well, filling it level with the walls except for the way into
+// the slot, then spins in.
 function try_spin_setup(piece, n_build){
     // only flat slots ever work out (and for T, only pointing down: the T-spin double shape)
     var orientation = piece == 'T'? 2: 2 * random_int(2)
     var shape = shape_table[piece][orientation]
     var xs = shape.map(c => c[0]), ys = shape.map(c => c[1])
+    var slot_width = Math.max(...xs) - Math.min(...xs) + 1
+
+    // The well: the slot plus some spare columns (a T-spin double needs one on each
+    // side, or the cells under its arms can't be filled). Pick a width where the
+    // requested number of pieces fills it to a wall height of about 1-4 rows.
+    var spin_rows = Math.max(...ys) - Math.min(...ys) + 1
+    var widths = []
+    for (var w = slot_width + (piece == 'T'? 2: 0); w <= 6; w++){
+        var fill = 4*n_build - (spin_rows*w - 4)
+        var est_wall = fill / (w - Math.max(1, slot_width - 1))
+        if (est_wall >= 1 && est_wall <= 5) widths.push(w)
+    }
+    if (widths.length == 0) return null
+    var well_width = widths[random_int(widths.length)]
+    var left = random_int(10 - well_width + 1)
+    var right = left + well_width - 1
+    var slot_left = left + random_int(well_width - slot_width + 1)
     var floor = random_int(3)
-    var x = random_int(10 - (Math.max(...xs) - Math.min(...xs))) - Math.min(...xs)
+    var x = slot_left - Math.min(...xs)
     var y = floor - Math.min(...ys)
     var slot = piece_cells(piece, orientation, x, y)
-    var slot_cols = slot.map(c => c[0])
+    var slot_cols = [...new Set(slot.map(c => c[0]))]
     var bottom = floor, top = Math.max(...slot.map(c => c[1]))
     var is_slot = (col, row) => slot.some(c => c[0] == col && c[1] == row)
-
-    // build area: the slot's columns plus a margin of 1-3 on each side (cells
-    // under the slot's edges would otherwise be cut off and impossible to fill)
-    var left = Math.max(0, Math.min(...slot_cols) - 1 - random_int(3))
-    var right = Math.min(9, Math.max(...slot_cols) + 1 + random_int(3))
+    var in_well = col => col >= left && col <= right
 
     var b = empty_board()
-    var cheese_col = random_int(10)
+    var cheese_col = left + random_int(well_width)
     for (var row=0; row<bottom; row++)
         for (var col=0; col<10; col++)
             if (col != cheese_col) b[row][col] = 'G'
     for (var row=bottom; row<=top; row++)
         for (var col=0; col<10; col++)
-            if (!is_slot(col, row)) b[row][col] = (col >= left && col <= right)? 'B': 'G'
+            b[row][col] = !in_well(col)? 'G': is_slot(col, row)? 'N': 'B'
+    var with_walls = (board, wall) => {
+        var nb = clone(board)
+        for (var row=top+1; row<=top+wall; row++)
+            for (var col=0; col<10; col++)
+                if (!in_well(col)) nb[row][col] = 'G'
+        return nb
+    }
 
-    // over the slot: cap some columns (the overhang) and leave the rest open as the way in
-    // Try every choice of capped columns (at most 16) and keep one where the slot is
-    // reachable, and only by a final rotation.
-    var slot_col_set = [...new Set(slot_cols)]
+    var spin_row_cells = b.flat().filter(c => c == 'B').length
+    var need = 4*n_build - spin_row_cells
+    // cheap early exit: the wall height would be out of range whatever gets capped
+    if (need < well_width - slot_cols.length || need > 5 * well_width) return null
+
+    // Over the slot, try every choice of capped columns (at most 16) and keep the
+    // ones where the slot is reachable, and only by a final rotation.
     var valid = []
-    for (var mask=0; mask < (1 << slot_col_set.length); mask++){
+    for (var mask=0; mask < (1 << slot_cols.length); mask++){
         var h = Array(10).fill(0)
-        slot_col_set.forEach((col, i) => { if (mask & (1 << i)) h[col] = 1 + random_int(2) })
-        if (is_spin_slot(with_stacks(b, h, top), piece, orientation, x, y, slot)) valid.push(h)
+        slot_cols.forEach((col, i) => { if (mask & (1 << i)) h[col] = 1 })
+        if (is_spin_slot(with_stacks(with_walls(b, 1), h, top), piece, orientation, x, y, slot)) valid.push(mask)
     }
     if (valid.length == 0) return null
-    var heights = valid[random_int(valid.length)]
+    var mask = valid[random_int(valid.length)]
+    var open_cols = slot_cols.filter((col, i) => !(mask & (1 << i)))
 
-    // beside the slot: random stacks, sized so the build takes exactly n_build pieces.
-    // A good slot is rare, so try several stacks around the same one.
-    var side_cols = []
-    for (var col=Math.max(0, left-1); col<=Math.min(9, right+1); col++)
-        if (!slot_cols.includes(col)) side_cols.push(col)
-    if (side_cols.length == 0) return null
-    var spin_row_cells = b.flat().filter(c => c == 'B').length
-    for (var attempt=0; attempt<12; attempt++){
-        var h = [...heights]
-        for (var col of side_cols) h[col] = random_int(3)
-        var count = () => spin_row_cells + h.reduce((a, v) => a + v, 0)
-        for (var i=0; i<40 && count() != 4*n_build; i++){
-            var col = side_cols[random_int(side_cols.length)]
-            if (count() < 4*n_build && h[col] < 4) h[col] += 1
-            else if (count() > 4*n_build && h[col] > 0) h[col] -= 1
+    // the wall height that makes the build take n_build pieces when the rest of the
+    // well is filled level with it
+    var filled_cols = []
+    for (var col=left; col<=right; col++)
+        if (!open_cols.includes(col)) filled_cols.push(col)
+    var wall = Math.round(need / filled_cols.length)
+    if (wall < 1 || wall > 5) return null
+    var nw = with_walls(b, wall)
+
+    // Every near-level fill (each column at the wall height, or one above or below)
+    // with the right number of cells, flattest first. Tetrominoes can only fill it
+    // if each group of touching cells is a multiple of 4.
+    var profiles = []
+    var offsets = Array(filled_cols.length).fill(-1)
+    while (true){
+        if (offsets.reduce((a, v) => a + v, 0) == need - wall * filled_cols.length){
+            var h = Array(10).fill(0)
+            filled_cols.forEach((col, i) => h[col] = wall + offsets[i])
+            var nb = with_stacks(nw, h, top)
+            var cells = new Set()
+            for (var row=0; row<20; row++)
+                for (var col=0; col<10; col++)
+                    if (nb[row][col] == 'B') cells.add(cell_key(col, row))
+            // a full row would clear while the player builds
+            if (groups_of_four(cells) && !nb.slice(top+1).some(row => row.every(c => c != 'N')))
+                profiles.push({board: nb, cells: cells, bumps: offsets.filter(v => v != 0).length + Math.random()})
         }
-        if (count() != 4*n_build) continue
-        var nb = with_stacks(b, h, top)
-        if (nb.slice(top+1).some(row => row.every(c => c != 'N'))) continue
-        // the stacks beside the slot can block the way in
-        if (!is_spin_slot(nb, piece, orientation, x, y, slot)) continue
+        var i = 0
+        while (i < offsets.length && offsets[i] == 1){ offsets[i] = -1; i++ }
+        if (i == offsets.length) break
+        offsets[i] += 1
+    }
+    profiles.sort((p, q) => p.bumps - q.bumps)
 
+    for (var {board: nb, cells: cells} of profiles.slice(0, 4)){
+        if (!is_spin_slot(nb, piece, orientation, x, y, slot)) continue
         // split the build into pieces the player can place in order
-        var cells = new Set()
-        for (var row=0; row<20; row++)
-            for (var col=0; col<10; col++)
-                if (nb[row][col] == 'B') cells.add(cell_key(col, row))
-        if (!groups_of_four(cells)) continue
         var finished = clone(nb)
         var build = carve(nb, cells, [])
         if (!build){
@@ -353,27 +386,24 @@ function play_a_map(){
     // pick the spin piece first (not per attempt), so rarer setups like T come up as often
     var pieces = shuffle([...Config.spin_pieces])
     var setup = null
-    // Some piece/size combinations are rare or impossible (a T-spin double can't be
-    // built from 2 pieces), so fall back to a nearby size, then to another piece.
+    // Some piece/size combinations are rare or impossible in a well (a flat I-spin
+    // leaves little room), so each attempt picks a size near the one asked for,
+    // favouring the exact size, and after a while moves on to another piece.
     for (var piece of pieces){
         Record.spin_piece = piece
-        // a T-spin double needs at least 3 pieces around it
-        var min_build = piece == 'T'? 3: 2
-        var sizes = [n_build, n_build+1, n_build-1, n_build+2].filter(n => n >= min_build && n <= 6)
-        for (var i=0; i<sizes.length && !setup; i++){
-            var give_up = Date.now() + (i == 0? 1200: 600)
-            while (!setup && Date.now() < give_up){
-                Record.deadline = Date.now() + 100
-                setup = try_spin_setup(piece, sizes[i])
-            }
+        var sizes = [n_build, n_build, n_build, n_build+1, n_build-1].filter(n => n >= 2 && n <= 6)
+        var give_up = Date.now() + 700
+        while (!setup && Date.now() < give_up){
+            Record.deadline = Date.now() + 100
+            setup = try_spin_setup(piece, sizes[random_int(sizes.length)])
         }
         if (setup) break
     }
-    // last resort: an S or Z spin almost always generates quickly
+    // last resort: any piece, any size
     while (!setup){
-        Record.spin_piece = 'SZ'[random_int(2)]
+        Record.spin_piece = "SZLJIT"[random_int(6)]
         Record.deadline = Date.now() + 100
-        setup = try_spin_setup(Record.spin_piece, 3)
+        setup = try_spin_setup(Record.spin_piece, 2 + random_int(4))
     }
     Record.spin_lines = setup.lines
     Record.spin_cells = setup.cells
