@@ -319,6 +319,7 @@ function is_typing(){
 }
 
 function set_event_listener(){
+    setup_panels()
     document.onkeydown = (e => {
         var func = Keybind.keydown[e.code];
         if (['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code) && !is_typing()){
@@ -687,4 +688,43 @@ function check_key_conflicts(){
     if (message) message.textContent = clashes.length
         ? clashes.map(([key]) => key).join(', ') + ' is used for more than one action. '
         : ''
+}
+
+/*
+Panels: group the mode buttons into a switch that shows the active mode
+*/
+function setup_panels(){
+    var panel = document.getElementById('rightpanel')
+    if (!panel) return
+    panel.querySelectorAll(':scope > br').forEach(br => br.remove())
+    var buttons = [...panel.querySelectorAll(':scope > .game_button')]
+        .filter(b => /^play_/.test(b.getAttribute('onclick') || ''))
+    if (buttons.length < 2){
+        buttons.forEach(b => b.classList.add('primary'))
+        return
+    }
+    var group = document.createElement('div')
+    group.className = 'mode-switch'
+    group.setAttribute('role', 'group')
+    group.setAttribute('aria-label', 'Mode')
+    buttons[0].before(group)
+    buttons.forEach(b => group.appendChild(b))
+    var set_active = active => buttons.forEach(b => {
+        b.classList.toggle('active', b === active)
+        b.setAttribute('aria-pressed', b === active)
+    })
+    buttons.forEach(b => b.addEventListener('click', () => set_active(b)))
+    // the page start and auto-next start modes by calling these functions: follow them
+    // (unless two buttons share a function with different arguments)
+    var names = buttons.map(b => b.getAttribute('onclick').match(/^\w+/)[0])
+    names.forEach((name, i) => {
+        if (names.indexOf(name) != names.lastIndexOf(name)) return
+        var original = window[name]
+        if (typeof original != 'function') return
+        window[name] = function(){
+            set_active(buttons[i])
+            return original.apply(this, arguments)
+        }
+    })
+    set_active(buttons[0])
 }

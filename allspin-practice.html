@@ -77,7 +77,7 @@
     <div class="flex">
         <div id="leftpanel" class="panel">
             
-            <h2>Winning Requirement</h2>
+            <h2>Goal</h2>
             <div id="winning_requirement">
                 <p id="winning_requirement1">Do a T-Spin Double</p>
                 <p id="winning_requirement2">Build the setup with your pieces, then spin in. A spin: the piece can't move left, right or up after its last rotation</p>
@@ -85,7 +85,7 @@
 
             <button class="game_button orange" onclick="retry(); board.focus()">Retry</button>
             <button class="game_button" onclick="undo(); board.focus()" title="Take back the last piece (U)">Undo</button>
-            <button class="game_button" onclick="share_link()" title="Copy a link to this exact puzzle">Copy puzzle link</button>
+            <button class="game_button" onclick="share_link()" title="Copy a link to this exact puzzle">Copy link</button>
             <button class="game_button red" onclick="show_ans(); board.focus()">Show Answer</button>
             <p id="spin_message"></p>
 
@@ -99,7 +99,7 @@
             <h2>Modes</h2>
             <button class="game_button purple" onclick="play_a_map(); board.focus()">New All-Spin Map</button><br>
 
-            <button id="game_button" class="game_button yellow" onclick="toggleOptions()">Hide Options</button>
+            <button id="game_button" class="game_button yellow" onclick="toggleOptions()">Options ▴</button>
             <div id="gamemode" class="open">
                 <table>
                     <tbody>

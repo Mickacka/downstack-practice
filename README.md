@@ -2,7 +2,7 @@
 
 A website for practising Tetris downstacking, T-spins, quads, perfect clears and more.
 
-**Play it:** https://mickacka.github.io/downstack-practice/
+**Play it:** https://mickacka.github.io/downstack-practice/ (the home page lists every mode)
 
 This is a fork of [himitsuconfidential/downstack-practice](https://github.com/himitsuconfidential/downstack-practice) ([original site](https://himitsuconfidential.github.io/downstack-practice/)).
 
@@ -21,6 +21,13 @@ This is a fork of [himitsuconfidential/downstack-practice](https://github.com/hi
 | [Usermode](https://mickacka.github.io/downstack-practice/usermode.html) | Your own board and queue, shareable by URL |
 | [Learn from AI](https://mickacka.github.io/downstack-practice/learnfromai.html) | Puzzles taken from ZZZTOJ's play |
 | [PC Setup Library](https://mickacka.github.io/downstack-practice/library.html) | Ready-made usermode links for common PC setups |
+
+## While you practise
+
+- **Undo** (U, or the Undo button) takes back the last piece; **Retry** restarts the map.
+- **Show Answer** replays the solution one piece at a time, in the order you place them.
+- **Copy link** copies a link to the exact puzzle on screen, to retry later or send to a friend.
+- Every attempt ends with a ✓ / ✗ over the board, and your solved count, streak and best streak are kept per mode (also shown on the home page).
 
 ## All-Spin Practice
 
@@ -41,7 +48,7 @@ You can change how maps are generated:
 
 Open the ⚙️ menu to set:
 
-- Keybinds, DAS and ARR
+- Keybinds (with Reset to defaults; keys used twice are highlighted), DAS and ARR
 - Whether a new map is generated when you win
 - **Touch controls**: *Auto* shows on-screen buttons on phones and tablets, *On* / *Off* force them
 

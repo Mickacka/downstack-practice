@@ -24,9 +24,9 @@ function toggleOptions() {
     const gamemode = document.getElementById('gamemode');
     const game_button = document.getElementById('game_button');
     if (gamemode.classList.contains('open')) {
-        game_button.innerHTML = 'Show Options';
+        game_button.innerHTML = 'Options ▾';
     } else {
-        game_button.innerHTML = 'Hide Options';
+        game_button.innerHTML = 'Options ▴';
     }
     gamemode.classList.toggle('open');
 }
