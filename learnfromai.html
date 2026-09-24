@@ -58,6 +58,7 @@
                 <tr><td class="setting-label">DAS (1 to 200)</td><td><input id="input11" type="number" min="1" max='200'></td></tr>
                 <tr><td class="setting-label">ARR (0 to 100)</td><td><input id="input12" type="number" min="0" max='100'></td></tr>
                 <tr><td class="setting-label">Generate New Map on Win</td><td><input id="input12.1" type="checkbox" min="0" max='100'></td></tr>
+                <tr><td class="setting-label">Touch Controls</td><td><select id="touch_controls"><option value="auto">Auto</option><option value="on">On</option><option value="off">Off</option></select></td></tr>
                 
                 </tbody>
             </table>
@@ -96,20 +97,15 @@
         </div>
     </div>
 
-    <div id = "tcc" style class = "tc">
-        <div>
-            <span id="tc-dr">180</span>
-            <span id="tc-h">⇄</span>
-            <span id="tc-hd">⤓</span>
-            </div>
-            <div>
-            <span id="tc-l">←</span>
-            <span id="tc-r">→</span>
-            <span id="tc-d">↓</span>
-            <span id="tc-cc">↰</span>
-            <span id="tc-c">↱</span>
-            </div>
-        <canvas id="mobile_controls"></canvas>
+    <div id="tcc" class="tc">
+        <span id="tc-dr">↺</span>
+        <span id="tc-h">⇄</span>
+        <span id="tc-hd">⤓</span>
+        <span id="tc-l">←</span>
+        <span id="tc-r">→</span>
+        <span id="tc-d">↓</span>
+        <span id="tc-cc">↰</span>
+        <span id="tc-c">↱</span>
     </div>
     <script src="header.js"></script>
     <script src="script8.js"></script>

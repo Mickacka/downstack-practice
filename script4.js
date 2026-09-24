@@ -376,16 +376,7 @@ function set_event_listener(){
     document.getElementById('input18').onchange = e=>{save_gamemode()}
     document.getElementById('input19').onchange = e=>{document.getElementById('input20').checked = false;save_gamemode()}
     document.getElementById('input20').onchange = e=>{document.getElementById('input19').checked = false;save_gamemode()}
-    const ua = navigator.userAgent;
-    if (/(tablet|ipad|playbook|silk)|(android(?!.*mobi))/i.test(ua)) {
-        document.getElementById('board').onblur = (e=>e.preventDefault())
-        //document.getElementById('tcc').style.display = 'inline-block';
-    } else if (
-        /Mobile|Android|iP(hone|od)|IEMobile|BlackBerry|Kindle|Silk-Accelerated|(hpw|web)OS|Opera M(obi|ini)/.test(ua)
-    ) {
-        document.getElementById('board').onblur = (e=>e.preventDefault())
-        //document.getElementById('tcc').style.display = 'inline-block';
-    } // else document.getElementById("tcc").style.display = 'none';
+    setup_touch_controls();
 
     
     document.getElementById('tc-dr').addEventListener('touchstart', function (e) {

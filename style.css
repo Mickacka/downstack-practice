@@ -453,8 +453,12 @@ select#input13, select#pcwizard_option {
   }
 
 #tcc {
- 	display: grid;grid-template-columns: repeat(8, 1fr);
+ 	display: none;grid-template-columns: repeat(8, 1fr);
  	grid-template-areas: ". hd . . . . dr ." "l d r . . h cc c";
+}
+
+#tcc.show {
+    display: grid;
 }
 
 #tc-hd { grid-area: hd; }

@@ -26,3 +26,45 @@ function toggleOptions() {
     }
     gamemode.classList.toggle('open');
 }
+
+// Touch controls: 'auto' shows them on touch devices (including iPads that
+// report a desktop user agent), 'on'/'off' force them.
+function is_touch_device() {
+    const ua = navigator.userAgent;
+    return window.matchMedia('(pointer: coarse)').matches ||
+        navigator.maxTouchPoints > 1 ||
+        /Mobile|Android|iP(hone|od|ad)|IEMobile|BlackBerry|Kindle|Silk|PlayBook|(hpw|web)OS|Opera M(obi|ini)/i.test(ua);
+}
+
+function get_touch_setting() {
+    try {
+        return localStorage.getItem('touch_controls') || 'auto';
+    } catch (e) {
+        return 'auto';
+    }
+}
+
+function apply_touch_controls() {
+    const tcc = document.getElementById('tcc');
+    if (!tcc) return;
+    const setting = get_touch_setting();
+    const show = setting === 'on' || (setting === 'auto' && is_touch_device());
+    tcc.classList.toggle('show', show);
+    const board = document.getElementById('board');
+    // Tapping the touch buttons would otherwise blur the board and show "OUT OF FOCUS"
+    if (board && show) board.onblur = (e => e.preventDefault());
+}
+
+function setup_touch_controls() {
+    const select = document.getElementById('touch_controls');
+    if (select) {
+        select.value = get_touch_setting();
+        select.onchange = () => {
+            try { localStorage.setItem('touch_controls', select.value); } catch (e) {}
+            // restore the default focus handling when hiding the controls
+            if (select.value !== 'on' && !is_touch_device()) location.reload();
+            else apply_touch_controls();
+        };
+    }
+    apply_touch_controls();
+}
