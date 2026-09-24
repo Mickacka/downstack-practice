@@ -56,6 +56,11 @@ function apply_touch_controls() {
     tcc.classList.toggle('show', show);
     // lets the stylesheet switch to the phone layouts
     document.body.classList.toggle('touch', show);
+    // a phone held sideways has little height: start with the options folded away
+    const gamemode = document.getElementById('gamemode');
+    if (show && gamemode && gamemode.classList.contains('open') &&
+        window.matchMedia('(orientation: landscape) and (max-height: 540px)').matches)
+        toggleOptions();
     const board = document.getElementById('board');
     // Tapping the touch buttons would otherwise blur the board and show "OUT OF FOCUS"
     if (board && show) board.onblur = (e => e.preventDefault());

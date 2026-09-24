@@ -1,3 +1,17 @@
+/* --vh: the visible height. On phones 100vh is the height with the browser
+   bars hidden, so prefer svh (bars shown) where supported. --tc-size: touch
+   button size, at most 130px and small enough for 8 across / 2 rows on a phone. */
+:root {
+    --vh: 100vh;
+    --tc-size: min(130px, 17vmin, calc((100vw - 60px) / 8));
+}
+@supports (height: 100svh) {
+    :root {
+        --vh: 100svh;
+        --tc-size: min(130px, 16vmin, 16svh, calc((100vw - 60px) / 8));
+    }
+}
+
 html{
     background-color: #363941;
 }
@@ -404,8 +418,6 @@ select#input13, select#pcwizard_option {
 	padding: 10px;
 	pointer-events: none;
 	z-index: 11;
-    /* button size: at most 130px, and small enough for 8 across and 2 rows on a phone */
-    --tc-size: min(130px, 17vmin, calc((100vw - 60px) / 8));
     font-size: calc(var(--tc-size) * 0.6);
 }
 .tc span {
@@ -556,7 +568,7 @@ body.touch #tcc {
     body.touch .nav .dropdown li a { padding: 0.5rem 1rem; }
     body.touch .flex { flex-wrap: nowrap; padding-top: 0.2rem; }
     body.touch #board {
-        height: calc(100vh - 2.6rem);
+        height: calc(var(--vh) - 2.6rem);
         width: auto;
         padding: 0;
     }
@@ -566,7 +578,7 @@ body.touch #tcc {
         max-width: 16rem;
         margin: 0 0.4rem;
         /* leave room for the two rows of touch buttons below */
-        max-height: calc(100vh - 2.4rem - 2 * min(130px, 17vmin) - 30px);
+        max-height: calc(var(--vh) - 2.6rem - 2 * var(--tc-size) - 40px);
         overflow-y: auto;
         font-size: 0.8rem;
     }
@@ -574,6 +586,7 @@ body.touch #tcc {
     body.touch .game_button { font-size: 0.8rem; padding: 0.2rem 0.5rem; margin-bottom: 0.3rem; }
     body.touch #winning_requirement, body.touch #result { padding: 0.2rem; margin-bottom: 0.4rem; }
     body.touch #winning_requirement p { margin: 0.2rem 0; }
+    body.touch #winning_requirement2 { font-size: 0.7rem; }
     body.touch #gamemode { padding: 0.3rem; }
 }
 
@@ -585,5 +598,5 @@ body.touch #tcc {
     body.touch #tetris { order: -1; }
     body.touch #board { width: calc(100vw - 1rem); height: auto; padding: 0; }
     body.touch .panel { width: calc(100vw - 2rem); margin: 0.5rem 1rem; }
-    body.touch { padding-bottom: calc(2 * min(130px, 17vmin, calc((100vw - 60px) / 8)) + 40px); }
+    body.touch { padding-bottom: calc(2 * var(--tc-size) + 40px); }
 }
