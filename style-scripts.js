@@ -54,6 +54,7 @@ function apply_touch_controls() {
     const setting = get_touch_setting();
     const show = setting === 'on' || (setting === 'auto' && is_touch_device());
     tcc.classList.toggle('show', show);
+    update_viewport()
     // lets the stylesheet switch to the phone layouts
     document.body.classList.toggle('touch', show);
     // a phone held sideways has little height: start with the options folded away
@@ -89,3 +90,18 @@ document.addEventListener('keydown', e => {
     if (setting) setting.classList.remove('open');
     if (dropdown && dropdown.classList.contains('open')) toggleBurger();
 });
+
+// Phone held upright with touch controls: lay the page out at desktop width so
+// the phone zooms it out and every panel and button is visible without scrolling.
+// Held sideways, use the device width (the stylesheet has a landscape layout).
+function update_viewport() {
+    const meta = document.querySelector('meta[name="viewport"]');
+    if (!meta) return;
+    const setting = get_touch_setting();
+    const touch = setting === 'on' || (setting === 'auto' && is_touch_device());
+    const portrait = window.matchMedia('(orientation: portrait)').matches;
+    const content = (touch && portrait) ? 'width=1300' : 'width=device-width, initial-scale=1';
+    if (meta.content !== content) meta.content = content;
+}
+update_viewport();
+window.matchMedia('(orientation: portrait)').addEventListener('change', update_viewport);
