@@ -1,6 +1,5 @@
 
 var game = new Game();
-console.log(game.tetramino, JSON.stringify(game.to_shape()))
 const Keybind = {'keydown':{}, 'keyup':{}}
 var Config = {'das':100, 'arr':0, 'delay':0, 'pressing_left':false, 'pressing_right': false, 'pressing_down': false, 'pressing':{},
 'skim_ind':false, 'mdhole_ind':false, 'unqiue_ind':true, 'smooth_ind':true, 'donate_ind':false, 'zero9_ind': false, 'auto_next_ind':true,
@@ -28,7 +27,6 @@ const sound={
 
 function play_sound(){
     if (game.combo >= 0){
-        console.log('sing', game.combo)
         sound[Math.min(6,game.combo)].cloneNode().play()
     }
 }
@@ -68,7 +66,6 @@ function load_setting(){
 
 
 function save_setting(){
-    console.log('save_setting')
     for (var i=0; i<10; i++){
         Customized_key[i] = document.getElementById('input'+(i+1)).value 
     }
@@ -201,7 +198,6 @@ function press_left(first_call = false){
 
     else if (!first_call && Config.pressing_left){
         var now = new Date().getTime()
-        console.log(now - Config.timer1)
         if (now - Config.timer1 > Config.delay){
             Config.arr===0? game.move_leftmost(): game.move_left()
             render();
@@ -229,7 +225,6 @@ function press_right(first_call = false){
 
     else if (!first_call && Config.pressing_right){
         var now = new Date().getTime()
-        console.log(now - Config.timer2)
         if (now - Config.timer2 > Config.delay){
             Config.arr===0? game.move_rightmost(): game.move_right()
             render();
@@ -300,7 +295,6 @@ function update_keybind(){
 
 function set_event_listener(){
     document.onkeydown = (e => {
-        console.log('down',e.code)
         var func = Keybind.keydown[e.code];
 
         if (['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)){
@@ -320,7 +314,6 @@ function set_event_listener(){
     })
 
     document.onkeyup = (e => {
-        console.log('up',e.code)
         var func = Keybind.keyup[e.code];
         if (func != undefined){
             func()
