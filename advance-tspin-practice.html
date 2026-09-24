@@ -22,7 +22,7 @@
     <div class="banner">
         <h1 hidden> Advance Tspin Puzzle</h1>
         <a class="title" href="/downstack-practice/advance-tspin-practice.html"> Tetris Advanced T-Spin Puzzle - Practice</a>
-        <a class="setting_icon" onclick="toggleSettings()"> ⚙️</a>
+        <button type="button" class="setting_icon" onclick="toggleSettings()" aria-label="Settings" title="Settings">⚙️</button>
         <div class="nav">
             <ul class="dropdown">
                 <li><a href="javascript:void(0);" onclick="toggleSettings()">Settings</a></li>
@@ -39,15 +39,15 @@
                 <li><a href="/downstack-practice/library.html">PC Setup Library</a></li>
             </ul>
         </div>
-        <div class="burger" onclick="toggleBurger()">
+        <button type="button" class="burger" onclick="toggleBurger()" aria-label="Menu" title="Menu" aria-expanded="false">
             <span></span>
-        </div>
+        </button>
     </div>
 
     <div id="setting">
         <div class="settings-container">
             <h1>Settings</h1>
-            <a class="close-button" href="javascript:void(0);" onclick="closeSettings()"></a>
+            <a class="close-button" href="javascript:void(0);" onclick="closeSettings()" aria-label="Close settings"></a>
             <table>
                 <tbody>
                 <tr><td class="setting-label">Move Left</td><td><input class='keybind' id="input1" type="text" size="7" value="" readOnly></td></tr>

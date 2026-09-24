@@ -28,7 +28,7 @@
       <a class="title" href="/downstack-practice/usermode.html">
         Tetris Customized Usermode - Practice</a
       >
-      <a class="setting_icon" onclick="toggleSettings()"> ⚙️</a>
+      <button type="button" class="setting_icon" onclick="toggleSettings()" aria-label="Settings" title="Settings">⚙️</button>
       <div class="nav">
         <ul class="dropdown">
           <li>
@@ -72,9 +72,9 @@
           </li>
         </ul>
       </div>
-      <div class="burger" onclick="toggleBurger()">
+      <button type="button" class="burger" onclick="toggleBurger()" aria-label="Menu" title="Menu" aria-expanded="false">
         <span></span>
-      </div>
+      </button>
     </div>
 
     <div id="setting">
@@ -83,7 +83,7 @@
         <a
           class="close-button"
           href="javascript:void(0);"
-          onclick="closeSettings()"
+          onclick="closeSettings()" aria-label="Close settings"
         ></a>
         <table>
           <tbody>

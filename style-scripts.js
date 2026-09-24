@@ -1,12 +1,16 @@
 function toggleBurger() {
     const dropdown = document.querySelector('.nav .dropdown');
-    dropdown.classList.toggle('open');
+    const open = dropdown.classList.toggle('open');
+    const burger = document.querySelector('.burger');
+    if (burger) burger.setAttribute('aria-expanded', open);
 }
 
 function toggleSettings() {
     const dropdown = document.querySelector('.nav .dropdown');
     const setting = document.getElementById('setting');
     dropdown.classList.remove('open');
+    const burger = document.querySelector('.burger');
+    if (burger) burger.setAttribute('aria-expanded', false);
     setting.classList.toggle('open');
 
 }
@@ -68,3 +72,13 @@ function setup_touch_controls() {
     }
     apply_touch_controls();
 }
+
+
+// Escape closes the settings panel and the menu
+document.addEventListener('keydown', e => {
+    if (e.key !== 'Escape') return;
+    const setting = document.getElementById('setting');
+    const dropdown = document.querySelector('.nav .dropdown');
+    if (setting) setting.classList.remove('open');
+    if (dropdown && dropdown.classList.contains('open')) toggleBurger();
+});

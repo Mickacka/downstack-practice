@@ -497,3 +497,26 @@ select#input13, select#pcwizard_option {
 #gamemode .spin_piece input {
     width: auto;
 }
+
+/* header controls are buttons: drop the default button look */
+button.setting_icon, button.burger {
+    background: none;
+    border: none;
+    color: inherit;
+    font: inherit;
+    box-sizing: content-box;
+    text-align: left;
+}
+.setting_icon:focus-visible, .burger:focus-visible, .close-button:focus-visible,
+.game_button:focus-visible, .nav .dropdown a:focus-visible {
+    outline: 0.2rem solid rgb(66, 175, 225);
+    outline-offset: 0.2rem;
+}
+/* buttons centre their content vertically; keep the icons where the old links had them */
+button.setting_icon {
+    display: flex;
+    align-items: flex-start;
+}
+button.burger span {
+    top: 0.5rem;
+}
