@@ -106,6 +106,12 @@ const SHORT_LABELS = {
     'Copy link': 'Link', 'Show Answer': 'Answer', 'Show Hint': 'Hint', 'Hide Hint': 'Hide',
     'Rush (3 min)': 'Rush', 'Stop rush': 'Stop',
     'Get help from PC finder (At most 4 lines)': 'PC finder', 'Get help from S finder (Any number of line)': 'S finder',
+    // modes
+    'Combo into PC': 'Combo+PC', 'Combo into Quad': 'Combo+Quad', 'Combo into TSD': 'Combo+TSD',
+    'Downstack !NEW': 'Downstack', 'Tspin Double Practice': 'TSD', 'Tspin Double + Quad': 'TSD+Quad',
+    'Dt cannon Practice': 'DT cannon', 'C-spin Practice': 'C-spin', 'C-spin + Quad Practice': 'C-spin+Quad',
+    'Fractal Practice': 'Fractal', 'STSD Practice': 'STSD', '0-9 stack Practice': '0-9 stack',
+    '6-3 stack Practice': '6-3 stack', 'Quad Practice': 'Quad',
 };
 function set_short_label(button) {
     const short = SHORT_LABELS[button.textContent.trim()];
@@ -113,7 +119,7 @@ function set_short_label(button) {
     else delete button.dataset.short;
 }
 function apply_short_labels() {
-    for (const button of document.querySelectorAll('#leftpanel .game_button')) set_short_label(button);
+    for (const button of document.querySelectorAll('#leftpanel .game_button, .mode-switch .game_button')) set_short_label(button);
 }
 
 function setup_touch_controls() {

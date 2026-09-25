@@ -599,19 +599,20 @@ body.touch #tcc {
    on the left and rotations + hold on the right (swapped with "movement on the
    right"), the goal / actions and the modes compact above them, and the settings
    and menu icons floating in the top-right corner instead of a title bar.
-   --dia-c: one cell of the 3x3 diamond; the buttons are 1.3 cells wide. */
+   --dia-c: one cell of the 3x3 diamond; the buttons are 1.4 cells wide (neighbours
+   nearly touch, like Techmino). About 112px is kept above them for the panels. */
 @media (orientation: landscape) and (max-height: 540px) {
     body.touch {
         --board-w: calc((var(--vh) - 0.6rem) * 0.8525);
         --dia-c: calc(max(34px, min(90px,
-            calc((100vw - var(--board-w)) / 2 / 3.9),
-            calc((var(--vh) - 150px) / 3.4))) * var(--tc-scale, 1));
+            calc((100vw - var(--board-w)) / 2 / 4),
+            calc((var(--vh) - 112px) / 3.5))) * var(--tc-scale, 1));
     }
     body.touch #tcc {
         left: 0;
         right: 0;
         bottom: 0;
-        padding: 0 0 calc(var(--dia-c) * 0.15 + 2px);
+        padding: 0 0 calc(var(--dia-c) * 0.2 + 2px);
         /* each diamond centred in the room beside the board */
         grid-template-columns: 1fr repeat(3, var(--dia-c)) 1fr calc(var(--board-w) + 1rem) 1fr repeat(3, var(--dia-c)) 1fr;
         grid-template-rows: repeat(3, var(--dia-c));
@@ -627,10 +628,10 @@ body.touch #tcc {
             ". . cc . . . . . d . .";
     }
     body.touch #tcc span {
-        width: calc(var(--dia-c) * 1.3);
-        height: calc(var(--dia-c) * 1.3);
-        line-height: calc(var(--dia-c) * 1.3 - 6px);
-        margin: calc(var(--dia-c) * -0.15);
+        width: calc(var(--dia-c) * 1.4);
+        height: calc(var(--dia-c) * 1.4);
+        line-height: calc(var(--dia-c) * 1.4 - 6px);
+        margin: calc(var(--dia-c) * -0.2);
         border-radius: 50%;
         border: 3px solid rgba(220, 221, 222, 0.5);
         background-color: rgba(255, 255, 255, 0.03);
@@ -640,21 +641,22 @@ body.touch #tcc {
     }
     body.touch #tcc span.pressed { background-color: rgba(255, 255, 255, 0.22); border-color: #fff; }
 
-    /* no title bar: the settings and menu icons float top right */
+    /* no title bar: the settings and menu icons stacked in a thin column at the
+       top-right edge, beside the right panel */
     body.touch .banner {
         position: fixed;
         top: 0;
         right: 0;
-        width: 5.4rem;
-        height: 2.2rem;
+        width: 2.4rem;
+        height: 4.6rem;
         padding: 0;
         background: transparent;
         z-index: 30;
     }
     body.touch .banner .title { display: none; }
-    body.touch .setting_icon, body.touch .burger { top: -0.45rem; transform: scale(0.65); }
-    body.touch .setting_icon { right: 2.4rem; }
-    body.touch .burger { right: 0; }
+    body.touch .setting_icon, body.touch .burger { right: -0.3rem; transform: scale(0.65); }
+    body.touch .setting_icon { top: -0.45rem; }
+    body.touch .burger { top: 1.75rem; }
     body.touch .nav .dropdown { top: 2.2rem; width: 15rem; font-size: 1rem; max-height: calc(var(--vh) - 2.4rem); overflow-y: auto; }
     body.touch .nav .dropdown li a { padding: 0.5rem 1rem; }
 
@@ -670,17 +672,17 @@ body.touch #tcc {
         max-width: 16rem;
         margin: 0 0.4rem;
         /* everything above the diamonds */
-        max-height: calc(var(--vh) - var(--dia-c) * 3.3 - 16px);
+        max-height: calc(var(--vh) - var(--dia-c) * 3.4 - 12px);
         scrollbar-width: thin;
         overflow-y: auto;
         font-size: 0.8rem;
     }
-    /* leave the corner to the settings and menu icons */
-    body.touch #rightpanel { padding-top: 2.1rem; max-height: calc(var(--vh) - var(--dia-c) * 3.3 - 16px - 2.1rem); }
+    /* leave the right edge to the settings and menu icons */
+    body.touch #rightpanel { margin-right: 2.6rem; }
     body.touch .panel h2 { display: none; }
-    body.touch .game_button { font-size: 0.8rem; padding: 0.2rem 0.5rem; margin-bottom: 0.3rem; }
-    body.touch #winning_requirement, body.touch #result { padding: 0.2rem; margin-bottom: 0.4rem; }
-    body.touch #winning_requirement p { margin: 0.2rem 0; }
+    body.touch .game_button { font-size: 0.8rem; padding: 0.2rem 0.5rem; margin-bottom: 0.2rem; }
+    body.touch #winning_requirement, body.touch #result { padding: 0.15rem 0.3rem; margin-bottom: 0.2rem; }
+    body.touch #winning_requirement p { margin: 0.1rem 0; }
     body.touch #winning_requirement2 { font-size: 0.7rem; }
     body.touch #gamemode { padding: 0.3rem; }
 }
@@ -965,7 +967,9 @@ html.portrait-zoom #scrollable { height: 18rem; }
 @media (orientation: landscape) and (max-height: 540px) {
     body.touch #leftpanel { gap: 0.3rem; grid-template-columns: repeat(4, minmax(0, 1fr)); }
     /* short labels (data-short, set by style-scripts.js) so four fit across */
-    body.touch #leftpanel .game_button { min-width: 0; overflow: hidden; text-overflow: ellipsis; padding-left: 0; padding-right: 0; }
+    /* (html: wins over the compact-panel rule further down) */
+    html body.touch #leftpanel .game_button { min-width: 0; overflow: hidden; text-overflow: ellipsis; padding: 0.15rem 0; margin: 0; }
+    body.touch #winning_requirement1 { font-size: 0.78rem; }
     body.touch #leftpanel .game_button[data-short] { font-size: 0 !important; }
     /* All-Spin's spin messages pop up over the board instead of taking a row */
     body.touch #spin_message {
@@ -995,4 +999,21 @@ html.portrait-zoom #scrollable { height: 18rem; }
     body.touch #game_button { font-size: 0.8rem; padding: 0.25rem 0.5rem; }
     body.touch #winning_requirement { font-size: 0.85rem; margin-bottom: 0.3rem; }
     body.touch .mode-switch { margin-bottom: 0.4rem; }
+    /* modes two per row, so the list stays short above the buttons */
+    body.touch .mode-switch { display: grid; grid-template-columns: 1fr 1fr; }
+    body.touch .mode-switch .game_button { border-right: 0.1rem solid #44474f; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    body.touch .mode-switch .game_button:nth-child(2n) { border-right: none; }
+    body.touch .mode-switch .game_button:nth-last-child(-n+2) { border-bottom: none; }
+    body.touch .mode-switch .game_button[data-short] { font-size: 0 !important; }
+    body.touch .mode-switch .game_button[data-short]::after { content: attr(data-short); font-size: 0.8rem; }
+    body.touch .mode-switch .game_button.active[data-short]::after { content: attr(data-short) ' ✓'; }
+    /* five modes or more: three per row */
+    body.touch .mode-switch:has(> :nth-child(5)) { grid-template-columns: repeat(3, 1fr); }
+    body.touch .mode-switch:has(> :nth-child(5)) .game_button { padding-left: 0.2rem; padding-right: 0.2rem; text-align: center; border-right: 0.1rem solid #44474f; }
+    body.touch .mode-switch:has(> :nth-child(5)) .game_button:nth-child(3n) { border-right: none; }
+    /* (smaller phones: the text shrinks with the panel rather than being cut off) */
+    body.touch .mode-switch:has(> :nth-child(5)) .game_button[data-short]::after {
+        font-size: max(0.55rem, min(0.72rem, calc(((100vw - var(--board-w)) / 2 - 55px) / 20.5)));
+    }
+    html body.touch .mode-switch .game_button { padding-top: 0.2rem; padding-bottom: 0.2rem; }
 }
