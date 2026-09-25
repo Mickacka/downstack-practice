@@ -67,7 +67,44 @@ function apply_touch_controls() {
     if (board && show) board.onblur = (e => e.preventDefault());
 }
 
+// Touch button preferences: size, sides and vibration
+function touch_pref(key, fallback) {
+    try {
+        return localStorage.getItem(key) || fallback;
+    } catch (e) {
+        return fallback;
+    }
+}
+
+function apply_touch_prefs() {
+    const scale = {large: 1, medium: 0.85, small: 0.7}[touch_pref('touch_size', 'large')] || 1;
+    document.documentElement.style.setProperty('--tc-scale', scale);
+    document.body.classList.toggle('tc-swap', touch_pref('touch_swap', 'off') === 'on');
+}
+
+function bind_touch_pref(id, key, fallback, is_checkbox) {
+    const input = document.getElementById(id);
+    if (!input) return;
+    if (is_checkbox) input.checked = touch_pref(key, fallback) === 'on';
+    else input.value = touch_pref(key, fallback);
+    input.onchange = () => {
+        try { localStorage.setItem(key, is_checkbox ? (input.checked ? 'on' : 'off') : input.value); } catch (e) {}
+        apply_touch_prefs();
+        if (is_checkbox && input.checked && key === 'touch_vibrate' && navigator.vibrate) navigator.vibrate(15);
+    };
+}
+
+// a short buzz when a touch button is pressed (capture: before the game handles it)
+document.addEventListener('touchstart', e => {
+    if (!navigator.vibrate || touch_pref('touch_vibrate', 'off') !== 'on') return;
+    if (e.target.closest && e.target.closest('#tcc span')) navigator.vibrate(12);
+}, {capture: true, passive: true});
+
 function setup_touch_controls() {
+    bind_touch_pref('touch_size', 'touch_size', 'large', false);
+    bind_touch_pref('touch_swap', 'touch_swap', 'off', true);
+    bind_touch_pref('touch_vibrate', 'touch_vibrate', 'off', true);
+    apply_touch_prefs();
     const select = document.getElementById('touch_controls');
     if (select) {
         select.value = get_touch_setting();

@@ -2,7 +2,8 @@
    bars hidden, so prefer svh (bars shown) where supported. --tc-size: touch
    button size, at most 130px and small enough for 8 across / 2 rows on a phone;
    the phone layouts below make them bigger. --tc-w / --tc-h: button width and
-   height (square unless a layout says otherwise). */
+   height (square unless a layout says otherwise). --tc-scale: the "Touch button
+   size" setting (1, 0.85 or 0.7), set on <html> by style-scripts.js. */
 :root {
     --vh: 100vh;
     --tc-size: min(130px, 17vmin, calc((100vw - 60px) / 8));
@@ -425,12 +426,12 @@ select#input13, select#pcwizard_option {
 	z-index: 11;
     --tc-w: var(--tc-size);
     --tc-h: var(--tc-size);
-    font-size: calc(min(var(--tc-w), var(--tc-h)) * 0.6);
+    font-size: calc(min(var(--tc-w), var(--tc-h)) * var(--tc-scale, 1) * 0.6);
 }
 .tc span {
-	width: var(--tc-w);
-	height: var(--tc-h);
-	line-height: var(--tc-h);
+	width: calc(var(--tc-w) * var(--tc-scale, 1));
+	height: calc(var(--tc-h) * var(--tc-scale, 1));
+	line-height: calc(var(--tc-h) * var(--tc-scale, 1));
 	box-sizing: border-box;
 	border: 3px solid #fff;
 	border-radius: 12%;
@@ -487,6 +488,8 @@ select#input13, select#pcwizard_option {
 #tcc.show {
     display: grid;
 }
+/* "Movement on the right": the two clusters swap sides */
+body.tc-swap #tcc { grid-template-areas: ". dr . . . . hd ." "h cc c . . l d r"; }
 /* lit while held */
 .tc span.pressed { opacity: 0.8; background-color: #b9e3ff; }
 
@@ -599,7 +602,7 @@ body.touch #tcc {
         margin: 0 0.4rem;
         /* leave room for the two rows of touch buttons below */
         max-height: calc(var(--vh) - 2.6rem - 2 * max(44px, min(130px,
-            calc((var(--vh) - 2.6rem - 158px) / 2 - 10px))) - 24px);
+            calc((var(--vh) - 2.6rem - 158px) / 2 - 10px))) * var(--tc-scale, 1) - 24px);
         scrollbar-width: thin;
         overflow-y: auto;
         font-size: 0.8rem;
@@ -630,7 +633,7 @@ html.portrait-zoom .flex {
     padding: 1.5rem 3rem 0;
     box-sizing: border-box;
     /* page height minus the header and the two rows of touch buttons */
-    height: calc(var(--vh) - 5rem - 2 * (100vw - 60px) / 6.5 * 1.4 - 40px);
+    height: calc(var(--vh) - 5rem - 2 * (100vw - 60px) / 6.5 * 1.4 * var(--tc-scale, 1) - 40px);
 }
 html.portrait-zoom .panel { width: auto; margin: 0; align-self: start; }
 html.portrait-zoom #leftpanel { grid-column: 1; grid-row: 1; }
