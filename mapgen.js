@@ -89,10 +89,10 @@ function is_spinable(depth = 1){
 
 
     [game.x, game.y, game.orientation] = piece_info
-    if (game.rotate_180()){
+    if (game.rotate_180('simple')){
         if ((is_exposed() && ! is_floatable())){
 
-            game.rotate_180()
+            game.rotate_180('simple')
             return true
         }
     }

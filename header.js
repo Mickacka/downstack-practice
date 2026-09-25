@@ -64,6 +64,18 @@ const jltsz_180_kick_table = [[[0,1]],
                         [[0,-1]],
                         [[1,0]],
                         ]
+// TETR.IO (SRS+) 180 kicks for every piece but O, by starting orientation
+// (0 spawn, 1 L, 2 flipped, 3 R); x right, y up; tried after the plain flip
+const srsplus_180_kick_table = [[[0,1], [1,1], [-1,1], [1,0], [-1,0]], //0->2
+                        [[-1,0], [-1,2], [-1,1], [0,2], [0,1]], //L->R
+                        [[0,-1], [-1,-1], [1,-1], [-1,0], [1,0]], //2->0
+                        [[1,0], [1,2], [1,1], [0,2], [0,1]], //R->L
+                        ]
+// 'srs+' (default) or 'simple' (the site's original single 180 kick, none for I)
+function kick_180_setting(){
+    try{ return localStorage.getItem('kick180') || 'srs+' }
+    catch(err){ return 'srs+' }
+}
 const i_clockwise_kick_table = [[[-2,0], [1,0], [-2,-1], [1,2]], //0->R 01
                           [[1,0], [-2,0], [1,-2], [-2,1]], //L->0 30
                           [[2,0], [-1,0], [2,1], [-1,-2]], //A->L 23
@@ -414,7 +426,8 @@ class Game{
         return false
     }
 
-    rotate_180(){
+    // generators pass "simple": those kicks work under either setting, so every map stays solvable
+    rotate_180(kicks = kick_180_setting()){
         var previous_orientation = this.orientation
         var previous_x = this.x
         var previous_y = this.y
@@ -425,7 +438,21 @@ class Game{
             return true
         }
 
-        if ('JLTSZ'.includes(this.tetramino)){
+        if ('JLTSZI'.includes(this.tetramino) && kicks == 'srs+'){
+            for (var idx=0; idx< srsplus_180_kick_table[previous_orientation].length; idx++){
+                var [x, y] = srsplus_180_kick_table[previous_orientation][idx]
+                this.x += x
+                this.y += y
+                if (! this.is_collide()){
+                    // not 'zkick4': the fin/TST upgrade to a full T-spin is for 90° kicks only
+                    this.lastmove = 'a180kick' + (idx+1)
+                    return true
+                }
+                this.x = previous_x
+                this.y = previous_y
+            }
+        }
+        else if ('JLTSZ'.includes(this.tetramino)){
             for (var idx=0; idx< jltsz_180_kick_table[this.orientation].length; idx++){
                 var coor = jltsz_180_kick_table[this.orientation][idx]
                 var x = coor[0]

@@ -52,6 +52,7 @@ Open the ⚙️ menu to set:
 
 - Keybinds (with Reset to defaults; keys used twice are highlighted), DAS and ARR
 - Whether a new map is generated when you win
+- **180° kicks**: *TETR.IO (SRS+)* (default) tries the same kicks as TETR.IO when a 180° flip is blocked; *Simple* keeps the original single kick. Maps are generated with the simple kicks, so every map can be solved with either setting
 - **Touch controls**: *Auto* shows on-screen buttons on phones and tablets, *On* / *Off* force them
 
 Settings are saved in your browser.

@@ -356,6 +356,13 @@ function set_event_listener(){
     document.getElementById('input12').oninput = e=>{save_setting()}
     var auto_next = document.getElementById('input12.1')
     if (auto_next) auto_next.onchange = e=>{save_setting()}
+    var kick180 = document.getElementById('kick180')
+    if (kick180){
+        kick180.value = kick_180_setting()
+        kick180.onchange = () => {
+            try{ localStorage.setItem('kick180', kick180.value) } catch(err){}
+        }
+    }
     var finesse_toggle = document.getElementById('finesse_toggle')
     if (finesse_toggle){
         finesse_toggle.checked = finesse_enabled()

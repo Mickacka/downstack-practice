@@ -151,7 +151,7 @@ function can_reach(test_board, piece, target){
     // the player's moves: there is no gravity and soft drop is instant, so no one-row drops
     var sonic_drop = () => { var y = g.y; g.drop(); return g.y != y }
     var moves = [() => g.move_left(), () => g.move_right(), sonic_drop,
-                 () => g.rotate_clockwise(), () => g.rotate_anticlockwise(), () => g.rotate_180()]
+                 () => g.rotate_clockwise(), () => g.rotate_anticlockwise(), () => g.rotate_180('simple')]
     for (var head=0; head<queue.length; head++){
         var [x, y, o] = queue[head]
         for (var move of moves){
