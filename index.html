@@ -44,6 +44,14 @@
     </div>
 
     <main class="home-main">
+        <section class="daily" aria-labelledby="daily-title">
+            <div class="daily-head">
+                <h2 id="daily-title">Today's puzzles</h2>
+                <span class="daily-streak" id="daily-streak"></span>
+            </div>
+            <p class="daily-intro">One map per mode each day, the same for everyone. Solve any of them to keep your streak going.</p>
+            <div class="daily-list" id="daily-list"></div>
+        </section>
         <p class="home-intro">Generated puzzles to practise one skill at a time. Pick a mode:</p>
         <div class="mode-grid" id="mode-grid"></div>
         <p class="home-foot">
@@ -57,25 +65,25 @@
     // One card per mode. `board` is a small picture, top row first (. empty, G garbage,
     // IJLOSTZ pieces); `spin` lists the cells of the piece to play, counted from the bottom.
     const MODES = [
-        {page: 'downstack.html', name: 'Downstack Practice', tag: 'Downstack',
+        {page: 'downstack.html', daily: true, name: 'Downstack Practice', tag: 'Downstack',
          text: 'Clear the garbage with combos, then finish with a PC, quad or TSD.',
          board: ['..........', '....TTT...', 'GGG..T.GGG', 'GGGG.GGGGG', 'GGG.GGGGGG', 'GGGGG.GGGG']},
-        {page: 'tspin-practice.html', name: 'T-Spin Practice', tag: 'T-Spin',
+        {page: 'tspin-practice.html', daily: true, name: 'T-Spin Practice', tag: 'T-Spin',
          text: 'Build and clear T-spin doubles, alone or followed by a quad.',
          board: ['..........', '..........', 'GGGG......', 'GGG...GGGG', 'GGGG.GGGGG', 'GGGGGGGG.G'], spin: [[3,2],[4,2],[5,2],[4,1]], color: 'T'},
-        {page: 'advance-tspin-practice.html', name: 'Advanced T-Spin', tag: 'T-Spin',
+        {page: 'advance-tspin-practice.html', daily: true, name: 'Advanced T-Spin', tag: 'T-Spin',
          text: 'C-spins, DT cannons, fractals and STSDs: chained T-spins.',
          board: ['..........', 'GGG.......', 'GG....GGGG', 'GGG..GGGGG', 'GGG.GGGGGG', 'GGG..GGGGG']},
-        {page: 'allspin-practice.html', name: 'All-Spin Practice', tag: 'New',
+        {page: 'allspin-practice.html', daily: true, name: 'All-Spin Practice', tag: 'New',
          text: 'Build an S, Z, L, J, I or T spin setup in a flat well, then spin in.',
          board: ['GGIIII..GG', 'GGJJZZ..GG', 'GGJOOZZ.GG', 'GGJOO...GG', 'GGGG.GGGGG', 'GGGG.GGGGG'], spin: [[5,2],[6,2],[7,2],[7,3]], color: 'L'},
-        {page: 'quad-practice.html', name: 'Quad Practice', tag: 'Quad',
+        {page: 'quad-practice.html', daily: true, name: 'Quad Practice', tag: 'Quad',
          text: 'Stack cleanly and clear four lines at once.',
          board: ['..........', 'GGGGGGGG..', 'GGGGGGGGG.', 'GGGGGGGGG.', 'GGGGGGGGG.', 'GGGGGGGGG.'], spin: [[9,0],[9,1],[9,2],[9,3]], color: 'I'},
-        {page: 'upstack-practice.html', name: 'Upstack Practice', tag: 'Stacking',
+        {page: 'upstack-practice.html', daily: true, name: 'Upstack Practice', tag: 'Stacking',
          text: 'Keep a clean stack while you build for quads and TSDs.',
          board: ['..........', '..........', 'LL......SS', 'LJJ.ZZ.SSO', 'LJOOTZZIOO', 'GGGGGGGGG.']},
-        {page: 'pc-practice.html', name: 'Mid-game PC', tag: 'Perfect clear',
+        {page: 'pc-practice.html', daily: true, name: 'Mid-game PC', tag: 'Perfect clear',
          text: 'Find the perfect clear from a mid-game board.',
          board: ['..........', '..........', 'GGG....GGG', 'GGGG..GGGG', 'GGGGG.GGGG', 'GGGGGGG..G']},
         {page: 'usermode.html', name: 'Usermode', tag: 'Custom',
@@ -150,6 +158,29 @@
         if (stats.tries) card.querySelector('.mode-stats').textContent = 'Solved ' + stats.solved + ' of ' + stats.tries
         draw_preview(card.querySelector('canvas'), mode)
         grid.appendChild(card)
+    }
+
+    // daily puzzles: done today, and the streak of days with at least one solved
+    function load_daily(){
+        try{ return JSON.parse(localStorage.getItem('daily')) || {} }
+        catch(err){ return {} }
+    }
+    var daily = load_daily()
+    var today = new Date().toISOString().slice(0, 10)
+    var yesterday = new Date(Date.parse(today) - 864e5).toISOString().slice(0, 10)
+    var done = (daily.done || {})[today] || []
+    var streak = [today, yesterday].includes(daily.last)? daily.streak || 0: 0
+    var streak_text = document.getElementById('daily-streak')
+    streak_text.textContent = streak? '🔥 ' + streak + (streak == 1? ' day': ' days') +
+        (daily.last == today? '': ' · solve one today to keep it'): (daily.best? 'Best streak ' + daily.best + ' days': '')
+    var list = document.getElementById('daily-list')
+    for (var mode of MODES.filter(m => m.daily)){
+        var link = document.createElement('a')
+        link.className = 'daily-link' + (done.includes(mode.page)? ' done': '')
+        link.href = mode.page + '#daily'
+        link.textContent = mode.name
+        if (done.includes(mode.page)) link.title = 'Solved today'
+        list.appendChild(link)
     }
     </script>
 </body>

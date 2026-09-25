@@ -13,7 +13,8 @@ const LINE_NAMES = ['', 'Single', 'Double', 'Triple', 'Quad']
 1. html related
 */
 function load_gamemode(){
-    try{
+    // the daily map uses the default options
+    if (!Daily.on) try{
         var pieces = localStorage.getItem('allspin_pieces')
         if (pieces) Config.spin_pieces = pieces
         var n = parseInt(localStorage.getItem('allspin_no_of_piece'))
@@ -185,7 +186,7 @@ function is_even_distributed(bag){
 // reachable on the board the player has at that moment.
 function carve(b, cells, used){
     if (cells.size == 0) return []
-    if (Date.now() > Record.deadline) return null
+    if (budget_clock() > Record.deadline) return null
     // the highest (then leftmost) cell must belong to the next piece removed
     var target = null
     for (var key of cells){
@@ -335,7 +336,7 @@ function try_spin_setup(piece, n_build){
         var finished = clone(nb)
         var build = carve(nb, cells, [])
         if (!build){
-            if (Date.now() > Record.deadline) return null
+            if (budget_clock() > Record.deadline) return null
             continue
         }
         // the finished board with each piece in its own colour, for Show Answer
@@ -399,9 +400,9 @@ function play_a_map(){
     for (var piece of pieces){
         Record.spin_piece = piece
         var sizes = [n_build, n_build, n_build, n_build+1, n_build-1].filter(n => n >= 2 && n <= 6)
-        var give_up = Date.now() + 700
-        while (!setup && Date.now() < give_up){
-            Record.deadline = Date.now() + 100
+        var give_up = budget_clock() + 700
+        while (!setup && budget_clock() < give_up){
+            Record.deadline = budget_clock() + 100
             setup = try_spin_setup(piece, sizes[random_int(sizes.length)])
         }
         if (setup) break
@@ -409,7 +410,7 @@ function play_a_map(){
     // last resort: any piece, any size
     while (!setup){
         Record.spin_piece = "SZLJIT"[random_int(6)]
-        Record.deadline = Date.now() + 100
+        Record.deadline = budget_clock() + 100
         setup = try_spin_setup(Record.spin_piece, 2 + random_int(4))
     }
     Record.spin_lines = setup.lines

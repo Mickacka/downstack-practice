@@ -710,6 +710,28 @@ html.portrait-zoom #scrollable { height: 18rem; }
 .mode-name { font-size: 1.15rem; }
 .mode-desc { font-size: 0.9rem; color: #b5b7bb; line-height: 1.3; }
 .mode-stats { font-size: 0.85rem; color: rgb(81, 184, 77); font-weight: bold; }
+.daily {
+    margin: 0 0 2rem;
+    padding: 1rem;
+    border: 0.15rem solid rgb(230, 170, 40);
+    border-radius: 0.8rem;
+    background: #2a2c30;
+}
+.daily-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.3rem 1rem; }
+.daily h2 { margin: 0; font-size: 1.3rem; color: rgb(246, 208, 60); }
+.daily-streak { font-weight: bold; color: #dcddde; }
+.daily-intro { margin: 0.4rem 0 0.8rem; font-size: 0.9rem; color: #b5b7bb; }
+.daily-list { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.daily-link {
+    padding: 0.4rem 0.8rem;
+    border: 0.12rem solid #44474f;
+    border-radius: 1rem;
+    color: #dcddde;
+    font-size: 0.95rem;
+}
+.daily-link:hover, .daily-link:focus-visible { border-color: rgb(66, 175, 225); outline: none; }
+.daily-link.done { border-color: rgb(81, 184, 77); color: rgb(81, 184, 77); }
+.daily-link.done::after { content: ' ✓'; }
 .home-foot { margin-top: 2rem; font-size: 0.9rem; color: #9a9ca1; line-height: 1.5; }
 .home-foot a { color: rgb(66, 175, 225); }
 @media (max-width: 480px) {

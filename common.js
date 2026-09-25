@@ -133,6 +133,7 @@ function render(){
     ctx.fillText('Streak '+stats.streak,420,520)
     ctx.fillText('Best '+stats.best,420,540)
     draw_finesse(ctx)
+    draw_daily(ctx)
 
 }
 
@@ -442,6 +443,10 @@ function report_result(won, reason){
     }
     else stats.streak = 0
     save_stats(stats)
+    if (won && is_daily_map()){
+        daily_solved()
+        if (!reason) reason = 'Daily solved'
+    }
     flash_result(won, reason || (won? '': 'Try again'))
 }
 
@@ -841,4 +846,89 @@ function draw_finesse(ctx){
         ctx.fillStyle = 'rgb(235, 79, 101)'
         ctx.fillText(finesse.last, 10, 440)
     }
+}
+
+/*
+Daily puzzle: page.html#daily plays the same map for everyone on a given (UTC) day.
+The page's first map is generated with Math.random seeded from the date and page,
+using the page's default options; the real Math.random comes back once the page loads.
+*/
+var Daily = {
+    on: /(^|[#&])daily\b/.test(location.hash.slice(1)),
+    date: new Date().toISOString().slice(0, 10),
+    page: location.pathname.split('/').pop() || 'index.html',
+    map: null,
+    ticks: 0,
+}
+
+function seeded_random(text){
+    // FNV-1a hash of the text, then mulberry32
+    var seed = 2166136261
+    for (var i=0; i<text.length; i++) seed = Math.imul(seed ^ text.charCodeAt(i), 16777619)
+    return function(){
+        seed = (seed + 0x6D2B79F5) | 0
+        var t = Math.imul(seed ^ seed >>> 15, 1 | seed)
+        t = (t + Math.imul(t ^ t >>> 7, 61 | t)) ^ t
+        return ((t ^ t >>> 14) >>> 0) / 4294967296
+    }
+}
+
+// a clock for generators with a time budget: counts calls while the daily map is made,
+// so the result doesn't depend on the speed of the device
+function budget_clock(){
+    if (Daily.seeding) return (Daily.ticks += 1) / 3
+    return Date.now()
+}
+
+function daily_key(){ return JSON.stringify([Record.finished_map, Record.board[0], Record.shuffled_queue]) }
+
+function is_daily_map(){ return Daily.on && Daily.map !== null && Daily.map === daily_key() }
+
+function load_daily(){
+    try{ return JSON.parse(localStorage.getItem('daily')) || {} }
+    catch(err){ return {} }
+}
+
+// {done: {date: [pages]}, streak, best, last}: a day counts once any daily is solved
+function daily_solved(){
+    var daily = load_daily()
+    daily.done = daily.done || {}
+    var today = daily.done[Daily.date] || []
+    if (today.includes(Daily.page)) return
+    daily.done[Daily.date] = today.concat([Daily.page])
+    // keep a month of history
+    for (var date of Object.keys(daily.done).sort().slice(0, -31)) delete daily.done[date]
+    if (daily.last != Daily.date){
+        var yesterday = new Date(Date.parse(Daily.date) - 864e5).toISOString().slice(0, 10)
+        daily.streak = daily.last == yesterday? (daily.streak || 0) + 1: 1
+        daily.best = Math.max(daily.best || 0, daily.streak)
+        daily.last = Daily.date
+    }
+    try{ localStorage.setItem('daily', JSON.stringify(daily)) } catch(err){}
+}
+
+function play_daily(){
+    location.hash = 'daily'
+    location.reload()
+}
+
+function draw_daily(ctx){
+    if (!is_daily_map()) return
+    var done = (load_daily().done || {})[Daily.date] || []
+    ctx.font = "bold 14px Arial ";
+    ctx.fillStyle = 'rgb(230, 170, 40)'
+    ctx.fillText('Daily ' + Daily.date.slice(5), 420, 575)
+    if (done.includes(Daily.page)) ctx.fillText('✓ Solved', 420, 595)
+}
+
+if (Daily.on){
+    Daily.random = Math.random
+    Math.random = seeded_random(Daily.date + '/' + Daily.page)
+    Daily.seeding = true
+    window.addEventListener('load', () => {
+        Math.random = Daily.random
+        Daily.seeding = false
+        Daily.map = daily_key()
+        render()
+    })
 }

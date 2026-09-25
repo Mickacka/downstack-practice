@@ -27,6 +27,7 @@ This is a fork of [himitsuconfidential/downstack-practice](https://github.com/hi
 - **Undo** (U, or the Undo button) takes back the last piece; **Retry** restarts the map.
 - **Show Answer** replays the solution one piece at a time, in the order you place them.
 - **Finesse feedback**: after each piece placed without soft drop, the board shows whether you used the fewest inputs for that spot (taps, DAS to the wall and rotations each count 1) and keeps a running score. Turn it off in Settings.
+- **Daily** (button, or *Today's puzzles* on the home page) plays the day's map for that mode: the same map for everyone, new every day (UTC). Solving any daily keeps your daily streak going.
 - **Copy link** copies a link to the exact puzzle on screen, to retry later or send to a friend.
 - Every attempt ends with a ✓ / ✗ over the board, and your solved count, streak and best streak are kept per mode (also shown on the home page).
 
