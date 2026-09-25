@@ -16,7 +16,7 @@ Each map asks for **two spins in a row** (or one: *Options > Spins per map*), fo
 
 For each spin:
 
-1. **Build the setup** with the pieces in your queue, inside the well. For the last spin, you may also build on the stack right beside it.
+1. **Build the setup** with the pieces in your queue, inside the well and on the stack right beside it.
 2. **Spin the last piece into the slot** so it clears the requested number of lines.
 
 The lines cleared by the first spin leave the base for the second setup, in the same well. The goal ticks off each spin as you do it (✓).
@@ -64,7 +64,7 @@ This is a schematic, not an exact board (`#` stack, `.` empty):
       (a little uneven)     (3-6 wide)      (a little uneven)
           #  .  #  #   |  .  .  .  .  |   #  .  .
           #  #  #  #   |  .  .  .  .  |   #  #  .      <- the build fills the well about level with the
-          #  #  #  #   |  .  .  .  .  |   #  #  #         stack (for the last spin, also beside it)
+          #  #  #  #   |  .  .  .  .  |   #  #  #         stack, and may also go on the stack beside it
       ----#--#--#--#---|--.--S--S--.--|---#--#--#----   <- spin rows: the slot (S) plus cells you build;
       ----#--#--#--#---|--.--.--S--S--|---#--#--#----      the spin clears them
           #  #  #  #   #  #  #  #  .  #   #  #  #      <- garbage floor (0-2 rows), with one hole
@@ -117,7 +117,7 @@ Every single attempt has a **100 ms deadline** (`Record.deadline`). The deep sea
 
 1. **Slot shape** (`slot_shape`): a flat orientation (T: pointing down only; others: flat, either way up).
 2. **Well width** from the slot width up to 6:
-   - a width is allowed when the build would reach a wall height of about 1-6 rows: `(4n − (spin_rows·w − 4)) / (w − 1 + side)` between 1 and 6, where `side` is 2 when the build may go on the stack beside the well (the last spin) and 0 otherwise;
+   - a width is allowed when the build would reach a wall height of about 1-6 rows: `(4n − (spin_rows·w − 4)) / (w − 1 + 2)` between 1 and 6 (the 2 is roughly what the stack beside the well can take);
    - half the time the choice is limited to widths ≤ 4 (mid-game-like wells) when any are allowed.
 3. **Position**: the well goes anywhere on the board, the slot anywhere inside the well, and the floor 0-2 rows up.
 4. **Board so far**:
@@ -130,7 +130,9 @@ Every single attempt has a **100 ms deadline** (`Record.deadline`). The deep sea
 
 1. **A little uneven stack** (`terrain_bumps`): a random walk outwards from each side of the well gives each outside column an offset of −1, 0 or +1. It starts level two times in three, and changes by 1 step one column in three. A column's height above the spin rows is `wall + offset`. The columns touching the well stay at least 1 high, so the well is still a well.
 2. **Cells to build above the spin rows**: `need = 4n − (B cells in the spin rows)`.
-3. **Side columns** (last spin only): up to 2 columns on each side of the well can take build pieces too. They fill the stack's dips and can go up to 3 rows above the wall height. This is not allowed for a first spin followed by another: the second setup's taller stack would end up over those cells, leaving holes at the start.
+3. **Side columns**: up to 2 columns on each side of the well can take build pieces too. They fill the stack's dips and can go up to 3 rows above the wall height.
+
+   **The stack only grows up from stack**: new stack cells are only added on top of stack, never above a cell you build. This matters for the second spin: where the first build put pieces beside the well, the second setup's stack stops below them (3.6). So the starting board never has stack floating over empty cells.
 4. **Caps and the garbage hole**: for every way of capping the slot columns (at most 16), the code checks the slot on a board with walls and caps of height 1:
    - The slot must be a **spin slot** (`is_spin_slot`): the piece fits there, can't move left, right, up or down from there, and can be reached from spawn (3.7).
    - For the first spin, the garbage hole is dug under one of the open columns, and the slot is checked again with it.
@@ -166,8 +168,8 @@ This works backwards, like the other modes' generators: it removes pieces from t
 1. `R = after_spin(first)`: the first setup built, its spin piece in the slot, and the full rows cleared. That's the board you'll have after the first spin.
 2. The second slot is **dropped** onto `R` like a hard drop at a random column of the well. It rests where it lands, so its spin rows sit on what the first setup left.
 3. **`must_open`**: well columns with an empty cell right under the new spin rows. These are the first slot's entry, down to the garbage hole. Such a column must be an *open* column of the second slot, so that after the second spin it is clear all the way down (clean well). A slot that doesn't cover them is rejected.
-4. Empty cells outside the well, up to the new spin rows, become stack. Empty well cells in the spin rows become `B`. There are no pockets here: a pocket would float in the middle of the well at the start.
-5. `finish_setup` as in 3.4 (without digging a hole). New walls only fill empty cells, never the first build's pieces.
+4. Empty cells outside the well, up to the new spin rows, are filled. A cell with stack under it becomes stack. A cell over a piece of the first build becomes `B` if it is in the spin rows (you build it). If it is below them, this slot position is rejected, because it would leave a hole. Empty well cells in the spin rows become `B`. There are no pockets here: a pocket would float in the middle of the well at the start.
+5. `finish_setup` as in 3.4 (without digging a hole). The stack only grows up from stack, never over the first build's pieces.
 6. **Starting board**: the first setup's board, plus the second setup's new stack cells moved up by the number of lines the first spin clears. They must fit at row 16 or lower.
 7. **`still_works`**: the taller stack must not get in the way of the first setup. Each first-setup piece is placed in order on the real starting board, checking it can be reached, and then the first slot must still be a spin slot.
 
@@ -236,7 +238,7 @@ Changing the generator changes that day's daily map (it stays the same for every
 | Preference for narrow wells | `try_spin_setup`: `random_int(2)` | 50% of attempts limited to widths ≤ 4 |
 | Floor height | `try_spin_setup`: `random_int(3)` | 0-2 garbage rows |
 | Stack unevenness | `terrain_bumps` | offsets −1..+1, a step 1 column in 3 |
-| Side build | `finish_setup`: `side_cols`, `high`; the `side` flag | last spin only; 2 columns each side, up to 3 above the wall |
+| Side build | `finish_setup`: `side_cols`, `high` | 2 columns each side, up to 3 above the wall |
 | Build flatness | `finish_setup`: `low` / `high` for well columns, scoring | wall −1..+1 |
 | Wall height range | `finish_setup` | 1-6 (lowest that fits) |
 | Spawn room | `finish_setup`, `second_setup` | stack at row 16 or lower |
@@ -252,10 +254,8 @@ After a change, run the test in section 8.
 - **Slot shapes**: only flat slots (T: pointing down). No upright S/Z/L/J/I slots, no T-spin triples or minis. So spins are Doubles, and I-spins are Singles.
 - **Well widths**:
   - with one spin they range over 3-6, with 3 or 4 wide in about half the maps;
-  - with two spins they are 5-6 wide at 5 pieces per spin, and 4-6 at 4 pieces.
-
-  Narrow wells need the build to spread onto the stack beside the well, which only the last spin can do (3.4). The second setup also can't use pockets (they would float in the well).
-- **Generation time**: about 0.2 s per map on a desktop (up to ~0.8 s), more on a phone.
+  - with two spins, 3-6 wide, with 3 or 4 wide in about a third of the maps (3-wide is the rarest: the second setup can't use pockets, since they would float in the well).
+- **Generation time**: about 0.1-0.2 s per map on a desktop (up to ~0.6 s), more on a phone.
 - **At most two spins** per map.
 
 ---
@@ -324,7 +324,7 @@ report_result = report
 out
 ```
 
-The last result should be `won: 20` and no `failed` entries. The latest run: 20/20 won, and all 20 starting boards were clean.
+The last result should be `won: 20` and no `failed` entries. The latest run: 24/24 won, all 24 starting boards clean, and no hole anywhere on the final boards.
 
 ---
 

@@ -348,14 +348,19 @@ function try_second_setup(R, left, right, piece, n_build){
         if (bottom > 0 && R[bottom-1][col] == 'N') must_open.push(col)
     if (!must_open.every(col => slot.some(c => c[0] == col))) return null
     var b = clone(R)
-    // (a low column of the bumpy stack is filled up to here too: no holes under the walls)
-    for (var row=0; row<bottom; row++)
-        for (var col=0; col<10; col++)
-            if ((col < left || col > right) && b[row][col] == 'N') b[row][col] = 'G'
-    for (var row=bottom; row<=top; row++)
+    // Outside the well, every empty cell up to the spin rows is filled. The stack only
+    // grows up from stack; over a piece of the first build (placed beside the well)
+    // the cell becomes part of this build if it's in the spin rows, and below them
+    // this slot can't be used (it would leave a hole).
+    for (var row=0; row<=top; row++)
         for (var col=0; col<10; col++){
-            if (col < left || col > right){ if (b[row][col] == 'N') b[row][col] = 'G' }
-            else if (b[row][col] == 'N' && !slot.some(c => c[0] == col && c[1] == row)) b[row][col] = 'B'
+            if (b[row][col] != 'N') continue
+            if (col < left || col > right){
+                if (row == 0 || b[row-1][col] == 'G') b[row][col] = 'G'
+                else if (row >= bottom) b[row][col] = 'B'
+                else return null
+            }
+            else if (row >= bottom && !slot.some(c => c[0] == col && c[1] == row)) b[row][col] = 'B'
         }
     return finish_setup({b: b, piece: piece, orientation: orientation, x: x, y: y, slot: slot,
         top: top, bottom: bottom, left: left, right: right, dig: false, must_open: must_open, side: true}, n_build)
@@ -429,18 +434,22 @@ function finish_setup(s, n_build){
         var nb = clone(board)
         for (var col=0; col<10; col++){
             if (in_well(col)) continue
-            // (only empty cells: for the second spin, pieces of the first build may be there)
-            for (var row=top+1; row<=Math.min(top + wall_height(col, wall), 19); row++) if (nb[row][col] == 'N') nb[row][col] = 'G'
+            // The stack only grows up from stack: for the second spin, where the first
+            // build put pieces on this column, no stack goes above them (it would float
+            // over cells that are empty at the start)
+            for (var row=top+1; row<=Math.min(top + wall_height(col, wall), 19); row++){
+                if (nb[row][col] != 'N' || (row > 0 && nb[row-1][col] != 'G')) break
+                nb[row][col] = 'G'
+            }
         }
         return nb
     }
 
     var spin_row_cells = b.flat().filter(c => c == 'B').length
     var need = 4*n_build - spin_row_cells
-    // the build goes in the well and, for the last spin, may spread onto the stack
-    // beside it (up to 2 columns each side), filling its dips and rising up to 3 rows
-    // above the wall height. Not for a first spin followed by another: the second
-    // setup's taller stack would end up over those cells, leaving holes at the start.
+    // the build goes in the well and may spread onto the stack beside it (up to 2
+    // columns each side), filling its dips and rising up to 3 rows above the wall
+    // height (the second setup's stack never goes above those pieces: with_walls)
     var side_cols = s.side? [left-2, left-1, right+1, right+2].filter(col => col >= 0 && col < 10): []
     // cheap early exit: the wall height would be out of range whatever gets capped
     if (need < well_width - slot_cols.length || need > 6 * (well_width + side_cols.length)) return null
@@ -703,7 +712,7 @@ function play_a_map(){
     var clean_after = setup => is_clean(after_spin(setup.board, setup), setup.left, setup.right)
     var spins = null, start = null, fallback = null
     for (var attempt=0; attempt<10 && !spins; attempt++){
-        var first = first_setup(n_build, Config.spins == 1)
+        var first = first_setup(n_build, true)
         if (!clean_after(first) || !clean_start(first.board)) continue
         if (Config.spins == 1){ spins = [first]; start = first.board; break }
         var second = second_setup(first, n_build)
