@@ -248,10 +248,11 @@ function slot_shape(piece){
     return {orientation: orientation, xs: xs, ys: ys, width: Math.max(...xs) - Math.min(...xs) + 1}
 }
 
-// The board is a flat stack with a 3-5 wide well. The player builds the setup
-// inside the well, filling it level with the walls except for the way into
-// the slot, then spins in.
-function try_spin_setup(piece, n_build){
+// The board is a gently bumpy stack with a 3-6 wide well. The player builds the
+// setup inside the well (and, for the last spin, on the stack beside it), level
+// with the stack except for the way into the slot, then spins in.
+// `side`: whether the build may spread onto the stack beside the well.
+function try_spin_setup(piece, n_build, side){
     var {orientation, xs, ys, width: slot_width} = slot_shape(piece)
 
     // The well: the slot plus some spare columns (none needed: cells shut in under
@@ -263,7 +264,7 @@ function try_spin_setup(piece, n_build){
     for (var w = slot_width; w <= 6; w++){
         var fill = 4*n_build - (spin_rows*w - 4)
         // (the build can also spread onto the stack beside the well, about 2 columns' worth)
-        var est_wall = fill / (w - 1 + 2)
+        var est_wall = fill / (w - 1 + (side? 2: 0))
         if (est_wall >= 1 && est_wall <= 6) widths.push(w)
     }
     if (widths.length == 0) return null
@@ -292,7 +293,7 @@ function try_spin_setup(piece, n_build){
             b[row][col] = !in_well(col)? 'G': is_slot(col, row)? 'N': 'B'
     fill_pockets(b, top)
     return finish_setup({b: b, piece: piece, orientation: orientation, x: x, y: y, slot: slot,
-        top: top, bottom: bottom, left: left, right: right, dig: bottom > 0, must_open: []}, n_build)
+        top: top, bottom: bottom, left: left, right: right, dig: bottom > 0, must_open: [], side: side}, n_build)
 }
 
 // The second spin, on the board left once the first one has cleared its lines,
@@ -331,20 +332,19 @@ function try_second_setup(R, left, right, piece, n_build){
             else if (b[row][col] == 'N' && !slot.some(c => c[0] == col && c[1] == row)) b[row][col] = 'B'
         }
     return finish_setup({b: b, piece: piece, orientation: orientation, x: x, y: y, slot: slot,
-        top: top, bottom: bottom, left: left, right: right, dig: false, must_open: must_open}, n_build)
+        top: top, bottom: bottom, left: left, right: right, dig: false, must_open: must_open, side: true}, n_build)
 }
 
 // Height offsets of the stack outside the well, a random walk outwards from each
-// side of the well: steps of -1, 0 or 1 (sometimes 2), kept within -2..2
+// side of the well: mostly level, a step of 1 up or down now and then, kept within
+// -1..1, so the stack is a little uneven like a mid-game board
 function terrain_bumps(left, right){
     var bumps = Array(10).fill(0)
     var walk = cols => {
-        var h = random_int(3) - 1
+        var h = random_int(3) == 0? random_int(3) - 1: 0
         for (var col of cols){
             bumps[col] = h
-            var step = random_int(3) - 1
-            if (random_int(4) == 0) step *= 2
-            h = Math.max(-2, Math.min(2, h + step))
+            if (random_int(3) == 0) h = Math.max(-1, Math.min(1, h + (random_int(2)? 1: -1)))
         }
     }
     var left_cols = [], right_cols = []
@@ -394,9 +394,9 @@ function finish_setup(s, n_build){
     var well_width = right - left + 1
     var slot_cols = [...new Set(slot.map(c => c[0]))]
     var in_well = col => col >= left && col <= right
-    // the stack around the well is bumpy like a mid-game board: each column up to
-    // 2 rows above or below the wall height, neighbours at most 2 apart, and the
-    // columns beside the well at least 1 high so the well stays a well
+    // the stack around the well is a little uneven like a mid-game board: each column
+    // at most 1 row above or below the wall height, neighbours at most 1 apart, and
+    // the columns beside the well at least 1 high so the well stays a well
     var bumps = terrain_bumps(left, right)
     var wall_height = (col, wall) => Math.max(col == left - 1 || col == right + 1? 1: 0, wall + bumps[col])
     var with_walls = (board, wall) => {
@@ -411,9 +411,11 @@ function finish_setup(s, n_build){
 
     var spin_row_cells = b.flat().filter(c => c == 'B').length
     var need = 4*n_build - spin_row_cells
-    // the build goes in the well and may spread onto the stack beside it (up to 2
-    // columns each side), filling its dips and rising up to 3 rows above the wall height
-    var side_cols = [left-2, left-1, right+1, right+2].filter(col => col >= 0 && col < 10)
+    // the build goes in the well and, for the last spin, may spread onto the stack
+    // beside it (up to 2 columns each side), filling its dips and rising up to 3 rows
+    // above the wall height. Not for a first spin followed by another: the second
+    // setup's taller stack would end up over those cells, leaving holes at the start.
+    var side_cols = s.side? [left-2, left-1, right+1, right+2].filter(col => col >= 0 && col < 10): []
     // cheap early exit: the wall height would be out of range whatever gets capped
     if (need < well_width - slot_cols.length || need > 6 * (well_width + side_cols.length)) return null
 
@@ -621,7 +623,7 @@ function is_spin_slot(b, piece, orientation, x, y, slot){
 // T come up as often. Some piece/size combinations are rare or impossible in a well
 // (a flat I-spin leaves little room), so each attempt picks a size near the one asked
 // for, favouring the exact size, and after a while moves on to another piece.
-function first_setup(n_build){
+function first_setup(n_build, side){
     var setup = null
     for (var piece of shuffle([...Config.spin_pieces])){
         Record.spin_piece = piece
@@ -629,7 +631,7 @@ function first_setup(n_build){
         var give_up = budget_clock() + 700
         while (!setup && budget_clock() < give_up){
             Record.deadline = budget_clock() + 100
-            setup = try_spin_setup(piece, sizes[random_int(sizes.length)])
+            setup = try_spin_setup(piece, sizes[random_int(sizes.length)], side)
         }
         if (setup) return setup
     }
@@ -637,7 +639,7 @@ function first_setup(n_build){
     while (!setup){
         Record.spin_piece = "SZLJIT"[random_int(6)]
         Record.deadline = budget_clock() + 100
-        setup = try_spin_setup(Record.spin_piece, 2 + random_int(4))
+        setup = try_spin_setup(Record.spin_piece, 2 + random_int(4), side)
     }
     return setup
 }
@@ -675,20 +677,17 @@ function play_a_map(){
     var clean_after = setup => is_clean(after_spin(setup.board, setup), setup.left, setup.right)
     var spins = null, start = null, fallback = null
     for (var attempt=0; attempt<10 && !spins; attempt++){
-        var first = first_setup(n_build)
-        if (!clean_after(first)) continue
-        fallback = first
-        if (Config.spins == 1){ spins = [first]; start = first.board }
-        else{
-            var second = second_setup(first, n_build)
-            if (second && clean_after(second.setup)){ spins = [first, second.setup]; start = second.start }
-        }
+        var first = first_setup(n_build, Config.spins == 1)
+        if (!clean_after(first) || !clean_start(first.board)) continue
+        if (Config.spins == 1){ spins = [first]; start = first.board; break }
+        var second = second_setup(first, n_build)
+        if (second && clean_after(second.setup) && clean_start(second.start)){ spins = [first, second.setup]; start = second.start }
     }
     // very rarely nothing fits on top: settle for one spin
     if (!spins){
         while (!fallback){
-            var first = first_setup(n_build)
-            if (clean_after(first)) fallback = first
+            var first = first_setup(n_build, true)
+            if (clean_after(first) && clean_start(first.board)) fallback = first
         }
         spins = [fallback]; start = fallback.board
     }
@@ -706,6 +705,19 @@ function play_a_map(){
     play()
     document.getElementById('spin_message').textContent = ''
     render()
+}
+
+// The starting board (the stack, before anything is built) has no stack cell over
+// an empty one, in any column
+function clean_start(board){
+    for (var col=0; col<10; col++){
+        var gap = false
+        for (var row=0; row<20; row++){
+            if (board[row][col] != 'G') gap = true
+            else if (gap) return false
+        }
+    }
+    return true
 }
 
 // no empty cell of the well under a filled one
