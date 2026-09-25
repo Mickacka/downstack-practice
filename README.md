@@ -63,8 +63,10 @@ Settings are saved in your browser.
 
 With touch controls on:
 
-- **Landscape** works like a gamepad: the board fills the height in the middle, movement buttons sit bottom-left and rotations / hold bottom-right.
-- **Portrait** shows the whole page zoomed to fit, with the panels on top and a large board, so every button is visible without scrolling.
+- **Landscape** works like a gamepad: the board fills the height in the middle, movement buttons sit bottom-left and rotations / hold bottom-right, as wide as the space beside the board allows.
+- **Portrait** shows the whole page zoomed to fit, with the panels on top, a large board and big touch buttons across the full width, so everything is visible without scrolling.
+
+Buttons light up while you hold them.
 
 Hold a direction button to move the piece all the way (DAS); long-pressing no longer brings up the Android menu.
 

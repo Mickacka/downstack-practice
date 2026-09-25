@@ -386,6 +386,7 @@ function set_event_listener(){
     // emulated mouse click; that needs a non-passive listener
     const press = (id, func) => document.getElementById(id).addEventListener('touchstart', e => {
         e.preventDefault()
+        e.currentTarget.classList.add('pressed')
         if (!Controls.can_play() || answer_replay.running) return
         func()
         render()
@@ -412,6 +413,9 @@ function set_event_listener(){
     press('tc-cc', () => (finesse_input(), game.rotate_anticlockwise(), Controls.after_rotate()))
     press('tc-c', () => (finesse_input(), game.rotate_clockwise(), Controls.after_rotate()))
     document.getElementById('tcc').addEventListener('contextmenu', e => e.preventDefault())
+    for (var button of document.querySelectorAll('#tcc span'))
+        for (var type of ['touchend', 'touchcancel'])
+            button.addEventListener(type, e => e.currentTarget.classList.remove('pressed'))
 }
 
 /*

@@ -1,6 +1,8 @@
 /* --vh: the visible height. On phones 100vh is the height with the browser
    bars hidden, so prefer svh (bars shown) where supported. --tc-size: touch
-   button size, at most 130px and small enough for 8 across / 2 rows on a phone. */
+   button size, at most 130px and small enough for 8 across / 2 rows on a phone;
+   the phone layouts below make them bigger. --tc-w / --tc-h: button width and
+   height (square unless a layout says otherwise). */
 :root {
     --vh: 100vh;
     --tc-size: min(130px, 17vmin, calc((100vw - 60px) / 8));
@@ -421,16 +423,21 @@ select#input13, select#pcwizard_option {
 	padding: 10px;
 	pointer-events: none;
 	z-index: 11;
-    font-size: calc(var(--tc-size) * 0.6);
+    --tc-w: var(--tc-size);
+    --tc-h: var(--tc-size);
+    font-size: calc(min(var(--tc-w), var(--tc-h)) * 0.6);
 }
 .tc span {
-	width: var(--tc-size);
-	height: var(--tc-size);
-	line-height: var(--tc-size);
+	width: var(--tc-w);
+	height: var(--tc-h);
+	line-height: var(--tc-h);
+	box-sizing: border-box;
 	border: 3px solid #fff;
+	border-radius: 12%;
 	background-color: #87cefa;
-	opacity: 0.4;
-	margin: 6px 1px;
+	opacity: 0.45;
+	margin: 4px 2px;
+	transition: opacity 60ms, background-color 60ms;
 	vertical-align: text-bottom;
 	pointer-events: auto;
 	display: inline-block;
@@ -480,6 +487,8 @@ select#input13, select#pcwizard_option {
 #tcc.show {
     display: grid;
 }
+/* lit while held */
+.tc span.pressed { opacity: 0.8; background-color: #b9e3ff; }
 
 #tc-hd { grid-area: hd; }
 #tc-dr { grid-area: dr; }
@@ -563,8 +572,16 @@ body.touch #tcc {
     grid-template-columns: auto auto auto 1fr 1fr auto auto auto;
 }
 
-/* phone held sideways: board in the middle at full height, controls in the corners */
+/* phone held sideways: board in the middle at full height, controls in the corners.
+   Buttons as big as the room beside the board allows (three across), keeping
+   about 150px above them for the goal and the Retry / Undo buttons. */
 @media (orientation: landscape) and (max-height: 540px) {
+    body.touch #tcc {
+        /* wide as the side allows, tall as the height allows */
+        --tc-w: max(44px, min(150px, calc((100vw - (var(--vh) - 2.6rem) * 0.8525) / 6 - 12px)));
+        --tc-h: max(44px, min(130px, calc((var(--vh) - 2.6rem - 158px) / 2 - 10px)));
+    }
+    body.touch #tcc { padding: 2px; }
     body.touch .banner { height: 1.6rem; padding: 0.2rem; font-size: 1.1rem; }
     body.touch .setting_icon, body.touch .burger { top: -0.6rem; transform: scale(0.7); }
     body.touch .nav .dropdown { top: 2rem; font-size: 1rem; }
@@ -581,7 +598,9 @@ body.touch #tcc {
         max-width: 16rem;
         margin: 0 0.4rem;
         /* leave room for the two rows of touch buttons below */
-        max-height: calc(var(--vh) - 2.6rem - 2 * var(--tc-size) - 40px);
+        max-height: calc(var(--vh) - 2.6rem - 2 * max(44px, min(130px,
+            calc((var(--vh) - 2.6rem - 158px) / 2 - 10px))) - 24px);
+        scrollbar-width: thin;
         overflow-y: auto;
         font-size: 0.8rem;
     }
@@ -597,6 +616,11 @@ body.touch #tcc {
 /* phone held upright: the page is laid out 1300px wide and zoomed out to fit
    (see update_viewport). Panels side by side on top, the board takes the rest
    of the height above the touch buttons, so nothing needs scrolling. */
+html.portrait-zoom body.touch #tcc {
+    --tc-w: calc((100vw - 60px) / 6.5);
+    --tc-h: calc((100vw - 60px) / 6.5 * 1.4);
+    padding: 6px;
+}
 html.portrait-zoom .flex {
     display: grid;
     align-items: stretch;
@@ -606,7 +630,7 @@ html.portrait-zoom .flex {
     padding: 1.5rem 3rem 0;
     box-sizing: border-box;
     /* page height minus the header and the two rows of touch buttons */
-    height: calc(var(--vh) - 5rem - 2 * var(--tc-size) - 50px);
+    height: calc(var(--vh) - 5rem - 2 * (100vw - 60px) / 6.5 * 1.4 - 40px);
 }
 html.portrait-zoom .panel { width: auto; margin: 0; align-self: start; }
 html.portrait-zoom #leftpanel { grid-column: 1; grid-row: 1; }
