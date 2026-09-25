@@ -222,7 +222,6 @@ function is_few_non_cheese_hole(){
             else
                 break
         }  
-        console.log(height[lowest_gap_col] - lowest_gap_height)
         if (height[lowest_gap_col] - lowest_gap_height < 2) return false
     }
 

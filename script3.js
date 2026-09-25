@@ -297,7 +297,6 @@ function queue_generator(expr){
         if (is_factorial){
             repeat = subqueue.length
         }
-        console.log(subqueue, repeat)
         if (subqueue.length >0){
             if (repeat > subqueue.length){
                 document.getElementById('queue_error').innerHTML = `bag ${subqueue} has only ${subqueue.length} shapes`
@@ -327,24 +326,19 @@ function pcfinder(){
     var url = 'https://wirelyre.github.io/tetra-tools/pc-solver.html'
     var field = []
     for (var i=0; i<190; i++) field.push(0)
-    console.log(field.length, JSON.stringify(field))
     for (var row=3; row>=0; row--){
         for (var col=0; col<10; col++){
-            console.log(game.board[row][col])
             if (game.board[row][col] == 'N')
                 field.push(0)
             else
                 field.push(8)
         }
     }
-    console.log(field.length, JSON.stringify(field))
     for (var i=0; i<10; i++) field.push(0)
-    console.log(field.length, JSON.stringify(field))
     var queue = [...game.holdmino].filter(x=>x!='G').join('') + game.bag.filter(x=>x!='G').join('')
     
     var fumen= encode_simple(field,queue)
 
-    console.log(fumen)
     window.open(url+'?fumen='+ encodeURIComponent(fumen))
 }
 
@@ -352,12 +346,10 @@ function sfinder(){
     var url = 'https://sfinder.sixwi.de'
     var field = []
     for (var i=0; i<230-80; i++) field.push(0)
-    console.log(field.length, JSON.stringify(field))
     var clearLines = 0
     var countOccupied = 0
     for (var row=7; row>=0; row--){
         for (var col=0; col<10; col++){
-            console.log(game.board[row][col])
             if (game.board[row][col] == 'N')
                 field.push(0)
             else
@@ -376,14 +368,11 @@ function sfinder(){
         }
     }
     if ((clearLines*10 - countOccupied) % 4 ==2) clearLines ++
-    console.log(field.length, JSON.stringify(field))
     for (var i=0; i<10; i++) field.push(0)
-    console.log(field.length, JSON.stringify(field))
     var queue = [...game.holdmino].filter(x=>x!='G').join('') + game.bag.filter(x=>x!='G').join('')
     
     var fumen= encode_simple(field,queue)
 
-    console.log(fumen, clearLines,queue)
     window.open(url+'?fumen='+ encodeURIComponent(fumen) + '&command=path&game=jstris&clearLines='+clearLines+'&queue=' + queue)
 }
 /*

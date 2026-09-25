@@ -44,7 +44,6 @@ function encode_simple(af, text){ // ★ データ出力
       }else{
         if(fldrepaddr>=0)fldrepaddr=-1;
       }
-      console.log( enc)
       
       // タイプ,角度,座標出力
       cmstrrep=(e>0)?ac[e-1]:'';
@@ -56,7 +55,6 @@ function encode_simple(af, text){ // ★ データ出力
       enc[encc++]=tmp%64;tmp=Math.floor(tmp/64);
       enc[encc++]=tmp%64;tmp=Math.floor(tmp/64);
       enc[encc++]=tmp%64;tmp=Math.floor(tmp/64);
-      console.log( enc)
       // コメント出力
       if(tmpstr!=cmstrrep){
         tmp=tmplen;
@@ -94,7 +92,6 @@ function encode_simple(af, text){ // ★ データ出力
       encstr=encstr+enctbl.charAt(enc[i]);
     if(i%47==41)encstr=encstr+"?";
     }
-    console.log(encstr, enc)
     return encstr
 
 

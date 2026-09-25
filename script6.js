@@ -866,7 +866,6 @@ function detect_win(){
 
     if (game.total_piece == 1){
         Config.no_of_trial += 1}
-    console.log(Config.mode,Record.done_tsd,Record.done_quad)
     if (game.line_clear == 2 && game.b2b >= 0) Record.done_tsd++
     if (game.line_clear == 3 && game.b2b >= 0) Record.done_tst++
     if (game.line_clear == 4) Record.done_quad++

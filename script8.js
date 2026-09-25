@@ -15,7 +15,7 @@ function clone2d(arr){
 }
 fetch('./learnfromai.json')
 .then(results=>results.json())
-.then(d=>{jsondata = d;console.log('loading')})
+.then(d=>{jsondata = d})
 
 
 /*
@@ -45,7 +45,7 @@ function load_jsondata(){
     var text = ''
     for (var modname in jsondata){
         label = passed_level_list.includes(modname)? "✅": " "
-        color = passed_level_list.includes(modname)? "green": "red"; console.log(color,typeof(modname))
+        color = passed_level_list.includes(modname)? "green": "red"
         display_name = jsondata[modname]["display_name"]
         text += `<button class="game_button ${color}" onclick='load_level("${modname}"); board.focus()'>${display_name}${label}</button>`
     }
