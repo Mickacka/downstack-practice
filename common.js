@@ -132,6 +132,7 @@ function render(){
     ctx.fillText('All time '+stats.solved+'/'+stats.tries,420,500)
     ctx.fillText('Streak '+stats.streak,420,520)
     ctx.fillText('Best '+stats.best,420,540)
+    draw_finesse(ctx)
 
 }
 
@@ -294,19 +295,19 @@ function update_keybind(){
     Keybind.keydown = {}
     Keybind.keyup = {}
 
-    Keybind.keydown[Customized_key[0]] = e=>{press_left(true)}
+    Keybind.keydown[Customized_key[0]] = e=>{if (!Config.pressing_left) finesse_input(); press_left(true)}
     Keybind.keyup[Customized_key[0]] = e=>{release_left(true)}
 
-    Keybind.keydown[Customized_key[1]] = e=>{press_right(true)}
+    Keybind.keydown[Customized_key[1]] = e=>{if (!Config.pressing_right) finesse_input(); press_right(true)}
     Keybind.keyup[Customized_key[1]] = e=>{release_right(true)}
 
-    Keybind.keydown[Customized_key[2]] = e=>{press_down(true)}
+    Keybind.keydown[Customized_key[2]] = e=>{finesse_soft_drop(); press_down(true)}
     Keybind.keyup[Customized_key[2]] = e=>{release_down(true)}
 
     add_generic_keybind(Customized_key[3], ()=> harddrop_action())
-    add_generic_keybind(Customized_key[4], ()=> (game.rotate_anticlockwise(), Controls.after_rotate()))
-    add_generic_keybind(Customized_key[5], ()=> (game.rotate_clockwise(), Controls.after_rotate()))
-    add_generic_keybind(Customized_key[6], ()=> (game.rotate_180(), Controls.after_rotate()))
+    add_generic_keybind(Customized_key[4], ()=> (finesse_input(), game.rotate_anticlockwise(), Controls.after_rotate()))
+    add_generic_keybind(Customized_key[5], ()=> (finesse_input(), game.rotate_clockwise(), Controls.after_rotate()))
+    add_generic_keybind(Customized_key[6], ()=> (finesse_input(), game.rotate_180(), Controls.after_rotate()))
     add_generic_keybind(Customized_key[7], ()=> game.hold())
     add_generic_keybind(Customized_key[8], ()=> retry())
     if (Controls.show_answer) add_generic_keybind(Customized_key[9], ()=> Controls.show_answer())
@@ -354,6 +355,15 @@ function set_event_listener(){
     document.getElementById('input12').oninput = e=>{save_setting()}
     var auto_next = document.getElementById('input12.1')
     if (auto_next) auto_next.onchange = e=>{save_setting()}
+    var finesse_toggle = document.getElementById('finesse_toggle')
+    if (finesse_toggle){
+        finesse_toggle.checked = finesse_enabled()
+        finesse_toggle.onchange = () => {
+            try{ localStorage.setItem('finesse', finesse_toggle.checked? 'on': 'off') }
+            catch(err){}
+            render()
+        }
+    }
     Controls.bind_options()
     setup_touch_controls();
 
@@ -375,17 +385,17 @@ function set_event_listener(){
                 render()
             }, {passive: false})
     }
-    press('tc-dr', () => (game.rotate_180(), Controls.after_rotate()))
+    press('tc-dr', () => (finesse_input(), game.rotate_180(), Controls.after_rotate()))
     press('tc-h', () => game.hold())
     press('tc-hd', () => harddrop_action())
-    press('tc-l', () => press_left(true))
+    press('tc-l', () => (Config.pressing_left || finesse_input(), press_left(true)))
     release('tc-l', () => release_left(true))
-    press('tc-r', () => press_right(true))
+    press('tc-r', () => (Config.pressing_right || finesse_input(), press_right(true)))
     release('tc-r', () => release_right(true))
-    press('tc-d', () => press_down(true))
+    press('tc-d', () => (finesse_soft_drop(), press_down(true)))
     release('tc-d', () => release_down(true))
-    press('tc-cc', () => (game.rotate_anticlockwise(), Controls.after_rotate()))
-    press('tc-c', () => (game.rotate_clockwise(), Controls.after_rotate()))
+    press('tc-cc', () => (finesse_input(), game.rotate_anticlockwise(), Controls.after_rotate()))
+    press('tc-c', () => (finesse_input(), game.rotate_clockwise(), Controls.after_rotate()))
     document.getElementById('tcc').addEventListener('contextmenu', e => e.preventDefault())
 }
 
@@ -495,6 +505,7 @@ function undo(){
 }
 
 function harddrop_action(){
+    finesse_check()
     take_snapshot()
     Controls.harddrop()
 }
@@ -731,4 +742,103 @@ function setup_panels(){
         }
     })
     set_active(buttons[0])
+}
+
+/*
+Finesse: compare the inputs used for each piece with the fewest that reach the
+same landing spot. Moving left/right counts 1 per press (holding for DAS is still
+one press), each rotation counts 1. Pieces placed with a soft drop (tucks, spins)
+aren't graded.
+*/
+var finesse = {key: null, inputs: 0, soft: false, pieces: 0, faults: 0, last: ''}
+
+function finesse_enabled(){
+    try{ return localStorage.getItem('finesse') !== 'off' }
+    catch(err){ return true }
+}
+
+// the current piece: a new piece, a hold, undo or retry starts a new count
+function finesse_piece_key(){
+    return [game.total_piece, game.tetramino, game.holdmino, game.bag.length].join('|')
+}
+
+function finesse_track(){
+    var key = finesse_piece_key()
+    if (finesse.key !== key || finesse.game !== game){
+        finesse.key = key
+        finesse.game = game
+        finesse.inputs = 0
+        finesse.soft = false
+    }
+}
+
+function finesse_input(){ finesse_track(); finesse.inputs += 1 }
+function finesse_soft_drop(){ finesse_track(); finesse.soft = true }
+
+// cells the piece covers after a hard drop from (x, y, orientation)
+function landing_cells(board_now, piece, x, y, orientation){
+    var g = new Game()
+    g.board = board_now
+    g.tetramino = piece
+    g.x = x; g.y = y; g.orientation = orientation
+    g.drop()
+    return g.to_shape().map(c => c.join()).sort().join('|')
+}
+
+// fewest inputs from spawn to a spot that hard drops onto the same cells
+function fewest_inputs(board_now, piece, target){
+    var g = new Game()
+    g.board = board_now
+    g.tetramino = piece
+    g.x = 4; g.y = 18; g.orientation = 0
+    if (g.is_collide()) return null
+    var moves = [() => g.move_left(), () => g.move_right(),
+                 () => { var x = g.x; g.move_leftmost(); return g.x != x },
+                 () => { var x = g.x; g.move_rightmost(); return g.x != x },
+                 () => g.rotate_clockwise(), () => g.rotate_anticlockwise(), () => g.rotate_180()]
+    var key = () => g.x + ',' + g.y + ',' + g.orientation
+    var seen = new Set([key()])
+    var layer = [[g.x, g.y, g.orientation]]
+    for (var depth=0; depth<8 && layer.length; depth++){
+        var next = []
+        for (var [x, y, o] of layer){
+            if (landing_cells(board_now, piece, x, y, o) == target) return depth
+            for (var move of moves){
+                g.x = x; g.y = y; g.orientation = o
+                if (move() && !seen.has(key())){
+                    seen.add(key())
+                    next.push([g.x, g.y, g.orientation])
+                }
+            }
+        }
+        layer = next
+    }
+    return null
+}
+
+// called just before a hard drop
+function finesse_check(){
+    finesse_track()
+    finesse.last = ''
+    if (!finesse_enabled() || finesse.soft || game.tetramino == 'G') return
+    var target = landing_cells(game.board, game.tetramino, game.x, game.y, game.orientation)
+    var best = fewest_inputs(game.board, game.tetramino, target)
+    if (best === null) return
+    finesse.pieces += 1
+    if (finesse.inputs > best){
+        finesse.faults += 1
+        var plural = n => n + (n == 1? ' input': ' inputs')
+        finesse.last = plural(finesse.inputs) + ', ' + best + ' needed'
+    }
+}
+
+function draw_finesse(ctx){
+    if (!finesse_enabled() || finesse.pieces == 0) return
+    ctx.font = "bold 14px Arial ";
+    ctx.fillStyle = finesse.faults? 'rgb(235, 79, 101)': 'green'
+    ctx.fillText('Finesse ' + (finesse.pieces - finesse.faults) + '/' + finesse.pieces, 10, 420)
+    if (finesse.last){
+        ctx.fillStyle = 'rgb(235, 79, 101)'
+        ctx.fillText(finesse.last, 10, 440)
+    }
 }
