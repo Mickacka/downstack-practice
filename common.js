@@ -448,10 +448,41 @@ function save_stats(stats){
     catch(err){}
 }
 
+/*
+Attempt history for the stats page (stats.html): one entry per finished attempt,
+{t: when, p: page, m: mode, w: 1 solved / 0 missed, s: seconds since the first
+input on that board, f: finesse faults}. The newest 5000 are kept.
+*/
+var attempt = {game: null, start: 0, faults: 0}
+
+// called on every input: a new game object (new map or retry) is a new attempt
+function attempt_track(){
+    if (attempt.game !== game){
+        attempt.game = game
+        attempt.start = Date.now()
+        attempt.faults = finesse.faults
+    }
+}
+
+function log_attempt(won){
+    var entry = {t: Date.now(), p: location.pathname.split('/').pop() || 'index.html', m: Config.mode || '', w: won? 1: 0}
+    if (attempt.game === game){
+        entry.s = Math.round((Date.now() - attempt.start) / 100) / 10
+        if (finesse_enabled()) entry.f = finesse.faults - attempt.faults
+    }
+    try{
+        var history = JSON.parse(localStorage.getItem('history')) || []
+        history.push(entry)
+        localStorage.setItem('history', JSON.stringify(history.slice(-5000)))
+    }
+    catch(err){}
+}
+
 // Every mode reports the end of an attempt here: plays the sound, flashes the
 // result over the board and records it. `reason` explains a miss when known.
 function report_result(won, reason){
     sound[won? 'win': 'lose'].play()
+    log_attempt(won)
     var stats = load_stats()
     stats.tries += 1
     if (won){
@@ -786,6 +817,7 @@ function finesse_piece_key(){
 }
 
 function finesse_track(){
+    attempt_track()
     var key = finesse_piece_key()
     if (finesse.key !== key || finesse.game !== game){
         finesse.key = key

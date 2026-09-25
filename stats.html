@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-QCQK6ZQ0DE"></script>
+    <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-QCQK6ZQ0DE');
+    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Your Progress - Tetris Practice</title>
+    <link rel="icon" href="/downstack-practice/favicon.svg" type="image/svg+xml">
+    <link rel="manifest" href="/downstack-practice/manifest.webmanifest">
+    <link rel="apple-touch-icon" href="/downstack-practice/icons/apple-touch-icon.png">
+    <meta name="theme-color" content="#2a2c30">
+    <link rel="stylesheet" href="style.css">
+    <script src="style-scripts.js"></script>
+</head>
+<body class="home">
+    <div class="banner">
+        <h1 hidden>Your Progress</h1>
+        <a class="title" href="/downstack-practice/">Tetris Practice</a>
+        <div class="nav">
+            <ul class="dropdown">
+                <li><a href="/downstack-practice/">Home</a></li>
+                <li><a href="/downstack-practice/stats.html">Your Progress</a></li>
+                <li><a href="/downstack-practice/tspin-challenge.html">T-Spin Challenge</a></li>
+                <li><a href="/downstack-practice/downstack.html">Downstack Practice</a></li>
+                <li><a href="/downstack-practice/pc-practice.html">Mid-game PC Practice</a></li>
+                <li><a href="/downstack-practice/usermode.html">Usermode (Includes PC Practice)</a></li>
+                <li><a href="/downstack-practice/tspin-practice.html">T-Spin Practice</a></li>
+                <li><a href="/downstack-practice/advance-tspin-practice.html">Advanced T-Spin Practice</a></li>
+                <li><a href="/downstack-practice/allspin-practice.html">All-Spin Practice</a></li>
+                <li><a href="/downstack-practice/quad-practice.html">Quad Practice</a></li>
+                <li><a href="/downstack-practice/upstack-practice.html">Upstack Practice</a></li>
+                <li><a href="/downstack-practice/learnfromai.html">Learn from AI (ZZZTOJ)</a></li>
+                <li><a href="/downstack-practice/library.html">PC Setup Library</a></li>
+            </ul>
+        </div>
+        <button type="button" class="burger" onclick="toggleBurger()" aria-label="Menu" title="Menu" aria-expanded="false">
+            <span></span>
+        </button>
+    </div>
+
+    <main class="home-main stats-main">
+        <h2 class="stats-title">Your progress</h2>
+        <p class="home-intro" id="stats-empty" hidden>Nothing yet: solve a few puzzles and your progress shows up here.</p>
+
+        <div class="stat-cards" id="cards"></div>
+
+        <section class="stats-section">
+            <h3>Last 30 days</h3>
+            <canvas id="activity" class="activity" aria-label="Puzzles solved and missed per day, last 30 days"></canvas>
+            <p class="stats-note"><span class="key solved"></span> solved <span class="key missed"></span> missed</p>
+        </section>
+
+        <section class="stats-section">
+            <h3>By mode</h3>
+            <div class="table-wrap">
+                <table class="stats-table">
+                    <thead><tr><th>Mode</th><th>Tries</th><th>Solved</th><th>Rate</th><th title="Median time from the first input to solving, last 50 solves">Solve time</th><th>Best streak</th></tr></thead>
+                    <tbody id="modes"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="stats-section">
+            <h3>Daily puzzles</h3>
+            <div class="calendar" id="calendar"></div>
+            <p class="stats-note">The last 5 weeks (UTC days): the number is how many dailies you solved that day.</p>
+        </section>
+
+        <section class="stats-section">
+            <h3>Recent attempts</h3>
+            <div class="table-wrap">
+                <table class="stats-table">
+                    <thead><tr><th>When</th><th>Mode</th><th>Result</th><th>Time</th><th title="Pieces placed with more inputs than needed">Finesse faults</th></tr></thead>
+                    <tbody id="recent"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="stats-section">
+            <h3>Your data</h3>
+            <p class="stats-note">Progress and settings live in this browser only. Export them to keep a copy or move them to another device (e.g. your phone), then import the file there.</p>
+            <div class="data-buttons">
+                <button type="button" class="install-button" id="export">Export</button>
+                <label class="install-button">Import<input type="file" id="import" accept="application/json,.json" hidden></label>
+                <button type="button" class="install-button danger" id="reset">Reset progress</button>
+            </div>
+            <p class="stats-note" id="data-message" role="status"></p>
+        </section>
+    </main>
+
+    <script>
+    const PAGES = {
+        'downstack.html': 'Downstack', 'pc-practice.html': 'Mid-game PC', 'usermode.html': 'Usermode',
+        'tspin-practice.html': 'T-Spin', 'advance-tspin-practice.html': 'Advanced T-Spin',
+        'allspin-practice.html': 'All-Spin', 'quad-practice.html': 'Quad', 'upstack-practice.html': 'Upstack',
+        'tspin-challenge.html': 'T-Spin Challenge', 'learnfromai.html': 'Learn from AI',
+    }
+    const MODES = {combo: 'combo', combopc: 'combo + PC', comboquad: 'combo + quad', combotsd: 'combo + TSD',
+        downstack: 'downstack', tsdquad: 'TSD + quad', tsd: 'TSD'}
+    // settings and progress keys (the origin may be shared with other sites of the same GitHub user)
+    const OUR_KEYS = /^(stats:|history$|daily$|Customized_key$|das$|arr$|auto_next_ind$|touch_|finesse$|kick180$|gravity$|allspin_|current_level$|passed_level$)/
+
+    function read(key, fallback){
+        try{ return JSON.parse(localStorage.getItem(key)) ?? fallback }
+        catch(err){ return fallback }
+    }
+    function mode_name(page, mode){
+        var name = PAGES[page] || page.replace('.html', '')
+        var sub = MODES[mode]
+        return sub && sub.toLowerCase() != name.toLowerCase()? name + ' · ' + sub: name
+    }
+    function day(t){ return new Date(t).toISOString().slice(0, 10) }
+    function seconds(s){ return s == null? '–': s < 60? s.toFixed(1) + ' s': Math.floor(s / 60) + ' min ' + Math.round(s % 60) + ' s' }
+    function median(list){
+        if (!list.length) return null
+        var sorted = [...list].sort((a, b) => a - b), mid = sorted.length >> 1
+        return sorted.length % 2? sorted[mid]: (sorted[mid-1] + sorted[mid]) / 2
+    }
+    function cell(row, text, cls){
+        var td = document.createElement('td')
+        td.textContent = text
+        if (cls) td.className = cls
+        row.appendChild(td)
+    }
+
+    var attempts = read('history', [])
+    var daily = read('daily', {})
+    // all-time counts per mode (older than the history too)
+    var modes = {}
+    for (var i=0; i<localStorage.length; i++){
+        var key = localStorage.key(i)
+        if (!key.startsWith('stats:')) continue
+        var [, page, mode] = key.split(':')
+        var s = read(key, null)
+        if (s && s.tries) modes[page + ':' + mode] = {page: page, mode: mode, tries: s.tries, solved: s.solved, best: s.best, times: []}
+    }
+    for (var h of attempts){
+        var id = h.p + ':' + h.m
+        if (!modes[id]) modes[id] = {page: h.p, mode: h.m, tries: 0, solved: 0, best: 0, times: []}
+        if (h.w && h.s != null) modes[id].times.push(h.s)
+    }
+    var rows = Object.values(modes).sort((a, b) => b.tries - a.tries)
+    document.getElementById('stats-empty').hidden = rows.length > 0
+
+    // summary cards
+    var tries = rows.reduce((a, m) => a + m.tries, 0), solved = rows.reduce((a, m) => a + m.solved, 0)
+    var today = day(Date.now()), yesterday = day(Date.now() - 864e5)
+    var streak = [today, yesterday].includes(daily.last)? daily.streak || 0: 0
+    var week = attempts.filter(h => h.t > Date.now() - 7 * 864e5)
+    var cards = [
+        ['Solved', solved, tries? 'of ' + tries + ' tries': ''],
+        ['Success rate', tries? Math.round(100 * solved / tries) + '%': '–', ''],
+        ['This week', week.filter(h => h.w).length, week.length? 'solved of ' + week.length: 'nothing yet'],
+        ['Daily streak', streak + (streak == 1? ' day': ' days'), 'best ' + (daily.best || 0)],
+    ]
+    var box = document.getElementById('cards')
+    for (var [label, value, note] of cards){
+        var card = document.createElement('div')
+        card.className = 'stat-card'
+        card.innerHTML = '<span class="stat-label"></span><strong class="stat-value"></strong><span class="stat-note"></span>'
+        card.querySelector('.stat-label').textContent = label
+        card.querySelector('.stat-value').textContent = value
+        card.querySelector('.stat-note').textContent = note
+        box.appendChild(card)
+    }
+
+    // last 30 days, solved stacked on missed
+    function draw_activity(){
+        var canvas = document.getElementById('activity')
+        var width = canvas.clientWidth, height = 160, dpr = Math.min(devicePixelRatio || 1, 3)
+        canvas.width = width * dpr; canvas.height = height * dpr
+        canvas.style.height = height + 'px'
+        var ctx = canvas.getContext('2d')
+        ctx.scale(dpr, dpr)
+        var days = []
+        for (var k=29; k>=0; k--) days.push({day: day(Date.now() - k * 864e5), won: 0, lost: 0})
+        var index = Object.fromEntries(days.map((d, i) => [d.day, i]))
+        for (var h of attempts){
+            var i = index[day(h.t)]
+            if (i != null) days[i][h.w? 'won': 'lost'] += 1
+        }
+        var top = Math.max(5, ...days.map(d => d.won + d.lost))
+        var bar = width / 30, base = height - 18
+        ctx.fillStyle = '#9a9ca1'
+        ctx.font = '11px Arial'
+        ctx.fillText(top, 2, 11)
+        days.forEach((d, i) => {
+            var x = i * bar + 1, w = Math.max(1, bar - 2)
+            var hw = (base - 16) * d.won / top, hl = (base - 16) * d.lost / top
+            ctx.fillStyle = 'rgb(81, 184, 77)'
+            ctx.fillRect(x, base - hw, w, hw)
+            ctx.fillStyle = 'rgb(235, 79, 101)'
+            ctx.fillRect(x, base - hw - hl, w, hl)
+            if (i % 7 == 1 || i == 29){
+                ctx.fillStyle = '#9a9ca1'
+                ctx.textAlign = i == 29? 'right': 'left'
+                ctx.fillText(i == 29? 'today': d.day.slice(5), i == 29? width - 2: x, height - 4)
+                ctx.textAlign = 'left'
+            }
+        })
+        ctx.fillStyle = '#44474f'
+        ctx.fillRect(0, base, width, 1)
+    }
+    draw_activity()
+    window.addEventListener('resize', draw_activity)
+
+    // per mode
+    var tbody = document.getElementById('modes')
+    for (var m of rows){
+        var row = document.createElement('tr')
+        cell(row, mode_name(m.page, m.mode))
+        cell(row, m.tries)
+        cell(row, m.solved)
+        cell(row, m.tries? Math.round(100 * m.solved / m.tries) + '%': '–')
+        cell(row, seconds(median(m.times.slice(-50))))
+        cell(row, m.best || 0)
+        tbody.appendChild(row)
+    }
+
+    // daily calendar: 5 weeks ending this week, Monday first
+    var calendar = document.getElementById('calendar')
+    var now = new Date(today + 'T00:00:00Z')
+    var monday = new Date(now - ((now.getUTCDay() + 6) % 7) * 864e5 - 28 * 864e5)
+    for (var day_name of ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']){
+        var head = document.createElement('span')
+        head.className = 'cal-head'
+        head.textContent = day_name
+        calendar.appendChild(head)
+    }
+    for (var k=0; k<35; k++){
+        var date = day(monday.getTime() + k * 864e5)
+        var count = ((daily.done || {})[date] || []).length
+        var day_box = document.createElement('span')
+        day_box.className = 'cal-day' + (count? ' done': '') + (date == today? ' today': '') + (date > today? ' future': '')
+        day_box.textContent = date > today? '': count || date.slice(8)
+        day_box.title = date + (count? ': ' + count + ' solved': '')
+        calendar.appendChild(day_box)
+    }
+
+    // recent attempts
+    var recent = document.getElementById('recent')
+    for (var h of attempts.slice(-20).reverse()){
+        var row = document.createElement('tr')
+        var when = new Date(h.t)
+        cell(row, when.toLocaleDateString(undefined, {month: 'short', day: 'numeric'}) + ' ' +
+            when.toLocaleTimeString(undefined, {hour: '2-digit', minute: '2-digit'}))
+        cell(row, mode_name(h.p, h.m))
+        cell(row, h.w? '✓ solved': '✗ missed', h.w? 'won': 'lost')
+        cell(row, seconds(h.s))
+        cell(row, h.f == null? '–': h.f)
+        recent.appendChild(row)
+    }
+    if (!attempts.length){
+        var row = document.createElement('tr')
+        cell(row, 'No attempts recorded yet')
+        row.firstChild.colSpan = 5
+        recent.appendChild(row)
+    }
+
+    // export / import / reset
+    var message = text => document.getElementById('data-message').textContent = text
+    document.getElementById('export').onclick = () => {
+        var data = {app: 'downstack-practice', version: 1, exported: new Date().toISOString(), items: {}}
+        for (var i=0; i<localStorage.length; i++){
+            var key = localStorage.key(i)
+            if (OUR_KEYS.test(key)) data.items[key] = localStorage.getItem(key)
+        }
+        var link = document.createElement('a')
+        link.href = URL.createObjectURL(new Blob([JSON.stringify(data)], {type: 'application/json'}))
+        link.download = 'tetris-practice-' + today + '.json'
+        link.click()
+        setTimeout(() => URL.revokeObjectURL(link.href), 1000)
+        message('Exported ' + Object.keys(data.items).length + ' items.')
+    }
+    document.getElementById('import').onchange = async e => {
+        var file = e.target.files[0]
+        if (!file) return
+        try{
+            var data = JSON.parse(await file.text())
+            if (data.app != 'downstack-practice' || typeof data.items != 'object') throw new Error('not an export')
+            var items = Object.entries(data.items).filter(([key, value]) => OUR_KEYS.test(key) && typeof value == 'string')
+            if (!confirm('Replace your progress and settings in this browser with the ' + items.length + ' items from ' + file.name + '?')) return
+            for (var [key, value] of items) localStorage.setItem(key, value)
+            location.reload()
+        }
+        catch(err){
+            message('That file is not a Tetris Practice export.')
+        }
+        e.target.value = ''
+    }
+    document.getElementById('reset').onclick = () => {
+        if (!confirm('Delete your progress (solved counts, streaks, history and dailies)? Settings are kept. Export first if you want a copy.')) return
+        var keys = []
+        for (var i=0; i<localStorage.length; i++){
+            var key = localStorage.key(i)
+            if (/^(stats:|history$|daily$)/.test(key)) keys.push(key)
+        }
+        keys.forEach(key => localStorage.removeItem(key))
+        location.reload()
+    }
+    </script>
+</body>
+</html>
