@@ -34,7 +34,7 @@ This is a fork of [himitsuconfidential/downstack-practice](https://github.com/hi
 
 ## All-Spin Practice
 
-- Each map is a flat stack with a 3-6 wide well and asks for **two spins in a row** (or one, in Options). Build the first setup inside the well (it fills about level with the walls, leaving the way into the slot) and spin in; the lines it clears leave the base for the second setup, which you build and spin into the same way.
+- Each map is a bumpy mid-game stack with a 3-6 wide well (mostly 3-4 wide with one spin, 4-6 with two) and asks for **two spins in a row** (or one, in Options). Build the first setup in the well (and on the stack right beside it, filling its dips), then spin in; the lines it clears leave the base for the second setup, which you build and spin into the same way.
 - After the last spin the well is clean: the way into the slot goes straight down to the hole in the garbage, with nothing left covering it.
 - A spin follows the all-spin rule: after its last rotation the piece can't move left, right or up.
 - Only the requested spins count, in order: the right piece, a real spin, and the right number of lines (e.g. an S-Spin **Double**, then a T-Spin **Double**). The goal ticks off each one as you do it; if you miss, the page says why.

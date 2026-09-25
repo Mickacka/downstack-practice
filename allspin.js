@@ -254,18 +254,22 @@ function slot_shape(piece){
 function try_spin_setup(piece, n_build){
     var {orientation, xs, ys, width: slot_width} = slot_shape(piece)
 
-    // The well: the slot plus some spare columns (a T-spin double needs one on each
-    // side, or the cells under its arms can't be filled). Pick a width where the
-    // requested number of pieces fills it to a wall height of about 1-4 rows.
+    // The well: the slot plus some spare columns (none needed: cells shut in under
+    // the slot, like under a T's arms, are part of the stack). Pick a width where the
+    // requested number of pieces fills it to a wall height of about 1-6 rows (one
+    // column over the slot stays open), favouring 3 and 4 wide wells like mid-game.
     var spin_rows = Math.max(...ys) - Math.min(...ys) + 1
     var widths = []
-    for (var w = slot_width + (piece == 'T'? 2: 0); w <= 6; w++){
+    for (var w = slot_width; w <= 6; w++){
         var fill = 4*n_build - (spin_rows*w - 4)
-        var est_wall = fill / (w - Math.max(1, slot_width - 1))
-        if (est_wall >= 1 && est_wall <= 5) widths.push(w)
+        // (the build can also spread onto the stack beside the well, about 2 columns' worth)
+        var est_wall = fill / (w - 1 + 2)
+        if (est_wall >= 1 && est_wall <= 6) widths.push(w)
     }
     if (widths.length == 0) return null
-    var well_width = widths[random_int(widths.length)]
+    var narrow = widths.filter(w => w <= 4)
+    var choices = narrow.length && random_int(2)? narrow: widths
+    var well_width = choices[random_int(choices.length)]
     var left = random_int(10 - well_width + 1)
     var right = left + well_width - 1
     var slot_left = left + random_int(well_width - slot_width + 1)
@@ -286,6 +290,7 @@ function try_spin_setup(piece, n_build){
     for (var row=bottom; row<=top; row++)
         for (var col=0; col<10; col++)
             b[row][col] = !in_well(col)? 'G': is_slot(col, row)? 'N': 'B'
+    fill_pockets(b, top)
     return finish_setup({b: b, piece: piece, orientation: orientation, x: x, y: y, slot: slot,
         top: top, bottom: bottom, left: left, right: right, dig: bottom > 0, must_open: []}, n_build)
 }
@@ -316,13 +321,63 @@ function try_second_setup(R, left, right, piece, n_build){
         if (bottom > 0 && R[bottom-1][col] == 'N') must_open.push(col)
     if (!must_open.every(col => slot.some(c => c[0] == col))) return null
     var b = clone(R)
+    // (a low column of the bumpy stack is filled up to here too: no holes under the walls)
+    for (var row=0; row<bottom; row++)
+        for (var col=0; col<10; col++)
+            if ((col < left || col > right) && b[row][col] == 'N') b[row][col] = 'G'
     for (var row=bottom; row<=top; row++)
         for (var col=0; col<10; col++){
-            if (col < left || col > right) b[row][col] = 'G'
+            if (col < left || col > right){ if (b[row][col] == 'N') b[row][col] = 'G' }
             else if (b[row][col] == 'N' && !slot.some(c => c[0] == col && c[1] == row)) b[row][col] = 'B'
         }
     return finish_setup({b: b, piece: piece, orientation: orientation, x: x, y: y, slot: slot,
         top: top, bottom: bottom, left: left, right: right, dig: false, must_open: must_open}, n_build)
+}
+
+// Height offsets of the stack outside the well, a random walk outwards from each
+// side of the well: steps of -1, 0 or 1 (sometimes 2), kept within -2..2
+function terrain_bumps(left, right){
+    var bumps = Array(10).fill(0)
+    var walk = cols => {
+        var h = random_int(3) - 1
+        for (var col of cols){
+            bumps[col] = h
+            var step = random_int(3) - 1
+            if (random_int(4) == 0) step *= 2
+            h = Math.max(-2, Math.min(2, h + step))
+        }
+    }
+    var left_cols = [], right_cols = []
+    for (var col=left-1; col>=0; col--) left_cols.push(col)
+    for (var col=right+1; col<10; col++) right_cols.push(col)
+    walk(left_cols)
+    walk(right_cols)
+    return bumps
+}
+
+// Cells to build in the spin rows that no piece could reach, shut in under the slot
+// (under a T's arms in a 3-wide well, the corner under an S...), are part of the
+// stack instead, as in a mid-game board: groups of 'B' cells not reaching the top row.
+function fill_pockets(b, top){
+    var seen = new Set()
+    for (var row=0; row<=top; row++)
+        for (var col=0; col<10; col++){
+            if (b[row][col] != 'B' || seen.has(cell_key(col, row))) continue
+            var group = [], stack = [[col, row]], open = false
+            seen.add(cell_key(col, row))
+            while (stack.length){
+                var [c, r] = stack.pop()
+                group.push([c, r])
+                if (r == top) open = true
+                for (var [dc, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1]]){
+                    var nc = c + dc, nr = r + dr
+                    if (nc < 0 || nc > 9 || nr < 0 || nr > top || b[nr][nc] != 'B' || seen.has(cell_key(nc, nr))) continue
+                    seen.add(cell_key(nc, nr))
+                    stack.push([nc, nr])
+                }
+            }
+            if (!open) for (var [c, r] of group) b[r][c] = 'G'
+        }
 }
 
 // the garbage rows under the floor, with their hole in this column
@@ -339,18 +394,28 @@ function finish_setup(s, n_build){
     var well_width = right - left + 1
     var slot_cols = [...new Set(slot.map(c => c[0]))]
     var in_well = col => col >= left && col <= right
+    // the stack around the well is bumpy like a mid-game board: each column up to
+    // 2 rows above or below the wall height, neighbours at most 2 apart, and the
+    // columns beside the well at least 1 high so the well stays a well
+    var bumps = terrain_bumps(left, right)
+    var wall_height = (col, wall) => Math.max(col == left - 1 || col == right + 1? 1: 0, wall + bumps[col])
     var with_walls = (board, wall) => {
         var nb = clone(board)
-        for (var row=top+1; row<=top+wall; row++)
-            for (var col=0; col<10; col++)
-                if (!in_well(col)) nb[row][col] = 'G'
+        for (var col=0; col<10; col++){
+            if (in_well(col)) continue
+            // (only empty cells: for the second spin, pieces of the first build may be there)
+            for (var row=top+1; row<=Math.min(top + wall_height(col, wall), 19); row++) if (nb[row][col] == 'N') nb[row][col] = 'G'
+        }
         return nb
     }
 
     var spin_row_cells = b.flat().filter(c => c == 'B').length
     var need = 4*n_build - spin_row_cells
+    // the build goes in the well and may spread onto the stack beside it (up to 2
+    // columns each side), filling its dips and rising up to 3 rows above the wall height
+    var side_cols = [left-2, left-1, right+1, right+2].filter(col => col >= 0 && col < 10)
     // cheap early exit: the wall height would be out of range whatever gets capped
-    if (need < well_width - slot_cols.length || need > 5 * well_width) return null
+    if (need < well_width - slot_cols.length || need > 6 * (well_width + side_cols.length)) return null
 
     // Over the slot, try every choice of capped columns (at most 16) and keep the
     // ones where the slot is reachable, and only by a final rotation. The columns left
@@ -379,51 +444,88 @@ function finish_setup(s, n_build){
     if (s.dig) b = dig(b, bottom, choice.hole)
 
     // the wall height that makes the build take n_build pieces when the rest of the
-    // well is filled level with it
+    // well (and the dips of the stack beside it) is filled level with it
     var filled_cols = []
     for (var col=left; col<=right; col++)
         if (!open_cols.includes(col)) filled_cols.push(col)
-    // (for the second spin some of those cells are already filled by what's left of the first)
-    var fill = (col, k) => {
+    var build_cols = filled_cols.concat(side_cols)
+    // empty cells of a column up to k rows above the spin rows (for the second spin some
+    // are already filled by what's left of the first; beside the well, the stack's)
+    var fill = (board, col, k) => {
         var n = 0
-        for (var row=top+1; row<=Math.min(top+k, 19); row++) if (b[row][col] == 'N') n++
+        for (var row=top+1; row<=Math.min(top+k, 19); row++) if (board[row][col] == 'N') n++
         return n
     }
-    var wall = 0, best = Infinity
-    for (var w=1; w<=5; w++){
-        var miss = Math.abs(filled_cols.reduce((a, col) => a + fill(col, w), 0) - need)
-        if (miss < best){ best = miss; wall = w }
+    // The lowest wall height that can take the build (what doesn't fit in the well
+    // goes on the stack beside it): a shallow well keeps the way into the slot open,
+    // which a narrow well needs, and looks like a mid-game board.
+    var wall = 0
+    for (var w=1; w<=6 && !wall; w++){
+        var walled = with_walls(b, w)
+        var most = build_cols.reduce((a, col) => a + fill(walled, col, w + (in_well(col)? 1: 3)), 0)
+        var least = build_cols.reduce((a, col) => a + fill(walled, col, w - 1), 0)
+        if (least <= need && need <= most) wall = w
     }
+    if (!wall) return null
     // leave room to spawn above the walls
-    if (top + wall + 1 > 16) return null
+    var tallest = 0
+    for (var col=0; col<10; col++) if (!in_well(col)) tallest = Math.max(tallest, wall_height(col, wall))
+    if (top + Math.max(wall + 3, tallest) > 16) return null
     var nw = with_walls(b, wall)
 
-    // Every near-level fill (each column at the wall height, or one above or below)
-    // with the right number of cells, flattest first. Tetrominoes can only fill it
-    // if each group of touching cells is a multiple of 4.
-    var profiles = []
-    var offsets = Array(filled_cols.length).fill(-1)
+    // Every near-level fill with the right number of cells: each well column at the
+    // wall height or one above or below, each column beside the well filled up to
+    // between one below and three above it (so nothing where its stack is higher).
+    // Flattest first; tetrominoes can only fill it if each group of touching cells
+    // is a multiple of 4.
+    // (scored first, boards built only for the best few)
+    var low = build_cols.map(() => -1)
+    var high = build_cols.map(col => in_well(col)? 1: 3)
+    // cells each column adds at each offset
+    var adds = build_cols.map((col, i) => {
+        var list = []
+        for (var o=low[i]; o<=high[i]; o++) list.push(fill(nw, col, wall + o))
+        return list
+    })
+    var candidates = [], seen = new Set()
+    var offsets = [...low]
     while (true){
-        if (filled_cols.reduce((a, col, i) => a + fill(col, wall + offsets[i]), 0) == need){
-            var h = Array(10).fill(0)
-            filled_cols.forEach((col, i) => h[col] = wall + offsets[i])
-            var nb = with_stacks(nw, h, top)
-            var cells = new Set()
-            for (var row=0; row<20; row++)
-                for (var col=0; col<10; col++)
-                    if (nb[row][col] == 'B') cells.add(cell_key(col, row))
-            // a full row would clear while the player builds
-            if (groups_of_four(cells) && !nb.slice(top+1).some(row => row.every(c => c != 'N')))
-                profiles.push({board: nb, cells: cells, bumps: offsets.filter(v => v != 0).length + Math.random()})
+        var total = 0
+        for (var i=0; i<offsets.length; i++) total += adds[i][offsets[i] - low[i]]
+        if (total == need){
+            // the same cells can come from different offsets beside the well (none added
+            // where the stack is already higher): keep one
+            var key = offsets.map((o, i) => adds[i][o - low[i]] + (in_well(build_cols[i])? ':' + o: '')).join(',')
+            if (!seen.has(key)){
+                seen.add(key)
+                var bumps = 0
+                for (var i=0; i<offsets.length; i++)
+                    bumps += in_well(build_cols[i])? (offsets[i] != 0? 1: 0): adds[i][offsets[i] - low[i]] / 4
+                candidates.push({offsets: [...offsets], bumps: bumps + Math.random()})
+            }
         }
         var i = 0
-        while (i < offsets.length && offsets[i] == 1){ offsets[i] = -1; i++ }
+        while (i < offsets.length && offsets[i] == high[i]){ offsets[i] = low[i]; i++ }
         if (i == offsets.length) break
         offsets[i] += 1
     }
-    profiles.sort((p, q) => p.bumps - q.bumps)
+    candidates.sort((p, q) => p.bumps - q.bumps)
+    var profiles = []
+    for (var candidate of candidates){
+        if (profiles.length == 4) break
+        var h = Array(10).fill(0)
+        build_cols.forEach((col, i) => h[col] = wall + candidate.offsets[i])
+        var nb = with_stacks(nw, h, top)
+        var cells = new Set()
+        for (var row=0; row<20; row++)
+            for (var col=0; col<10; col++)
+                if (nb[row][col] == 'B') cells.add(cell_key(col, row))
+        // a full row would clear while the player builds
+        if (groups_of_four(cells) && !nb.slice(top+1).some(row => row.every(c => c != 'N')))
+            profiles.push({board: nb, cells: cells})
+    }
 
-    for (var {board: nb, cells: cells} of profiles.slice(0, 4)){
+    for (var {board: nb, cells: cells} of profiles){
         if (!is_spin_slot(nb, piece, orientation, x, y, slot)) continue
         // split the build into pieces the player can place in order
         var finished = clone(nb)
