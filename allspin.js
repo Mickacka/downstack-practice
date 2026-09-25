@@ -106,6 +106,32 @@ function show_spin_message(text){
 */
 
 Controls.harddrop = () => do_harddrop()
+// Show Hint: the slot of the spin to do next, outlined in the spin piece's colour
+Controls.draw_overlay = (ctx, x, y) => {
+    var spin = Record.hint && Record.spins[Record.done_spins]
+    if (!spin || Record.showing) return
+    ctx.save()
+    ctx.globalAlpha = 0.3
+    ctx.fillStyle = color_table[spin.piece]
+    for (var [col, row] of spin.cells) ctx.fillRect(col*30 + x, (19-row)*30 + y, 30, 30)
+    ctx.globalAlpha = 1
+    ctx.strokeStyle = color_table[spin.piece]
+    ctx.lineWidth = 3
+    ctx.setLineDash([6, 4])
+    for (var [col, row] of spin.cells) ctx.strokeRect(col*30 + x + 2, (19-row)*30 + y + 2, 26, 26)
+    ctx.restore()
+}
+
+function toggle_hint(){
+    Record.hint = !Record.hint
+    hint_label()
+    render()
+}
+
+function hint_label(){
+    var button = document.getElementById('hint_button')
+    if (button) button.textContent = Record.hint? 'Hide Hint': 'Show Hint'
+}
 Controls.can_play = () => !Record.showing
 Controls.bind_options = () => {
     document.getElementById('input13').oninput = e=>{save_gamemode()}
@@ -747,6 +773,9 @@ function play(){
     game = new Game()
     Record.done_spins = 0
     Record.miss = null
+    // a new attempt starts without the hint
+    Record.hint = false
+    hint_label()
     game.bag = Record.shuffled_queue.concat(Array(14).fill('G'))
     game.update()
     game.holdmino = ''

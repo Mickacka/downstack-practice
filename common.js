@@ -83,6 +83,7 @@ function render(){
                 ctx.fillRect(col*30+offset_x,(19-row)*30+offset_y,30,30);
             }
         }
+    if (Controls.draw_overlay) Controls.draw_overlay(ctx, offset_x, offset_y)
 
 
     // render hold
@@ -298,6 +299,7 @@ var Controls = {
     can_play: () => true,
     can_undo: true,                  // false: no Undo (the timed challenge)
     bind_options: () => {},          // hook up the page's own options panel
+    draw_overlay: null,              // (ctx, x, y): draw over the board, whose top-left cell is at x, y
 }
 
 function update_keybind(){

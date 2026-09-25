@@ -47,6 +47,7 @@ The attempt is judged when the queue is used up: every requested spin done means
 
 ### Tools
 
+- **Show Hint** outlines the slot of the next spin (where the spin piece has to end up), in the spin piece's colour, and leaves the build to you. Press again to hide it; it turns off when the map restarts.
 - **Show Answer** replays the solution one piece at a time, in placement order. It shows where each spin piece goes and the lines it clears before the next setup.
 - **Undo** (U) takes back a piece, **Retry** restarts the map, and **Copy link** copies a link to this exact map.
 - **Daily** plays today's map, the same for everyone (see section 5). **Rush (3 min)** gives you as many maps as you can solve in 3 minutes.
@@ -342,5 +343,6 @@ The last result should be `won: 20` and no `failed` entries. The latest run: 20/
 | `after_spin`, `is_clean`, `clean_start` | Board after a spin; clean well at the end (3.8); clean starting board |
 | `play`, `detect_win`, `update_goal`, `spin_name` | Starting a map, judging it, the goal text |
 | `show_ans`, `stop_answer` | Show Answer replay |
+| `toggle_hint`, `Controls.draw_overlay` | Show Hint: the next slot outlined over the board |
 
 Shared pieces live in `common.js`: result flash and stats, undo, share links, daily seeding and `budget_clock`, rush, finesse, and the touch controls.
