@@ -2,7 +2,7 @@ var game = new Game();
 var Config = {'das':100, 'arr':0, 'delay':0, 'pressing_left':false, 'pressing_right': false, 'pressing_down': false, 'pressing':{},
 'unqiue_ind':true, 'auto_next_ind':true,
 'spin_pieces':'SZLJIT',
-'mode':'allspin', 'no_of_piece':5,
+'mode':'allspin', 'no_of_piece':5, 'spins':2,
 'no_of_trial':0, 'no_of_success':0}
 
 
@@ -19,9 +19,12 @@ function load_gamemode(){
         if (pieces) Config.spin_pieces = pieces
         var n = parseInt(localStorage.getItem('allspin_no_of_piece'))
         if (n>=3 && n<=7) Config.no_of_piece = n
+        var spins = parseInt(localStorage.getItem('allspin_spins'))
+        if (spins == 1 || spins == 2) Config.spins = spins
     }
     catch(err){}
     document.getElementById('input13').value = Config.no_of_piece
+    document.getElementById('spins').value = Config.spins
     document.getElementById('input16').checked = Config.unqiue_ind
     for (var piece of 'SZLJIT'){
         document.getElementById('spin_'+piece).checked = Config.spin_pieces.includes(piece)
@@ -35,6 +38,7 @@ function save_gamemode(){
         Config.no_of_piece = 5
     }
     Config.unqiue_ind = document.getElementById('input16').checked
+    Config.spins = parseInt(document.getElementById('spins').value) == 1? 1: 2
     var pieces = [...'SZLJIT'].filter(piece => document.getElementById('spin_'+piece).checked).join('')
     if (pieces == ''){
         alert('Choose at least one spin piece')
@@ -45,6 +49,7 @@ function save_gamemode(){
     try{
         localStorage.setItem('allspin_pieces', Config.spin_pieces)
         localStorage.setItem('allspin_no_of_piece', Config.no_of_piece)
+        localStorage.setItem('allspin_spins', Config.spins)
     }
     catch(err){}
 }
@@ -71,12 +76,18 @@ function do_harddrop(){
     game.harddrop()
     var lines = game.line_clear
     if (spin && lines > 0) show_spin_message(`${piece}-Spin ${LINE_NAMES[lines]}!`)
-    // Only the requested spin counts: the right piece, a real spin, the right number of lines
-    if (piece == Record.spin_piece && !Record.done_spin){
-        if (spin && lines == Record.spin_lines) Record.done_spin = true
+    // Only the requested spins count, in order: the right piece, a real spin, the right number of lines
+    var want = Record.spins[Record.done_spins]
+    if (want && piece == want.piece){
+        if (spin && lines == want.lines){
+            Record.done_spins += 1
+            Record.miss = null
+            update_goal()
+            if (Record.done_spins < Record.spins.length) show_spin_message(`${spin_name(want)}! ${Record.done_spins}/${Record.spins.length}`)
+        }
         else if (!spin) Record.miss = `The ${piece} wasn't a spin: rotate it into the slot as its last move`
         else if (lines == 0) Record.miss = `${piece}-Spin, but it cleared no lines`
-        else Record.miss = `That was a ${piece}-Spin ${LINE_NAMES[lines]}, not a ${LINE_NAMES[Record.spin_lines]}`
+        else Record.miss = `That was a ${piece}-Spin ${LINE_NAMES[lines]}, not a ${LINE_NAMES[want.lines]}`
     }
     play_sound()
     detect_win()
@@ -98,7 +109,7 @@ Controls.harddrop = () => do_harddrop()
 Controls.can_play = () => !Record.showing
 Controls.bind_options = () => {
     document.getElementById('input13').oninput = e=>{save_gamemode()}
-    for (var id of ['input16', 'spin_S', 'spin_Z', 'spin_L', 'spin_J', 'spin_I', 'spin_T']){
+    for (var id of ['spins', 'input16', 'spin_S', 'spin_Z', 'spin_L', 'spin_J', 'spin_I', 'spin_T']){
         document.getElementById(id).onchange = e=>{save_gamemode()}
     }
 }
@@ -111,9 +122,9 @@ const empty_board = () => Array.from({length: 20}, () => Array(10).fill('N'))
 var Record = {
     board: [],
     shuffled_queue: ['I','O','J','L','S','Z','T'],
-    spin_piece: 'T',
-    spin_lines: 2,
-    done_spin: false,
+    spin_piece: 'T',   // while generating: the spin piece of the setup being made
+    spins: [],         // {piece, lines, cells, build} for each spin to do, in order
+    done_spins: 0,
 }
 
 // 4.1 the spin setup: a slot that the spin piece can only reach by rotating into it
@@ -229,15 +240,19 @@ function carve(b, cells, used){
     return null
 }
 
+// only flat slots ever work out (and for T, only pointing down: the T-spin double shape)
+function slot_shape(piece){
+    var orientation = piece == 'T'? 2: 2 * random_int(2)
+    var shape = shape_table[piece][orientation]
+    var xs = shape.map(c => c[0]), ys = shape.map(c => c[1])
+    return {orientation: orientation, xs: xs, ys: ys, width: Math.max(...xs) - Math.min(...xs) + 1}
+}
+
 // The board is a flat stack with a 3-5 wide well. The player builds the setup
 // inside the well, filling it level with the walls except for the way into
 // the slot, then spins in.
 function try_spin_setup(piece, n_build){
-    // only flat slots ever work out (and for T, only pointing down: the T-spin double shape)
-    var orientation = piece == 'T'? 2: 2 * random_int(2)
-    var shape = shape_table[piece][orientation]
-    var xs = shape.map(c => c[0]), ys = shape.map(c => c[1])
-    var slot_width = Math.max(...xs) - Math.min(...xs) + 1
+    var {orientation, xs, ys, width: slot_width} = slot_shape(piece)
 
     // The well: the slot plus some spare columns (a T-spin double needs one on each
     // side, or the cells under its arms can't be filled). Pick a width where the
@@ -263,14 +278,67 @@ function try_spin_setup(piece, n_build){
     var is_slot = (col, row) => slot.some(c => c[0] == col && c[1] == row)
     var in_well = col => col >= left && col <= right
 
+    // the garbage under the floor gets its hole later, under the way into the slot
     var b = empty_board()
-    var cheese_col = left + random_int(well_width)
     for (var row=0; row<bottom; row++)
         for (var col=0; col<10; col++)
-            if (col != cheese_col) b[row][col] = 'G'
+            b[row][col] = 'G'
     for (var row=bottom; row<=top; row++)
         for (var col=0; col<10; col++)
             b[row][col] = !in_well(col)? 'G': is_slot(col, row)? 'N': 'B'
+    return finish_setup({b: b, piece: piece, orientation: orientation, x: x, y: y, slot: slot,
+        top: top, bottom: bottom, left: left, right: right, dig: bottom > 0, must_open: []}, n_build)
+}
+
+// The second spin, on the board left once the first one has cleared its lines,
+// in the same well: its slot is where the piece lands if dropped on what is left,
+// every other empty cell of its rows is filled by the build, and the walls go up
+// to match. A gap left under those rows (the way into the first slot, down to the
+// garbage hole) must be open above them too, so the well is clean at the end.
+function try_second_setup(R, left, right, piece, n_build){
+    var {orientation, xs, ys, width: slot_width} = slot_shape(piece)
+    if (slot_width + (piece == 'T'? 2: 0) > right - left + 1) return null
+    var slot_left = left + random_int(right - left - slot_width + 2)
+    var g = new Game()
+    g.board = R
+    g.tetramino = piece
+    g.orientation = orientation
+    g.x = slot_left - Math.min(...xs)
+    g.y = 17
+    if (g.is_collide()) return null
+    g.drop()
+    var x = g.x, y = g.y
+    var slot = piece_cells(piece, orientation, x, y)
+    var bottom = Math.min(...slot.map(c => c[1]))
+    var top = Math.max(...slot.map(c => c[1]))
+    var must_open = []
+    for (var col=left; col<=right; col++)
+        if (bottom > 0 && R[bottom-1][col] == 'N') must_open.push(col)
+    if (!must_open.every(col => slot.some(c => c[0] == col))) return null
+    var b = clone(R)
+    for (var row=bottom; row<=top; row++)
+        for (var col=0; col<10; col++){
+            if (col < left || col > right) b[row][col] = 'G'
+            else if (b[row][col] == 'N' && !slot.some(c => c[0] == col && c[1] == row)) b[row][col] = 'B'
+        }
+    return finish_setup({b: b, piece: piece, orientation: orientation, x: x, y: y, slot: slot,
+        top: top, bottom: bottom, left: left, right: right, dig: false, must_open: must_open}, n_build)
+}
+
+// the garbage rows under the floor, with their hole in this column
+function dig(board, bottom, col){
+    var nb = clone(board)
+    for (var row=0; row<bottom; row++) nb[row][col] = 'N'
+    return nb
+}
+
+// Caps over the slot, walls and the level build on top of the spin rows: `b` has
+// the spin rows done (walls 'G', cells to build 'B', the slot empty)
+function finish_setup(s, n_build){
+    var {b, piece, orientation, x, y, slot, top, bottom, left, right} = s
+    var well_width = right - left + 1
+    var slot_cols = [...new Set(slot.map(c => c[0]))]
+    var in_well = col => col >= left && col <= right
     var with_walls = (board, wall) => {
         var nb = clone(board)
         for (var row=top+1; row<=top+wall; row++)
@@ -285,24 +353,49 @@ function try_spin_setup(piece, n_build){
     if (need < well_width - slot_cols.length || need > 5 * well_width) return null
 
     // Over the slot, try every choice of capped columns (at most 16) and keep the
-    // ones where the slot is reachable, and only by a final rotation.
+    // ones where the slot is reachable, and only by a final rotation. The columns left
+    // open are clear down to the garbage hole once the spin is done, so the hole goes
+    // under one of them (and 'must_open' columns have a gap under the spin rows).
     var valid = []
     for (var mask=0; mask < (1 << slot_cols.length); mask++){
         var h = Array(10).fill(0)
         slot_cols.forEach((col, i) => { if (mask & (1 << i)) h[col] = 1 })
-        if (is_spin_slot(with_stacks(with_walls(b, 1), h, top), piece, orientation, x, y, slot)) valid.push(mask)
+        var open = slot_cols.filter((col, i) => !(mask & (1 << i)))
+        if (!s.must_open.every(col => open.includes(col))) continue
+        var test = with_stacks(with_walls(b, 1), h, top)
+        if (!s.dig){
+            if (is_spin_slot(test, piece, orientation, x, y, slot)) valid.push({open: open})
+            continue
+        }
+        for (var col of shuffle([...open]))
+            if (is_spin_slot(dig(test, bottom, col), piece, orientation, x, y, slot)){
+                valid.push({open: open, hole: col})
+                break
+            }
     }
     if (valid.length == 0) return null
-    var mask = valid[random_int(valid.length)]
-    var open_cols = slot_cols.filter((col, i) => !(mask & (1 << i)))
+    var choice = valid[random_int(valid.length)]
+    var open_cols = choice.open
+    if (s.dig) b = dig(b, bottom, choice.hole)
 
     // the wall height that makes the build take n_build pieces when the rest of the
     // well is filled level with it
     var filled_cols = []
     for (var col=left; col<=right; col++)
         if (!open_cols.includes(col)) filled_cols.push(col)
-    var wall = Math.round(need / filled_cols.length)
-    if (wall < 1 || wall > 5) return null
+    // (for the second spin some of those cells are already filled by what's left of the first)
+    var fill = (col, k) => {
+        var n = 0
+        for (var row=top+1; row<=Math.min(top+k, 19); row++) if (b[row][col] == 'N') n++
+        return n
+    }
+    var wall = 0, best = Infinity
+    for (var w=1; w<=5; w++){
+        var miss = Math.abs(filled_cols.reduce((a, col) => a + fill(col, w), 0) - need)
+        if (miss < best){ best = miss; wall = w }
+    }
+    // leave room to spawn above the walls
+    if (top + wall + 1 > 16) return null
     var nw = with_walls(b, wall)
 
     // Every near-level fill (each column at the wall height, or one above or below)
@@ -311,7 +404,7 @@ function try_spin_setup(piece, n_build){
     var profiles = []
     var offsets = Array(filled_cols.length).fill(-1)
     while (true){
-        if (offsets.reduce((a, v) => a + v, 0) == need - wall * filled_cols.length){
+        if (filled_cols.reduce((a, col, i) => a + fill(col, wall + offsets[i]), 0) == need){
             var h = Array(10).fill(0)
             filled_cols.forEach((col, i) => h[col] = wall + offsets[i])
             var nb = with_stacks(nw, h, top)
@@ -342,9 +435,41 @@ function try_spin_setup(piece, n_build){
         // the finished board with each piece in its own colour, for Show Answer
         for (var {piece: p, cells: pc} of build)
             for (var [col, row] of pc) finished[row][col] = p
-        return {board: finished, lines: top - bottom + 1, cells: slot, build: build}
+        return {board: finished, lines: top - bottom + 1, cells: slot, build: build, piece: piece,
+            left: left, right: right, bottom: bottom, top: top}
     }
     return null
+}
+
+// the board after the spin piece fills its slot and the full rows clear
+function after_spin(board, setup){
+    var nb = clone(board)
+    for (var [col, row] of setup.cells) nb[row][col] = setup.piece
+    var rows = nb.filter(row => row.some(c => c == 'N'))
+    while (rows.length < 20) rows.push(Array(10).fill('N'))
+    return rows
+}
+
+// Place the build pieces in order on the real starting board, then check the spin
+// slot: the first setup was made with low walls, the second one adds to them.
+function still_works(start, setup){
+    var b = start.map(row => row.map(c => c == 'G'? 'G': 'N'))
+    for (var {piece, cells} of [...setup.build].reverse()){
+        if (!can_reach(b, piece, cells)) return false
+        for (var [col, row] of cells) b[row][col] = piece
+    }
+    var g = new Game()
+    g.tetramino = setup.piece
+    for (var o=0; o<4; o++){
+        // find the orientation / position of the slot cells
+        for (var [dx, dy] of shape_table[setup.piece][o]){
+            var [tx, ty] = setup.cells[0]
+            var cells = piece_cells(setup.piece, o, tx - dx, ty - dy)
+            if (cells.map(c => c.join()).sort().join('|') == setup.cells.map(c => c.join()).sort().join('|'))
+                return is_spin_slot(b, setup.piece, o, tx - dx, ty - dy, setup.cells)
+        }
+    }
+    return false
 }
 
 // Tetrominoes can only tile a group of touching cells whose size is a multiple of 4
@@ -370,7 +495,7 @@ function groups_of_four(cells){
 function with_stacks(b, heights, top){
     var nb = clone(b)
     for (var col=0; col<10; col++)
-        for (var row=top+1; row<=top+heights[col]; row++) nb[row][col] = 'B'
+        for (var row=top+1; row<=top+heights[col]; row++) if (nb[row][col] == 'N') nb[row][col] = 'B'
     return nb
 }
 
@@ -380,7 +505,8 @@ function is_spin_slot(b, piece, orientation, x, y, slot){
     g.tetramino = piece
     g.x = x; g.y = y; g.orientation = orientation
     if (g.is_collide()) return false
-    for (var [dx, dy] of [[-1, 0], [1, 0], [0, 1]]){
+    // stuck left, right and up (a spin), and resting (it doesn't fall on after the spin)
+    for (var [dx, dy] of [[-1, 0], [1, 0], [0, 1], [0, -1]]){
         g.x = x+dx; g.y = y+dy
         if (!g.is_collide()) return false
     }
@@ -388,16 +514,14 @@ function is_spin_slot(b, piece, orientation, x, y, slot){
 }
 
 // 4.2 build a map, shuffle the queue and play / restart
-function play_a_map(){
-    stop_answer()
-    var n_build = Config.no_of_piece - 1
-    // pick the spin piece first (not per attempt), so rarer setups like T come up as often
-    var pieces = shuffle([...Config.spin_pieces])
+
+// The first spin. Pick the spin piece first (not per attempt), so rarer setups like
+// T come up as often. Some piece/size combinations are rare or impossible in a well
+// (a flat I-spin leaves little room), so each attempt picks a size near the one asked
+// for, favouring the exact size, and after a while moves on to another piece.
+function first_setup(n_build){
     var setup = null
-    // Some piece/size combinations are rare or impossible in a well (a flat I-spin
-    // leaves little room), so each attempt picks a size near the one asked for,
-    // favouring the exact size, and after a while moves on to another piece.
-    for (var piece of pieces){
+    for (var piece of shuffle([...Config.spin_pieces])){
         Record.spin_piece = piece
         var sizes = [n_build, n_build, n_build, n_build+1, n_build-1].filter(n => n >= 2 && n <= 6)
         var give_up = budget_clock() + 700
@@ -405,7 +529,7 @@ function play_a_map(){
             Record.deadline = budget_clock() + 100
             setup = try_spin_setup(piece, sizes[random_int(sizes.length)])
         }
-        if (setup) break
+        if (setup) return setup
     }
     // last resort: any piece, any size
     while (!setup){
@@ -413,26 +537,101 @@ function play_a_map(){
         Record.deadline = budget_clock() + 100
         setup = try_spin_setup(Record.spin_piece, 2 + random_int(4))
     }
-    Record.spin_lines = setup.lines
-    Record.spin_cells = setup.cells
-    Record.board = [setup.board]
-    Record.build = setup.build
-    // build pieces go in the reverse of the order they were carved out
-    var queue = setup.build.map(p => p.piece).reverse()
-    queue.push(Record.spin_piece)
-    Record.shuffled_queue = get_shuffled_holdable_queue(queue)
-    if (Record.shuffled_queue.length == 0) Record.shuffled_queue = queue
+    return setup
+}
+
+// The second spin, built on what the first one leaves. Returns it with the starting
+// board (the first setup's, walls raised for the second), or null if nothing fits.
+function second_setup(first, n_build){
+    var R = after_spin(first.board, first)
+    var give_up = budget_clock() + 500
+    while (budget_clock() < give_up){
+        var piece = Config.spin_pieces[random_int(Config.spin_pieces.length)]
+        Record.spin_piece = piece
+        Record.deadline = budget_clock() + 100
+        var sizes = [n_build, n_build, n_build+1, n_build-1].filter(n => n >= 1 && n <= 6)
+        var setup = try_second_setup(R, first.left, first.right, piece, sizes[random_int(sizes.length)])
+        if (!setup) continue
+        // rows above the first spin's lines sit that many rows higher at the start
+        var start = clone(first.board), fits = true
+        for (var row=first.bottom; row<20; row++)
+            for (var col=0; col<10; col++)
+                if (setup.board[row][col] == 'G' && R[row][col] != 'G'){
+                    if (row + first.lines > 16) fits = false
+                    else start[row + first.lines][col] = 'G'
+                }
+        // the taller walls must not get in the way of the first build or spin
+        if (fits && still_works(start, first)) return {start: start, setup: setup}
+    }
+    return null
+}
+
+function play_a_map(){
+    stop_answer()
+    var n_build = Config.no_of_piece - 1
+    // the well must be clean once the last spin is done: nothing left over a hole
+    var clean_after = setup => is_clean(after_spin(setup.board, setup), setup.left, setup.right)
+    var spins = null, start = null, fallback = null
+    for (var attempt=0; attempt<10 && !spins; attempt++){
+        var first = first_setup(n_build)
+        if (!clean_after(first)) continue
+        fallback = first
+        if (Config.spins == 1){ spins = [first]; start = first.board }
+        else{
+            var second = second_setup(first, n_build)
+            if (second && clean_after(second.setup)){ spins = [first, second.setup]; start = second.start }
+        }
+    }
+    // very rarely nothing fits on top: settle for one spin
+    if (!spins){
+        while (!fallback){
+            var first = first_setup(n_build)
+            if (clean_after(first)) fallback = first
+        }
+        spins = [fallback]; start = fallback.board
+    }
+    Record.spins = spins.map(s => ({piece: s.piece, lines: s.lines, cells: s.cells, build: s.build}))
+    Record.board = [start]
+    // each spin's pieces are shuffled on their own (the hold table goes up to 7 pieces):
+    // build pieces go in the reverse of the order they were carved out, then the spin piece
+    Record.shuffled_queue = []
+    for (var s of spins){
+        var queue = s.build.map(p => p.piece).reverse().concat([s.piece])
+        var shuffled = get_shuffled_holdable_queue(queue)
+        Record.shuffled_queue = Record.shuffled_queue.concat(shuffled.length? shuffled: queue)
+    }
 
     play()
-    document.getElementById('winning_requirement1').innerHTML =
-        `Do ${"SLI".includes(Record.spin_piece)? "an": "a"} ${Record.spin_piece}-Spin ${LINE_NAMES[Record.spin_lines]}`
     document.getElementById('spin_message').textContent = ''
     render()
 }
 
+// no empty cell of the well under a filled one
+function is_clean(board, left, right){
+    for (var col=left; col<=right; col++){
+        var gap = false
+        for (var row=0; row<20; row++){
+            if (board[row][col] == 'N') gap = true
+            else if (gap) return false
+        }
+    }
+    return true
+}
+
+function spin_name(spin){
+    return `${spin.piece}-Spin ${LINE_NAMES[spin.lines]}`
+}
+
+// "Do an S-Spin Double, then a T-Spin Single", with the done ones ticked
+function update_goal(){
+    var parts = Record.spins.map((spin, i) => (i < Record.done_spins? '✓ ': '') +
+        ("SLI".includes(spin.piece)? "an ": "a ") + spin_name(spin))
+    document.getElementById('winning_requirement1').textContent = 'Do ' + parts.join(', then ')
+}
+
 function play(){
     game = new Game()
-    Record.done_spin = false
+    Record.done_spins = 0
     Record.miss = null
     game.bag = Record.shuffled_queue.concat(Array(14).fill('G'))
     game.update()
@@ -447,28 +646,29 @@ function play(){
                 if (game.board[row_idx][col_idx] != 'G')
                     game.board[row_idx][col_idx] = 'N'
     }
+    update_goal()
 }
 
 function detect_win(){
     if (game.total_piece == 1){
         Config.no_of_trial += 1}
     if (game.total_piece == Record.shuffled_queue.length){
-        if (Record.done_spin){
+        if (Record.done_spins == Record.spins.length){
             report_result(true, 'Solved!')
             Config.no_of_success += 1
             if (Config.auto_next_ind) play_a_map()
         }
         else{
-            var why = Record.miss || `No ${Record.spin_piece}-Spin ${LINE_NAMES[Record.spin_lines]}`
+            var why = Record.miss || `No ${spin_name(Record.spins[Record.done_spins])}`
             report_result(false, why)
             retry()
         }
     }
 }
 
-// shows where every piece goes, including the spin piece in its slot
 // Show Answer: replay the solution from the starting board, one build piece at a
-// time in the order you place them, then the spin piece in its slot
+// time in the order you place them, then the spin piece in its slot (and its lines
+// clearing before the next setup)
 var answer_timers = []
 function stop_answer(){
     answer_timers.forEach(clearTimeout)
@@ -482,17 +682,34 @@ function show_ans(){
     play()
     game.tetramino = 'G'   // hide the falling piece while replaying
     render()
-    var steps = [...Record.build].reverse().concat([{piece: Record.spin_piece, cells: Record.spin_cells}])
-    steps.forEach((step, i) => answer_timers.push(setTimeout(() => {
-        for (var [col, row] of step.cells) game.board[row][col] = step.piece
-        render()
-        if (i == steps.length - 1) show_spin_message(`The ${step.piece} spins in here`)
-    }, 700 * (i + 1))))
+    var steps = []
+    for (var spin of Record.spins){
+        for (var p of [...spin.build].reverse()) steps.push(p)
+        steps.push({piece: spin.piece, cells: spin.cells, spin: spin})
+    }
+    var clear_lines = () => {
+        var rows = game.board.filter(row => row.some(c => c == 'N'))
+        while (rows.length < 20) rows.push(Array(10).fill('N'))
+        game.board = rows
+    }
+    var time = 0
+    steps.forEach(step => {
+        time += 700
+        answer_timers.push(setTimeout(() => {
+            for (var [col, row] of step.cells) game.board[row][col] = step.piece
+            render()
+            if (step.spin) show_spin_message(`${spin_name(step.spin)} here`)
+        }, time))
+        if (step.spin){
+            time += 1200
+            answer_timers.push(setTimeout(() => { clear_lines(); render() }, time))
+        }
+    })
     answer_timers.push(setTimeout(() => {
         stop_answer()
         retry()
         document.getElementById('spin_message').textContent = ''
-    }, 700 * steps.length + 1800))
+    }, time + 1200))
 }
 
 /*

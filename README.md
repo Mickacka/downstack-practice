@@ -14,7 +14,7 @@ This is a fork of [himitsuconfidential/downstack-practice](https://github.com/hi
 | [T-Spin Challenge](https://mickacka.github.io/downstack-practice/tspin-challenge.html) | Solve as many T-spin puzzles as you can and get on the leaderboard (try to reach the top 50 :>) |
 | [T-Spin Practice](https://mickacka.github.io/downstack-practice/tspin-practice.html) | T-spin setups |
 | [Advanced T-Spin Practice](https://mickacka.github.io/downstack-practice/advance-tspin-practice.html) | Harder T-spin setups |
-| [All-Spin Practice](https://mickacka.github.io/downstack-practice/allspin-practice.html) | Build an S, Z, L, J, I or T spin setup inside a flat well, then spin into it for the requested line clear (see below) |
+| [All-Spin Practice](https://mickacka.github.io/downstack-practice/allspin-practice.html) | Build S, Z, L, J, I or T spin setups inside a flat well and spin into them for the requested line clears, two spins per map (see below) |
 | [Quad Practice](https://mickacka.github.io/downstack-practice/quad-practice.html) | Building and clearing quads |
 | [Upstack Practice](https://mickacka.github.io/downstack-practice/upstack-practice.html) | Stacking |
 | [Mid-game PC Practice](https://mickacka.github.io/downstack-practice/pc-practice.html) | Perfect clears from a mid-game board |
@@ -33,11 +33,12 @@ This is a fork of [himitsuconfidential/downstack-practice](https://github.com/hi
 
 ## All-Spin Practice
 
-- Each map is a flat stack with a 3-6 wide well. Build the setup inside the well with your queue (it fills about level with the walls, leaving the way into the slot), then spin the last piece in.
+- Each map is a flat stack with a 3-6 wide well and asks for **two spins in a row** (or one, in Options). Build the first setup inside the well (it fills about level with the walls, leaving the way into the slot) and spin in; the lines it clears leave the base for the second setup, which you build and spin into the same way.
+- After the last spin the well is clean: the way into the slot goes straight down to the hole in the garbage, with nothing left covering it.
 - A spin follows the all-spin rule: after its last rotation the piece can't move left, right or up.
-- Only the requested spin counts: the right piece, a real spin, and the right number of lines (e.g. an S-Spin **Double**). If you miss, the page says why.
-- **Show Answer** replays the solution one piece at a time, in build order, then shows where the spin piece goes.
-- Options: which pieces can be the spin piece, about how many pieces to use, and unique pieces. Every map is checked to be buildable with the game's real moves.
+- Only the requested spins count, in order: the right piece, a real spin, and the right number of lines (e.g. an S-Spin **Double**, then a T-Spin **Double**). The goal ticks off each one as you do it; if you miss, the page says why.
+- **Show Answer** replays the solution one piece at a time, in build order, showing where each spin piece goes and the lines it clears.
+- Options: spins per map (2 or 1), which pieces can be the spin piece, about how many pieces per spin, and unique pieces. Every map is checked to be buildable with the game's real moves.
 
 ## Map parameters
 
