@@ -110,3 +110,7 @@ function update_viewport() {
 }
 update_viewport();
 window.matchMedia('(orientation: portrait)').addEventListener('change', update_viewport);
+
+// Offline support and "install as an app" (sw.js caches the whole site)
+if ('serviceWorker' in navigator)
+    window.addEventListener('load', () => navigator.serviceWorker.register('/downstack-practice/sw.js').catch(() => {}));

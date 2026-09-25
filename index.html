@@ -15,6 +15,9 @@
     <title>Tetris Practice</title>
     <meta name="description" content="Practise Tetris downstacking, T-spins, all-spins, quads and perfect clears with generated puzzles.">
     <link rel="icon" href="/downstack-practice/favicon.svg" type="image/svg+xml">
+    <link rel="manifest" href="/downstack-practice/manifest.webmanifest">
+    <link rel="apple-touch-icon" href="/downstack-practice/icons/apple-touch-icon.png">
+    <meta name="theme-color" content="#2a2c30">
     <link rel="stylesheet" href="style.css">
     <script src="style-scripts.js"></script>
 </head>
@@ -53,6 +56,7 @@
             <div class="daily-list" id="daily-list"></div>
         </section>
         <p class="home-intro">Generated puzzles to practise one skill at a time. Pick a mode:</p>
+        <button type="button" id="install" class="install-button" hidden>Install as an app (works offline)</button>
         <div class="mode-grid" id="mode-grid"></div>
         <p class="home-foot">
             Settings (keys, DAS/ARR, touch controls) are in the ⚙️ menu on every practice page and shared between them.
@@ -159,6 +163,23 @@
         draw_preview(card.querySelector('canvas'), mode)
         grid.appendChild(card)
     }
+
+    // Chrome and Edge offer to install the site as an app: show the button when they do
+    var install_prompt = null
+    var install_button = document.getElementById('install')
+    window.addEventListener('beforeinstallprompt', e => {
+        e.preventDefault()
+        install_prompt = e
+        install_button.hidden = false
+    })
+    install_button.onclick = async () => {
+        if (!install_prompt) return
+        install_prompt.prompt()
+        await install_prompt.userChoice
+        install_prompt = null
+        install_button.hidden = true
+    }
+    window.addEventListener('appinstalled', () => install_button.hidden = true)
 
     // daily puzzles: done today, and the streak of days with at least one solved
     function load_daily(){

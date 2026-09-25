@@ -732,6 +732,17 @@ html.portrait-zoom #scrollable { height: 18rem; }
 .daily-link:hover, .daily-link:focus-visible { border-color: rgb(66, 175, 225); outline: none; }
 .daily-link.done { border-color: rgb(81, 184, 77); color: rgb(81, 184, 77); }
 .daily-link.done::after { content: ' ✓'; }
+.install-button {
+    margin: -0.4rem 0 1.2rem;
+    padding: 0.5rem 1rem;
+    border: 0.15rem solid rgb(66, 175, 225);
+    border-radius: 0.6rem;
+    background: #2a2c30;
+    color: #dcddde;
+    font-size: 1rem;
+    cursor: pointer;
+}
+.install-button:hover, .install-button:focus-visible { background: #33363c; outline: none; }
 .home-foot { margin-top: 2rem; font-size: 0.9rem; color: #9a9ca1; line-height: 1.5; }
 .home-foot a { color: rgb(66, 175, 225); }
 @media (max-width: 480px) {

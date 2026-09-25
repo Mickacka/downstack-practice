@@ -68,6 +68,8 @@ With touch controls on:
 
 Hold a direction button to move the piece all the way (DAS); long-pressing no longer brings up the Android menu.
 
+**Install it as an app**: on Android, use the *Install as an app* button on the home page (or Chrome's menu > *Add to Home screen*); on iPhone, Safari's Share > *Add to Home Screen*. It then opens full screen and works offline. Whenever you're online, every page is checked against the site, so updates show up on the next load.
+
 ## Running locally
 
 The site is plain HTML/JS with no build step. Pages link to `/downstack-practice/...`, so serve the **parent** folder:
