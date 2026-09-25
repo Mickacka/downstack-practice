@@ -28,6 +28,7 @@ This is a fork of [himitsuconfidential/downstack-practice](https://github.com/hi
 - **Show Answer** replays the solution one piece at a time, in the order you place them.
 - **Finesse feedback**: after each piece placed without soft drop, the board shows whether you used the fewest inputs for that spot (taps, DAS to the wall and rotations each count 1) and keeps a running score. Turn it off in Settings.
 - **Daily** (button, or *Today's puzzles* on the home page) plays the day's map for that mode: the same map for everyone, new every day (UTC). Solving any daily keeps your daily streak going.
+- **Rush (3 min)** gives you 3 minutes to solve as many puzzles as you can: solving one brings the next, and a miss moves straight on to a new puzzle. Your best score per mode is kept and shown on Your Progress.
 - **Copy link** copies a link to the exact puzzle on screen, to retry later or send to a friend.
 - Every attempt ends with a ✓ / ✗ over the board, and your solved count, streak and best streak are kept per mode (also shown on the home page).
 - **Your Progress** (menu, or the link next to the daily streak) shows your solved count and success rate, a chart of the last 30 days, each mode's tries, success rate, median solve time and best streak, a calendar of daily puzzles and your recent attempts with their time and finesse faults. **Export** saves your progress and settings to a file and **Import** loads it on another device (e.g. from your computer to your phone).

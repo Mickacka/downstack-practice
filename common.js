@@ -134,6 +134,7 @@ function render(){
     ctx.fillText('Best '+stats.best,420,540)
     draw_finesse(ctx)
     draw_daily(ctx)
+    draw_rush(ctx)
 
 }
 
@@ -221,6 +222,13 @@ function add_generic_keybind(key,func){
 }
 
 function retry(){
+    // in a rush, a missed puzzle moves on to a new one
+    if (rush.on && rush.skip_retry){
+        rush.skip_retry = false
+        play_a_map()
+        render()
+        return
+    }
     play()
     render()
 }
@@ -495,6 +503,14 @@ function report_result(won, reason){
     if (won && is_daily_map()){
         daily_solved()
         if (!reason) reason = 'Daily solved'
+    }
+    if (rush.on){
+        if (won) rush.solved += 1
+        else{
+            rush.missed += 1
+            rush.skip_retry = true
+            if (!reason) reason = 'Next puzzle'
+        }
     }
     flash_result(won, reason || (won? '': 'Try again'))
 }
@@ -1050,3 +1066,68 @@ function gravity_tick(now){
     render()
 }
 requestAnimationFrame(gravity_tick)
+
+/*
+Rush: as many puzzles as you can in 3 minutes. Solving one brings the next,
+a miss moves on to a new one. The best score per mode is kept ('rush:<page>:<mode>').
+*/
+const RUSH_TIME = 3 * 60 * 1000
+var rush = {on: false}
+
+function rush_key(){
+    var page = location.pathname.split('/').pop() || 'index.html'
+    return 'rush:' + page + ':' + (Config.mode || '')
+}
+
+function rush_best(){
+    try{ return parseInt(localStorage.getItem(rush_key())) || 0 }
+    catch(err){ return 0 }
+}
+
+function rush_button_label(){
+    var button = document.getElementById('rush_button')
+    if (button) button.textContent = rush.on? 'Stop rush': 'Rush (3 min)'
+}
+
+function start_rush(){
+    if (rush.on) return finish_rush(true)
+    rush = {on: true, end: Date.now() + RUSH_TIME, solved: 0, missed: 0, skip_retry: false, auto: Config.auto_next_ind}
+    Config.auto_next_ind = true
+    play_a_map()
+    rush.timer = setInterval(() => Date.now() >= rush.end? finish_rush(false): render(), 250)
+    rush_button_label()
+    flash_result(true, 'Rush: go!')
+    render()
+    if (typeof board != 'undefined') board.focus()
+}
+
+function finish_rush(stopped){
+    clearInterval(rush.timer)
+    rush.on = false
+    Config.auto_next_ind = rush.auto
+    rush_button_label()
+    if (stopped){
+        flash_result(false, 'Rush stopped')
+        render()
+        return
+    }
+    var best = rush_best()
+    if (rush.solved > best){
+        try{ localStorage.setItem(rush_key(), rush.solved) } catch(err){}
+    }
+    var text = 'Rush over: ' + rush.solved + ' solved' + (rush.solved > best? (best? ' · new best!': ''): ' · best ' + best)
+    flash_result(rush.solved > 0, text)
+    render()
+}
+
+function draw_rush(ctx){
+    if (!rush.on) return
+    var left = Math.max(0, rush.end - Date.now())
+    var minutes = Math.floor(left / 60000), seconds = Math.floor(left / 1000) % 60
+    ctx.font = "bold 20px Arial ";
+    ctx.fillStyle = left < 20000? 'rgb(235, 79, 101)': 'rgb(246, 208, 60)'
+    ctx.fillText('Rush ' + minutes + ':' + String(seconds).padStart(2, '0'), 10, 480)
+    ctx.font = "bold 14px Arial ";
+    ctx.fillText(rush.solved + ' solved', 10, 500)
+    ctx.fillText('best ' + rush_best(), 10, 518)
+}
