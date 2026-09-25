@@ -52,6 +52,7 @@ Open the ⚙️ menu to set:
 
 - Keybinds (with Reset to defaults; keys used twice are highlighted), DAS and ARR
 - Whether a new map is generated when you win
+- **Gravity**: *Off* (default) lets you take your time; the other speeds make pieces fall on their own and lock 0.5 s after landing (moving or rotating on the ground resets that, up to 15 times). Gravity pauses while the board is out of focus or the settings are open
 - **180° kicks**: *TETR.IO (SRS+)* (default) tries the same kicks as TETR.IO when a 180° flip is blocked; *Simple* keeps the original single kick. Maps are generated with the simple kicks, so every map can be solved with either setting
 - **Touch controls**: *Auto* shows on-screen buttons on phones and tablets, *On* / *Off* force them
 

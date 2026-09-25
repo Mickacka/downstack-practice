@@ -356,6 +356,13 @@ function set_event_listener(){
     document.getElementById('input12').oninput = e=>{save_setting()}
     var auto_next = document.getElementById('input12.1')
     if (auto_next) auto_next.onchange = e=>{save_setting()}
+    var gravity_select = document.getElementById('gravity')
+    if (gravity_select){
+        gravity_select.value = String(gravity_setting())
+        gravity_select.onchange = () => {
+            try{ localStorage.setItem('gravity', gravity_select.value) } catch(err){}
+        }
+    }
     var kick180 = document.getElementById('kick180')
     if (kick180){
         kick180.value = kick_180_setting()
@@ -939,3 +946,71 @@ if (Daily.on){
         render()
     })
 }
+
+/*
+Optional gravity with lock delay. Off by default (pieces float until you drop them);
+otherwise the piece falls one row every `gravity_setting()` ms, and once it rests on
+something it locks after 500 ms, reset by each move or rotation up to 15 times.
+*/
+var gravity = {key: null, fall: 0, lock: 0, resets: 0, pos: '', last: 0}
+const LOCK_DELAY = 500, LOCK_RESETS = 15
+
+function gravity_setting(){
+    try{ return parseInt(localStorage.getItem('gravity')) || 0 }
+    catch(err){ return 0 }
+}
+
+function gravity_paused(){
+    if (typeof game == 'undefined' || !game.tetramino || game.tetramino == 'G') return true
+    if (document.hidden || !Controls.can_play() || answer_replay.running) return true
+    var setting = document.getElementById('setting')
+    if (setting && setting.classList.contains('open')) return true
+    // keyboard play needs the board focused ("OUT OF FOCUS"); touch buttons don't
+    return !document.body.classList.contains('touch') && document.activeElement !== board
+}
+
+function is_grounded(){
+    game.y -= 1
+    var grounded = game.is_collide()
+    game.y += 1
+    return grounded
+}
+
+function gravity_tick(now){
+    requestAnimationFrame(gravity_tick)
+    var dt = Math.min(now - (gravity.last || now), 100)
+    gravity.last = now
+    var speed = gravity_setting()
+    if (!speed || gravity_paused()) return
+    // a new piece starts fresh
+    var key = finesse_piece_key()
+    if (gravity.key !== key || gravity.game !== game){
+        gravity.key = key; gravity.game = game
+        gravity.fall = 0; gravity.lock = 0; gravity.resets = 0
+        gravity.pos = ''
+    }
+    var pos = [game.x, game.y, game.orientation].join()
+    if (is_grounded()){
+        // moving or rotating on the ground buys more time, a limited number of times
+        if (gravity.pos && pos != gravity.pos && gravity.resets < LOCK_RESETS){
+            gravity.resets += 1
+            gravity.lock = 0
+        }
+        gravity.pos = pos
+        gravity.lock += dt
+        if (gravity.lock >= LOCK_DELAY){
+            gravity.lock = 0
+            harddrop_action()
+        }
+        return
+    }
+    gravity.pos = ''
+    gravity.lock = 0
+    gravity.fall += dt
+    var rows = Math.floor(gravity.fall / speed)
+    if (rows < 1) return
+    gravity.fall -= rows * speed
+    game.drop(rows)
+    render()
+}
+requestAnimationFrame(gravity_tick)
