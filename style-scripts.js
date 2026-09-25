@@ -100,7 +100,24 @@ document.addEventListener('touchstart', e => {
     if (e.target.closest && e.target.closest('#tcc span')) navigator.vibrate(12);
 }, {capture: true, passive: true});
 
+// Short button labels for the compact landscape layout (the stylesheet shows
+// data-short instead of the text there)
+const SHORT_LABELS = {
+    'Copy link': 'Link', 'Show Answer': 'Answer', 'Show Hint': 'Hint', 'Hide Hint': 'Hide',
+    'Rush (3 min)': 'Rush', 'Stop rush': 'Stop',
+    'Get help from PC finder (At most 4 lines)': 'PC finder', 'Get help from S finder (Any number of line)': 'S finder',
+};
+function set_short_label(button) {
+    const short = SHORT_LABELS[button.textContent.trim()];
+    if (short) button.dataset.short = short;
+    else delete button.dataset.short;
+}
+function apply_short_labels() {
+    for (const button of document.querySelectorAll('#leftpanel .game_button')) set_short_label(button);
+}
+
 function setup_touch_controls() {
+    apply_short_labels();
     bind_touch_pref('touch_size', 'touch_size', 'large', false);
     bind_touch_pref('touch_swap', 'touch_swap', 'off', true);
     bind_touch_pref('touch_vibrate', 'touch_vibrate', 'off', true);

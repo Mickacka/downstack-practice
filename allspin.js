@@ -131,6 +131,7 @@ function toggle_hint(){
 function hint_label(){
     var button = document.getElementById('hint_button')
     if (button) button.textContent = Record.hint? 'Hide Hint': 'Show Hint'
+    if (button && typeof set_short_label == 'function') set_short_label(button)
 }
 Controls.can_play = () => !Record.showing
 Controls.bind_options = () => {

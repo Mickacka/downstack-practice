@@ -1089,6 +1089,7 @@ function rush_best(){
 function rush_button_label(){
     var button = document.getElementById('rush_button')
     if (button) button.textContent = rush.on? 'Stop rush': 'Rush (3 min)'
+    if (button) set_short_label(button)
 }
 
 function start_rush(){

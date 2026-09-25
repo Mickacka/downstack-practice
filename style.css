@@ -963,8 +963,31 @@ html.portrait-zoom #scrollable { height: 18rem; }
 
 /* keep the redesigned panels compact on a phone held sideways */
 @media (orientation: landscape) and (max-height: 540px) {
-    body.touch #leftpanel { gap: 0.3rem; grid-template-columns: repeat(3, 1fr); }
-    /* three across, Retry included: one row less above the buttons */
+    body.touch #leftpanel { gap: 0.3rem; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    /* short labels (data-short, set by style-scripts.js) so four fit across */
+    body.touch #leftpanel .game_button { min-width: 0; overflow: hidden; text-overflow: ellipsis; padding-left: 0; padding-right: 0; }
+    body.touch #leftpanel .game_button[data-short] { font-size: 0 !important; }
+    /* All-Spin's spin messages pop up over the board instead of taking a row */
+    body.touch #spin_message {
+        position: fixed;
+        left: 0;
+        right: 0;
+        top: 18%;
+        min-height: 0;
+        margin: 0;
+        z-index: 25;
+        pointer-events: none;
+        text-shadow: 0 0 6px #000, 0 0 2px #000;
+    }
+    body.touch #leftpanel .game_button[data-short]::after { content: attr(data-short); font-size: 0.72rem; }
+    /* the note under the goal: one line at most */
+    body.touch #winning_requirement2 {
+        display: -webkit-box;
+        -webkit-line-clamp: 1;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+    /* four across, Retry included: fewer rows above the buttons */
     body.touch #leftpanel .game_button.orange { grid-column: auto; }
     body.touch #leftpanel .game_button { padding-left: 0.15rem; padding-right: 0.15rem; font-size: 0.72rem; white-space: nowrap; }
     body.touch #leftpanel .game_button,
