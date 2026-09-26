@@ -36,11 +36,29 @@ The requested spin only counts if it is **the right piece**, **a real spin**, an
 
 The attempt is judged when the queue is used up: every requested spin done means ✓, otherwise ✗ and the map restarts.
 
+### 1.1 Continuous mode (option)
+
+Normally a map is planned in full at the start: every setup, every piece, the whole stack. The later spins are built on the board the *planned* solution leaves. If you build a setup differently, the pieces above its spin rows may be in other places after the spin, and a later spin can become impossible. (Differences inside the spin rows don't matter: those rows are cleared.)
+
+With **Continuous** on, the game goes on in parts:
+
+1. A part is planned as usual (*Spins per map* spins, 2 by default), with its queue.
+2. When you finish it, the next part is planned **from your board as it is**, so it works whatever way you built:
+   - the same pieces stay, and your pieces count as solid, so new stack may go on top of them;
+   - the well is found again on the current board (a 3-6 wide window around the deepest column, preferably no higher than the columns on each side);
+   - **garbage** rises from the bottom, as many rows as the part cleared (up to 8 rows of stack), with the holes lined up under the columns that are empty all the way down (the well's open shaft), so no hole is ever covered;
+   - the new part must keep the board at 12 rows or lower.
+3. If you miss a part, it restarts from its own start: the **checkpoint** (your earlier pieces included). Undo works within a part.
+4. If nothing fits your board (within about 1.5 s), the game goes on with a **new board** ("Part N · new board").
+
+The goal shows *Part N: do …*. In testing, playing the planned solutions, all 16 parts in a row were won, and about half the checkpoints went on with a new board. Continuous mode is off in the daily puzzle.
+
 ### Options (right panel, saved in the browser)
 
 | Option | Default | Effect |
 | --- | --- | --- |
-| Spins per map | 2 | 1 to 4 spins in a row |
+| Spins per map | 2 | 1 to 4 spins in a row (in continuous mode: per part) |
+| Continuous | off | When the planned spins are done, the next ones are planned from your board as it is (see 1.1) |
 | Pieces per spin, about | 5 | Size of each setup: build pieces + the spin piece (3-7). The generator may use one more or one less. |
 | No repeated pieces | on | Each piece type at most once per setup (a spin piece is never also a build piece). Off: up to twice. |
 | Spin pieces | S Z L J I T | Which pieces can be the spin piece |
@@ -335,6 +353,7 @@ The last result should be `won: 20` and no `failed` entries. The latest run (1-4
 | `is_immobile`, `do_harddrop` | Spin detection on each drop, requested-spin bookkeeping, miss messages |
 | `play_a_map`, `chain_setup`, `first_setup`, `next_setup` | Map assembly (3.1, 3.2, 3.6) |
 | `chain_start`, `row_at_start`, `chain_works`, `slot_pose` | Starting board of a chain; playing the whole solution through (3.6) |
+| `set_plan`, `next_part`, `plan_from`, `well_candidates`, `add_garbage` | Continuous mode: starting a plan, planning the next part from the board in play, garbage (1.1) |
 | `slot_shape`, `try_spin_setup`, `try_second_setup` | Slot placement for each spin (3.3, 3.6) |
 | `finish_setup` | Caps, hole, bumpy stack, wall height, build shapes (3.4) |
 | `terrain_bumps`, `fill_pockets`, `dig` | Bumpy stack, shut-in cells, garbage hole |

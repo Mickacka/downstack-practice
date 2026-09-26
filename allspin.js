@@ -2,7 +2,7 @@ var game = new Game();
 var Config = {'das':100, 'arr':0, 'delay':0, 'pressing_left':false, 'pressing_right': false, 'pressing_down': false, 'pressing':{},
 'unqiue_ind':true, 'auto_next_ind':true,
 'spin_pieces':'SZLJIT',
-'mode':'allspin', 'no_of_piece':5, 'spins':2,
+'mode':'allspin', 'no_of_piece':5, 'spins':2, 'continuous':false,
 'no_of_trial':0, 'no_of_success':0}
 
 
@@ -21,10 +21,12 @@ function load_gamemode(){
         if (n>=3 && n<=7) Config.no_of_piece = n
         var spins = parseInt(localStorage.getItem('allspin_spins'))
         if (spins >= 1 && spins <= 4) Config.spins = spins
+        Config.continuous = localStorage.getItem('allspin_continuous') == 'on'
     }
     catch(err){}
     document.getElementById('input13').value = Config.no_of_piece
     document.getElementById('spins').value = Config.spins
+    document.getElementById('continuous').checked = Config.continuous
     document.getElementById('input16').checked = Config.unqiue_ind
     for (var piece of 'SZLJIT'){
         document.getElementById('spin_'+piece).checked = Config.spin_pieces.includes(piece)
@@ -39,6 +41,8 @@ function save_gamemode(){
     }
     Config.unqiue_ind = document.getElementById('input16').checked
     Config.spins = Math.max(1, Math.min(4, parseInt(document.getElementById('spins').value) || 2))
+    Config.continuous = document.getElementById('continuous').checked
+    if (Record.spins.length) update_goal()
     var pieces = [...'SZLJIT'].filter(piece => document.getElementById('spin_'+piece).checked).join('')
     if (pieces == ''){
         alert('Choose at least one spin piece')
@@ -50,6 +54,7 @@ function save_gamemode(){
         localStorage.setItem('allspin_pieces', Config.spin_pieces)
         localStorage.setItem('allspin_no_of_piece', Config.no_of_piece)
         localStorage.setItem('allspin_spins', Config.spins)
+        localStorage.setItem('allspin_continuous', Config.continuous? 'on': 'off')
     }
     catch(err){}
 }
@@ -136,7 +141,7 @@ function hint_label(){
 Controls.can_play = () => !Record.showing
 Controls.bind_options = () => {
     document.getElementById('input13').oninput = e=>{save_gamemode()}
-    for (var id of ['spins', 'input16', 'spin_S', 'spin_Z', 'spin_L', 'spin_J', 'spin_I', 'spin_T']){
+    for (var id of ['spins', 'continuous', 'input16', 'spin_S', 'spin_Z', 'spin_L', 'spin_J', 'spin_I', 'spin_T']){
         document.getElementById(id).onchange = e=>{save_gamemode()}
     }
 }
@@ -704,8 +709,11 @@ function slot_pose(setup){
 // well is clean after the last spin. (The later setups' taller stack must not get
 // in the way of the earlier ones.)
 function chain_works(start, chain){
-    var b = start.map(row => row.map(c => c == 'G'? 'G': 'N'))
+    // a chain planned from the board in play (continuous mode) starts from it as it
+    // is; otherwise only the stack is there at the start
+    var b = chain[0].base? clone(start): start.map(row => row.map(c => c == 'G'? 'G': 'N'))
     for (var setup of chain){
+        if (setup.base) continue
         for (var {piece, cells} of [...setup.build].reverse()){
             if (!can_reach(b, piece, cells)) return false
             for (var [col, row] of cells) b[row][col] = piece
@@ -736,7 +744,7 @@ function next_setup(chain, n_build){
         if (!setup) continue
         var longer = chain.concat([setup])
         var start = chain_start(longer)
-        if (start && clean_start(start) && chain_works(start, longer)) return {chain: longer, start: start}
+        if (start && clean_start(start, chain[0].base) && chain_works(start, longer)) return {chain: longer, start: start}
     }
     return null
 }
@@ -762,9 +770,18 @@ function play_a_map(){
     for (var k=Config.spins-1; k>=1 && !result; k--)
         for (var attempt=0; attempt<10 && !result; attempt++) result = chain_setup(k, n_build)
     while (!result) result = chain_setup(1, n_build)
-    var spins = result.chain
+    Record.well = [result.chain[0].left, result.chain[0].right]
+    Record.part = 1
+    set_plan(result.chain, result.start, false)
+    document.getElementById('spin_message').textContent = ''
+}
+
+// Start playing a plan: its spins, the starting board and the queue. `in_play`: the
+// board is the one from the game in progress (continuous mode), pieces included.
+function set_plan(spins, start, in_play){
     Record.spins = spins.map(s => ({piece: s.piece, lines: s.lines, cells: s.cells, build: s.build}))
-    Record.board = [result.start]
+    Record.board = [start]
+    Record.in_play = in_play
     // each spin's pieces are shuffled on their own (the hold table goes up to 7 pieces):
     // build pieces go in the reverse of the order they were carved out, then the spin piece
     Record.shuffled_queue = []
@@ -773,19 +790,111 @@ function play_a_map(){
         var shuffled = get_shuffled_holdable_queue(queue)
         Record.shuffled_queue = Record.shuffled_queue.concat(shuffled.length? shuffled: queue)
     }
-
     play()
-    document.getElementById('spin_message').textContent = ''
     render()
 }
 
+/*
+Continuous mode: once the planned spins are done, the next ones are planned from the
+board as it is now (same well, new pieces), so the game goes on whatever way you
+built. A missed part restarts from its own start: the checkpoint.
+*/
+// Where the well is now: after a part, your pieces beside it may have moved its
+// edges. Candidates: windows 3-6 wide around the deepest column, preferably ones
+// no higher than the columns on each side (the board's edge counts as a wall);
+// the planner rejects the ones where nothing fits.
+function well_candidates(board){
+    var heights = []
+    for (var col=0; col<10; col++){
+        var h = 0
+        for (var row=0; row<20; row++) if (board[row][col] != 'N') h = row + 1
+        heights.push(h)
+    }
+    var low = Math.min(...heights), found = [], walled = []
+    for (var w=3; w<=6; w++)
+        for (var left=0; left+w<=10; left++){
+            var cols = heights.slice(left, left+w)
+            if (!cols.includes(low)) continue
+            found.push([left, left+w-1])
+            var sides = [left > 0? heights[left-1]: 20, left+w < 10? heights[left+w]: 20]
+            if (Math.max(...cols) <= Math.min(...sides)) walled.push([left, left+w-1])
+        }
+    return walled.length? walled: found
+}
+
+function plan_from(board, k, n_build){
+    // the pieces already on the board are there for good: to the planner they are
+    // stack like the rest (new stack may go on top of them)
+    var solid = board.map(row => row.map(c => c == 'N'? 'N': 'G'))
+    var wells = well_candidates(board)
+    if (wells.length == 0) return null
+    var well = wells[random_int(wells.length)]
+    var base = {base: true, board: solid, bottom: 20, lines: 0, cells: [], build: [],
+        left: well[0], right: well[1]}
+    var result = {chain: [base], start: solid}
+    for (var i=0; i<k; i++){
+        result = next_setup(result.chain, n_build)
+        if (!result) return null
+    }
+    // keep the board low enough to go on: at most 12 rows at the start of a part
+    for (var row=12; row<20; row++) if (result.start[row].some(c => c != 'N')) return null
+    // the real board, pieces keeping their colours, plus the new stack
+    var start = clone(board)
+    for (var row=0; row<20; row++)
+        for (var col=0; col<10; col++)
+            if (result.start[row][col] == 'G' && solid[row][col] != 'G') start[row][col] = 'G'
+    return {chain: result.chain.slice(1), start: start, well: well}
+}
+
+// Garbage rising from the bottom, as many rows as the part cleared: the board keeps
+// its height and the next setups have stack to work with. The holes line up with the
+// columns that are empty all the way down (the well's open shaft), so no hole is ever
+// covered and the next spins can clear the garbage; none is added when no column is
+// empty, or beyond 8 rows of stack (room for the next setups).
+function add_garbage(board, rows){
+    var height = 0
+    for (var row=0; row<20; row++) if (board[row].some(c => c != 'N')) height = row + 1
+    rows = Math.min(rows, Math.max(0, 8 - height))
+    var holes = []
+    for (var col=0; col<10; col++) if (board.every(line => line[col] == 'N')) holes.push(col)
+    if (rows == 0 || holes.length == 0) return {board: board, rows: 0}
+    var nb = board.slice(0, 20 - rows)
+    for (var i=0; i<rows; i++) nb.unshift([...Array(10)].map((c, col) => holes.includes(col)? 'N': 'G'))
+    return {board: nb, rows: rows}
+}
+
+function next_part(){
+    var cleared = Record.spins.reduce((a, s) => a + s.lines, 0)
+    var n_build = Config.no_of_piece - 1
+    var plan = null, garbage = null
+    garbage = add_garbage(clone(game.board), cleared)
+    // about 1.5 s at most before settling for a fresh map
+    var give_up = budget_clock() + 1500
+    for (var k=Config.spins; k>=1 && !plan; k--)
+        while (!plan && budget_clock() < give_up - (k - 1) * 400) plan = plan_from(garbage.board, k, n_build)
+    if (!plan){
+        // nothing fits on this board any more: go on with a fresh board
+        var part = Record.part + 1
+        play_a_map()
+        Record.part = part
+        update_goal()
+        show_spin_message('Part ' + part + ' · new board')
+        return
+    }
+    Record.part += 1
+    Record.well = plan.well
+    set_plan(plan.chain, plan.start, true)
+    show_spin_message('Part ' + Record.part + (garbage.rows? ' · +' + garbage.rows + ' garbage': ''))
+}
+
 // The starting board (the stack, before anything is built) has no stack cell over
-// an empty one, in any column
-function clean_start(board){
+// an empty one, in any column. `in_play`: a board from the game in progress, where
+// the pieces already placed are there too (only empty cells count as gaps).
+function clean_start(board, in_play){
     for (var col=0; col<10; col++){
         var gap = false
         for (var row=0; row<20; row++){
-            if (board[row][col] != 'G') gap = true
+            if (in_play? board[row][col] == 'N': board[row][col] != 'G') gap = true
             else if (gap) return false
         }
     }
@@ -812,7 +921,8 @@ function spin_name(spin){
 function update_goal(){
     var parts = Record.spins.map((spin, i) => (i < Record.done_spins? '✓ ': '') +
         ("SLI".includes(spin.piece)? "an ": "a ") + spin_name(spin))
-    document.getElementById('winning_requirement1').textContent = 'Do ' + parts.join(', then ')
+    document.getElementById('winning_requirement1').textContent =
+        (Config.continuous? 'Part ' + (Record.part || 1) + ': do ': 'Do ') + parts.join(', then ')
 }
 
 function play(){
@@ -830,10 +940,12 @@ function play(){
     if (game.tetramino == 'G') game.hold()
     if (Record.board.length > 0){
         game.board = clone(Record.board[Record.board.length-1])
-        for (var row_idx=0; row_idx<20; row_idx++)
-            for (var col_idx=0; col_idx<10; col_idx++)
-                if (game.board[row_idx][col_idx] != 'G')
-                    game.board[row_idx][col_idx] = 'N'
+        // (a board from the game in progress keeps its pieces: the checkpoint)
+        if (!Record.in_play)
+            for (var row_idx=0; row_idx<20; row_idx++)
+                for (var col_idx=0; col_idx<10; col_idx++)
+                    if (game.board[row_idx][col_idx] != 'G')
+                        game.board[row_idx][col_idx] = 'N'
     }
     update_goal()
 }
@@ -843,8 +955,13 @@ function detect_win(){
         Config.no_of_trial += 1}
     if (game.total_piece == Record.shuffled_queue.length){
         if (Record.done_spins == Record.spins.length){
-            report_result(true, 'Solved!')
             Config.no_of_success += 1
+            if (Config.continuous){
+                report_result(true, 'Part ' + Record.part + ' done')
+                next_part()
+                return
+            }
+            report_result(true, 'Solved!')
             if (Config.auto_next_ind) play_a_map()
         }
         else{

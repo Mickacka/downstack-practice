@@ -40,6 +40,7 @@ The full guide, including how maps are generated and checked, is in [ALLSPIN.md]
 - Each map is a slightly uneven mid-game stack with a 3-6 wide well and asks for **several spins in a row** (1 to 4 in Options, default 2). Build the first setup in the well (and on the stack right beside it) and spin in; the lines it clears leave the base for the next setup, which you build and spin into the same way.
 - After the last spin the well is clean: the way into the slot goes straight down to the hole in the garbage, with nothing left covering it.
 - A spin follows the all-spin rule: after its last rotation the piece can't move left, right or up.
+- **Continuous** (option): when you finish the planned spins, the next ones are planned from your board as it is, with garbage rising from the bottom, so the game goes on; a missed part restarts from its own start (checkpoint). See [ALLSPIN.md](ALLSPIN.md).
 - Only the requested spins count, in order: the right piece, a real spin, and the right number of lines (e.g. an S-Spin **Double**, then a T-Spin **Double**). The goal ticks off each one as you do it; if you miss, the page says why.
 - **Show Answer** replays the solution one piece at a time, in build order, showing where each spin piece goes and the lines it clears.
 - Options: spins per map (1 to 4), which pieces can be the spin piece, about how many pieces per spin, and unique pieces. Every map is checked to be buildable with the game's real moves.
