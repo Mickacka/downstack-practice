@@ -52,10 +52,10 @@ With **Continuous** on, the game goes on in parts:
    - the new part must keep the board at 12 rows or lower;
    - **look-ahead**: a part is only kept if the board its planned solution leaves still has a next part (so if you build as planned, the game can go on). The first part of a map is chosen the same way.
 3. A part is done as soon as its last spin lands; the next one starts right away (pieces left over are dropped). If you miss a part, it restarts from its own start: the **checkpoint** (your earlier pieces included). Undo works within a part.
-4. If nothing fits your board (within about 1.5-2.5 s), the game goes on with a **new board** ("Part N · new board"). On a board the look-ahead can't plan past, a part without it is tried first.
+4. If nothing fits your board (within about 1.5-2.5 s, or 3 times that when planned in the background), the game goes on with a **new board** ("Part N · new board"). On a board the look-ahead can't plan past, a part without it is tried first.
 5. **No pause between parts**: while you play a part, the next one is planned in the background (a Web Worker, `allspin-worker.js`) from the board the planned solution leaves. If you finish with the same cells filled (whatever pieces you used where), that plan is used at once; otherwise the next part is planned from your board then (up to about 2 s).
 
-The goal shows *Part N: …*. In testing (5 pieces per spin, playing the planned solutions), about 1 checkpoint in 4 went on with a new board, and the pause between parts was about 2 s before background planning (now about 10 ms when you finish as planned). Continuous mode is off in the daily puzzle.
+The goal shows *Part N: …*. In testing (5 pieces per spin, playing the planned solutions), about 1 checkpoint in 4 went on with a new board before well moves and donations (3.6) and the longer background search; now about 1 in 7, and the pause between parts was about 2 s before background planning (now about 10 ms when you finish as planned). Continuous mode is off in the daily puzzle.
 
 ### Options (right panel, saved in the browser)
 
@@ -199,12 +199,13 @@ This works backwards, like the other modes' generators: it removes pieces from t
 The setups form a chain; each one after the first is built on what the previous spin leaves:
 
 1. `R = after_spin(previous)`: the previous setup built, its spin piece in the slot, and the full rows cleared. That's the board you'll have after that spin.
-2. The new slot is **dropped** onto `R` like a hard drop at a random column of the well. It rests where it lands, so its spin rows sit on what the earlier setups left.
+2. **The well**: the same as before, or half the time one **moved** up to 3 columns left or right (3-6 wide), as after a T-spin. The new slot is **dropped** onto `R` like a hard drop at a random column of the well. It rests where it lands, so its spin rows sit on what the earlier setups left.
 3. **`must_open`**: well columns with an empty cell right under the new spin rows. These are the previous slot's entry, down to the garbage hole. Such a column must be an *open* column of the new slot, so that after the new spin it is clear all the way down (clean well). A slot that doesn't cover them is rejected.
-4. Empty cells outside the well, up to the new spin rows, are filled. A cell with stack under it becomes stack. A cell over a piece of an earlier build becomes `B` if it is in the spin rows (you build it). If it is below them, this slot position is rejected, because it would leave a hole. Empty well cells in the spin rows become `B`. There are no pockets here: a pocket would float in the middle of the well at the start.
+4. Empty cells outside the well, up to the new spin rows, are filled. A cell with stack under it becomes stack. A cell over a piece of an earlier build becomes `B` if it is in the spin rows (you build it).
+   **Donation**: below the spin rows, an empty cell that isn't over stack (the old well once the well has moved, or a gap beside the well) stays empty. The build covers that column **in the spin rows only**: nothing is built or stacked above them there (no wall goes over a `B` cell, and side-build columns skip it). So the spin clears the cover and the shaft is open again, like a T-spin placed over the well. Not for a single, whose top row stays (that slot is rejected instead). Empty well cells in the spin rows become `B`. There are no pockets here: a pocket would float in the middle of the well at the start.
 5. `finish_setup` as in 3.4 (without digging a hole). The stack only grows up from stack, never over an earlier build's pieces.
 6. **Starting board** (`chain_start`): the first setup's board, plus each later setup's new stack cells moved up by all the lines cleared before it (`row_at_start`). They must fit at row 16 or lower.
-7. **`chain_works`**: the whole solution is played on the real starting board. Every build piece must be reachable where it goes (3.7), every slot must be a spin slot (`slot_pose` finds the piece's position) that clears exactly its lines, and the well must be clean after the last spin. This catches a later setup's taller stack getting in the way of an earlier one.
+7. **`chain_works`**: the whole solution is played on the real starting board. Every build piece must be reachable where it goes (3.7), every slot must be a spin slot (`slot_pose` finds the piece's position) that clears exactly its lines, and the board must be clean after the last spin (3.8). This catches a later setup's taller stack getting in the way of an earlier one.
 
 Each call to `next_setup` tries for up to **500 ms**, with random spin pieces from the options and sizes near `n`. If a spin can't be added, the whole chain starts again (up to 10 times), then with one spin fewer.
 
@@ -222,13 +223,13 @@ It uses the game's own SRS kicks. For 180 it uses the **simple** kick table, whi
 
 ### 3.8 Clean well
 
-`is_clean(after_spin(last setup))`: after the last spin, no empty cell of the well has a filled cell above it. This holds by construction:
+After the last spin, no empty cell has a filled cell above it, **anywhere on the board** (`clean_start(board, true)` in `chain_end`). Between spins a donation may cover a shaft for a while (3.6); by the end it must be open again. It holds by construction:
 
 - the hole goes under an open column (3.4);
-- each later spin keeps the previous entry open (3.6);
+- each later spin keeps the previous entry open (3.6), or covers it only in its spin rows (a donation);
 - side-stack cells sit on the stack.
 
-The check stays as a safety net, and maps that fail it are dropped.
+The check stays as a safety net, and maps that fail it are dropped. In testing (2 spins), the second well moved in about 1 map in 7 and a setup covered a shaft in about 1 in 3.
 
 ### 3.9 The queue
 

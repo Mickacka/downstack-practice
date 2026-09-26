@@ -626,21 +626,27 @@ function try_second_setup(R, left, right, piece, n_build, pockets){
     var b = clone(R)
     // Outside the well, every empty cell up to the spin rows is filled. The stack only
     // grows up from stack; over a piece of the first build (placed beside the well)
-    // the cell becomes part of this build if it's in the spin rows, and below them
-    // this slot can't be used (it would leave a hole).
+    // the cell becomes part of this build if it's in the spin rows.
+    // Below the spin rows, an empty cell that isn't over stack (the old well, when the
+    // well has moved, or a gap beside it) stays empty: a donation. The build covers it
+    // in the spin rows only, with nothing above them in that column, so the spin opens
+    // it again. (Not for a single, whose top row stays.)
+    var donate = []
     for (var row=0; row<=top; row++)
         for (var col=0; col<10; col++){
             if (b[row][col] != 'N') continue
             if (col < left || col > right){
                 if (row == 0 || b[row-1][col] == 'G') b[row][col] = 'G'
                 else if (row >= bottom) b[row][col] = 'B'
-                else return null
+                else if (single) return null
+                else if (!donate.includes(col)) donate.push(col)
             }
             else if (row >= bottom && !slot.some(c => c[0] == col && c[1] == row)) b[row][col] = 'B'
         }
     if (pockets) fill_pockets(b, top)
     return finish_setup({b: b, piece: piece, orientation: orientation, x: x, y: y, slot: slot,
-        top: top, bottom: bottom, left: left, right: right, dig: false, must_open: must_open, side: true, single: single}, n_build)
+        top: top, bottom: bottom, left: left, right: right, dig: false, must_open: must_open, side: true, single: single,
+        donate: donate}, n_build)
 }
 
 // Height offsets of the stack outside the well, a random walk outwards from each
@@ -753,6 +759,8 @@ function finish_setup(s, n_build){
     // columns each side), filling its dips and rising up to 3 rows above the wall
     // height (the second setup's stack never goes above those pieces: with_walls)
     var side_cols = s.side? [left-2, left-1, right+1, right+2].filter(col => col >= 0 && col < 10): []
+    // (nothing over a donation: the column must open again once the spin clears)
+    if (s.donate) side_cols = side_cols.filter(col => !s.donate.includes(col))
     // (nothing is built past a gap at the edge of the well: it would be cut off)
     if (gap_col === left) side_cols = side_cols.filter(col => col > right)
     if (gap_col === right) side_cols = side_cols.filter(col => col < left)
@@ -1078,8 +1086,9 @@ function chain_end(start, chain){
         while (rows.length < 20) rows.push(Array(10).fill('N'))
         b = rows
     }
-    var last = chain[chain.length-1]
-    return is_clean(b, last.left, last.right)? b: null
+    // clean at the end: no empty cell under a filled one, anywhere (a donation's
+    // shaft is open again)
+    return clean_start(b, true)? b: null
 }
 
 // One more setup on what the chain leaves, or null if nothing fits in time
@@ -1088,6 +1097,14 @@ function next_setup(chain, n_build){
     var R = after_spin(prev.board, prev)
     var give_up = budget_clock() + 500
     while (budget_clock() < give_up){
+        // the same well, or half the time one moved up to 3 columns left or right
+        // (3-6 wide), as after a T-spin: the setup may then cover the old well (a donation)
+        var left = prev.left, right = prev.right
+        if (random_int(2)){
+            var width = 3 + random_int(4)
+            left = Math.max(0, Math.min(10 - width, prev.left + random_int(7) - 3))
+            right = left + width - 1
+        }
         var piece = piece_order()[0]
         // (the flat I-spin fits most easily: tried a quarter as often until near the end)
         if (piece == 'I' && !Daily.seeding && Config.spin_pieces.length > 1 && budget_clock() < give_up - 150 && random_int(4)) continue
@@ -1095,7 +1112,7 @@ function next_setup(chain, n_build){
         Record.spin_index = chain.filter(s => !s.base).length
         Record.deadline = budget_clock() + 100
         var sizes = [n_build, n_build, n_build+1, n_build-1].filter(n => n >= 1 && n <= 6)
-        var setup = try_second_setup(R, prev.left, prev.right, piece, sizes[random_int(sizes.length)], chain[0].base)
+        var setup = try_second_setup(R, left, right, piece, sizes[random_int(sizes.length)], chain[0].base)
         if (!setup) continue
         var longer = chain.concat([setup])
         var start = chain_start(longer)
@@ -1252,17 +1269,19 @@ function add_garbage(board, rows){
 }
 
 // The next part, planned from `board` (the board once the spins are done): the plan
-// on the board with its garbage, or null if nothing fits (then a new board)
-function plan_next_part(board, cleared){
+// on the board with its garbage, or null if nothing fits (then a new board).
+// `time`: how many times the usual search time (the background planner takes longer)
+function plan_next_part(board, cleared, time){
+    time = time || 1
     var n_build = Config.no_of_piece - 1
     var plan = null
     var garbage = add_garbage(clone(board), cleared)
     // about 1.5 s at most before settling for a fresh map
-    var give_up = budget_clock() + 1500
+    var give_up = budget_clock() + 1500 * time
     for (var k=Config.spins; k>=1 && !plan; k--)
-        while (!plan && budget_clock() < give_up - (k - 1) * 400) plan = plan_from(garbage.board, k, n_build, true)
+        while (!plan && budget_clock() < give_up - (k - 1) * 400 * time) plan = plan_from(garbage.board, k, n_build, true)
     // a plan without the look-ahead rather than a new board
-    while (!plan && budget_clock() < give_up + 800) plan = plan_from(garbage.board, 1, n_build, false)
+    while (!plan && budget_clock() < give_up + 800 * time) plan = plan_from(garbage.board, 1, n_build, false)
     return plan
 }
 
