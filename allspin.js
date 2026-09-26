@@ -2,7 +2,7 @@ var game = new Game();
 var Config = {'das':100, 'arr':0, 'delay':0, 'pressing_left':false, 'pressing_right': false, 'pressing_down': false, 'pressing':{},
 'unqiue_ind':true, 'auto_next_ind':true,
 'spin_pieces':'SZLJIT',
-'mode':'allspin', 'no_of_piece':5, 'spins':2, 'continuous':false, 'answer_inputs':false,
+'mode':'allspin', 'no_of_piece':5, 'spins':2, 'continuous':false, 'answer_inputs':false, 'find_slot':false,
 'no_of_trial':0, 'no_of_success':0}
 
 
@@ -23,12 +23,14 @@ function load_gamemode(){
         if (spins >= 1 && spins <= 4) Config.spins = spins
         Config.continuous = localStorage.getItem('allspin_continuous') == 'on'
         Config.answer_inputs = localStorage.getItem('allspin_answer_inputs') == 'on'
+        Config.find_slot = localStorage.getItem('allspin_find_slot') == 'on'
     }
     catch(err){}
     document.getElementById('input13').value = Config.no_of_piece
     document.getElementById('spins').value = Config.spins
     document.getElementById('continuous').checked = Config.continuous
     document.getElementById('answer_inputs').checked = Config.answer_inputs
+    document.getElementById('find_slot').checked = Config.find_slot
     document.getElementById('input16').checked = Config.unqiue_ind
     for (var piece of 'SZLJIT'){
         document.getElementById('spin_'+piece).checked = Config.spin_pieces.includes(piece)
@@ -45,6 +47,7 @@ function save_gamemode(){
     Config.spins = Math.max(1, Math.min(4, parseInt(document.getElementById('spins').value) || 2))
     Config.continuous = document.getElementById('continuous').checked
     Config.answer_inputs = document.getElementById('answer_inputs').checked
+    Config.find_slot = document.getElementById('find_slot').checked
     if (Record.spins.length) update_goal()
     var pieces = [...'SZLJIT'].filter(piece => document.getElementById('spin_'+piece).checked).join('')
     if (pieces == ''){
@@ -59,6 +62,7 @@ function save_gamemode(){
         localStorage.setItem('allspin_spins', Config.spins)
         localStorage.setItem('allspin_continuous', Config.continuous? 'on': 'off')
         localStorage.setItem('allspin_answer_inputs', Config.answer_inputs? 'on': 'off')
+        localStorage.setItem('allspin_find_slot', Config.find_slot? 'on': 'off')
     }
     catch(err){}
 }
@@ -117,6 +121,7 @@ function show_spin_message(text){
 Controls.harddrop = () => do_harddrop()
 // Show Hint: the slot of the spin to do next, outlined in the spin piece's colour
 Controls.draw_overlay = (ctx, x, y) => {
+    if (Record.finding) draw_finding(ctx, x, y)
     var spin = Record.hint && Record.spins[Record.done_spins]
     if (!spin || Record.showing) return
     ctx.save()
@@ -132,6 +137,8 @@ Controls.draw_overlay = (ctx, x, y) => {
 }
 
 function toggle_hint(){
+    // during the drill, the hint gives up: the slot is shown, not counted
+    if (Record.finding && !Record.finding.result){ reveal_slot(null); return }
     Record.hint = !Record.hint
     hint_label()
     render()
@@ -142,10 +149,105 @@ function hint_label(){
     if (button) button.textContent = Record.hint? 'Hide Hint': 'Show Hint'
     if (button && typeof set_short_label == 'function') set_short_label(button)
 }
-Controls.can_play = () => !Record.showing
+Controls.can_play = () => !Record.showing && !Record.finding
+
+/*
+Find the slot (vision drill, option): before playing a new map or part, tap the 4
+cells where the first spin piece will end. Then the answer is shown and play starts.
+*/
+function find_score(){
+    try{ return JSON.parse(localStorage.getItem('allspin_find_score')) || {hits: 0, tries: 0} }
+    catch(err){ return {hits: 0, tries: 0} }
+}
+
+function start_finding(){
+    var spin = Record.spins[0]
+    Record.find_for = Record.spins
+    Record.finding = {spin: spin, picked: [], result: null}
+    render()
+    show_spin_message(finding_prompt(''))
+}
+
+// the drill's instruction, after `before` (or nothing when not in the drill)
+function finding_prompt(before){
+    var f = Record.finding
+    if (!f || f.result) return ''
+    return before + 'Find the slot: tap the 4 cells where the ' + f.spin.piece + ' piece ends its ' +
+        spin_name(f.spin) + ' (Hint to give up)'
+}
+
+function draw_finding(ctx, x, y){
+    var f = Record.finding
+    ctx.save()
+    if (f.result){
+        // the slot, in the spin piece's colour
+        ctx.globalAlpha = 0.45
+        ctx.fillStyle = color_table[f.spin.piece]
+        for (var [col, row] of f.spin.cells) ctx.fillRect(col*30 + x, (19-row)*30 + y, 30, 30)
+        ctx.globalAlpha = 1
+    }
+    ctx.lineWidth = 3
+    var slot = new Set(f.spin.cells.map(c => c.join()))
+    for (var [col, row] of f.picked){
+        ctx.strokeStyle = !f.result? 'white': slot.has(col + ',' + row)? '#4c4': '#e33'
+        ctx.strokeRect(col*30 + x + 3, (19-row)*30 + y + 3, 24, 24)
+        if (f.result && !slot.has(col + ',' + row)){
+            ctx.beginPath()
+            ctx.moveTo(col*30 + x + 8, (19-row)*30 + y + 8); ctx.lineTo(col*30 + x + 22, (19-row)*30 + y + 22)
+            ctx.moveTo(col*30 + x + 22, (19-row)*30 + y + 8); ctx.lineTo(col*30 + x + 8, (19-row)*30 + y + 22)
+            ctx.stroke()
+        }
+    }
+    ctx.restore()
+}
+
+function pick_cell(col, row){
+    var f = Record.finding
+    if (!f || f.result || col < 0 || col > 9 || row < 0 || row > 19) return
+    if (game.board[row][col] != 'N') return
+    var i = f.picked.findIndex(([c, r]) => c == col && r == row)
+    if (i >= 0) f.picked.splice(i, 1)
+    else f.picked.push([col, row])
+    render()
+    if (f.picked.length == 4){
+        var slot = new Set(f.spin.cells.map(c => c.join()))
+        reveal_slot(f.picked.filter(([c, r]) => slot.has(c + ',' + r)).length)
+    }
+}
+
+// right: the number of picked cells in the slot, or null when given up
+function reveal_slot(right){
+    var f = Record.finding
+    f.result = right === null? 'skip': right == 4? 'hit': 'miss'
+    var text
+    if (right === null) text = 'The slot is here'
+    else{
+        var score = find_score()
+        score.tries += 1
+        if (right == 4) score.hits += 1
+        try{ localStorage.setItem('allspin_find_score', JSON.stringify(score)) }catch(err){}
+        text = (right == 4? '✓ Found it!': '✗ ' + right + '/4 cells right: the slot is here') +
+            ' · found ' + score.hits + '/' + score.tries
+    }
+    show_spin_message(text)
+    render()
+    setTimeout(() => {
+        if (Record.finding != f) return
+        Record.finding = null
+        render()
+    }, right == 4? 900: 2200)
+}
+
+document.getElementById('board').addEventListener('pointerdown', e => {
+    if (!Record.finding) return
+    var rect = e.currentTarget.getBoundingClientRect()
+    var x = (e.clientX - rect.left) / rect.width * 520, y = (e.clientY - rect.top) / rect.height * 610
+    pick_cell(Math.floor((x - 110) / 30), 19 - Math.floor((y - 5) / 30))
+    e.preventDefault()
+})
 Controls.bind_options = () => {
     document.getElementById('input13').oninput = e=>{save_gamemode()}
-    for (var id of ['spins', 'continuous', 'answer_inputs', 'input16', 'spin_S', 'spin_Z', 'spin_L', 'spin_J', 'spin_I', 'spin_T']){
+    for (var id of ['spins', 'continuous', 'answer_inputs', 'find_slot', 'input16', 'spin_S', 'spin_Z', 'spin_L', 'spin_J', 'spin_I', 'spin_T']){
         document.getElementById(id).onchange = e=>{save_gamemode()}
     }
 }
@@ -792,8 +894,8 @@ function play_a_map(){
         }
     Record.well = [result.chain[0].left, result.chain[0].right]
     Record.part = 1
-    set_plan(result.chain, result.start, false)
     document.getElementById('spin_message').textContent = ''
+    set_plan(result.chain, result.start, false)
 }
 
 // Start playing a plan: its spins, the starting board and the queue. `in_play`: the
@@ -917,13 +1019,13 @@ function next_part(){
         play_a_map()
         Record.part = part
         update_goal()
-        show_spin_message('Part ' + part + ' · new board')
+        show_spin_message('Part ' + part + ' · new board' + finding_prompt(' · '))
         return
     }
     Record.part += 1
     Record.well = plan.well
     set_plan(plan.chain, plan.start, true)
-    show_spin_message('Part ' + Record.part + (garbage.rows? ' · +' + garbage.rows + ' garbage': ''))
+    show_spin_message('Part ' + Record.part + (garbage.rows? ' · +' + garbage.rows + ' garbage': '') + finding_prompt(' · '))
 }
 
 // The starting board (the stack, before anything is built) has no stack cell over
@@ -976,6 +1078,7 @@ function play(){
     game.update()
     game.holdmino = ''
     game.hold()
+    Record.finding = null
     // a one-piece queue would otherwise start with the piece stuck in hold
     if (game.tetramino == 'G') game.hold()
     if (Record.board.length > 0){
@@ -988,6 +1091,9 @@ function play(){
                         game.board[row_idx][col_idx] = 'N'
     }
     update_goal()
+    // the vision drill, once per map or part (not again on a retry)
+    if (Config.find_slot && !Record.showing && Record.find_for !== Record.spins && Record.spins.length)
+        start_finding()
 }
 
 function detect_win(){
