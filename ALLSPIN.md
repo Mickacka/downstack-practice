@@ -10,7 +10,7 @@ This file explains how to play the mode, then how every map is generated and che
 
 ### The goal
 
-Each map asks for **two spins in a row** (or one: *Options > Spins per map*), for example:
+Each map asks for **several spins in a row**: 1 to 4 (*Options > Spins per map*, default 2), for example:
 
 > Do an S-Spin Double, then a T-Spin Double
 
@@ -19,7 +19,7 @@ For each spin:
 1. **Build the setup** with the pieces in your queue, inside the well and on the stack right beside it.
 2. **Spin the last piece into the slot** so it clears the requested number of lines.
 
-The lines cleared by the first spin leave the base for the second setup, in the same well. The goal ticks off each spin as you do it (✓).
+The lines cleared by each spin leave the base for the next setup, in the same well. The goal ticks off each spin as you do it (✓).
 
 ### What counts as a spin
 
@@ -40,7 +40,7 @@ The attempt is judged when the queue is used up: every requested spin done means
 
 | Option | Default | Effect |
 | --- | --- | --- |
-| Spins per map | 2 | 1 or 2 spins in a row |
+| Spins per map | 2 | 1 to 4 spins in a row |
 | Pieces per spin, about | 5 | Size of each setup: build pieces + the spin piece (3-7). The generator may use one more or one less. |
 | No repeated pieces | on | Each piece type at most once per setup (a spin piece is never also a build piece). Off: up to twice. |
 | Spin pieces | S Z L J I T | Which pieces can be the spin piece |
@@ -91,15 +91,12 @@ Everything happens in `play_a_map()` when you press *New All-Spin Map*, solve a 
 
 ```
 play_a_map
- ├─ up to 10 attempts:
- │   ├─ first  = first_setup(n)          the first spin (always succeeds, see 3.2)
- │   ├─ reject it unless the well is clean after its spin            (3.8)
- │   │   and the starting board has no stack over an empty cell
- │   ├─ one spin asked: done
- │   └─ second = second_setup(first, n)  the second spin on what the first leaves (3.6)
- │         reject unless the well is clean after the second spin and the
- │         starting board has no stack over an empty cell
- ├─ nothing worked (rare): a clean single-spin map
+ ├─ up to 10 attempts at chain_setup(k, n), k = Spins per map:
+ │   ├─ first = first_setup(n)            the first spin (always succeeds, see 3.2)
+ │   │   rejected unless the start is clean and chain_works (3.6)
+ │   └─ k − 1 times: next_setup(chain, n)  one more spin on what the chain leaves (3.6),
+ │         kept only if the new starting board is clean and chain_works
+ ├─ nothing worked (rare): the same with fewer spins, down to one
  ├─ Record.spins  = [{piece, lines, cells, build}, ...]
  ├─ Record.board  = [starting board]     only its 'G' cells are shown at the start
  └─ Record.shuffled_queue                (3.9)
@@ -132,11 +129,11 @@ Every single attempt has a **100 ms deadline** (`Record.deadline`). The deep sea
 2. **Cells to build above the spin rows**: `need = 4n − (B cells in the spin rows)`.
 3. **Side columns**: up to 2 columns on each side of the well can take build pieces too. They fill the stack's dips and can go up to 3 rows above the wall height.
 
-   **The stack only grows up from stack**: new stack cells are only added on top of stack, never above a cell you build. This matters for the second spin: where the first build put pieces beside the well, the second setup's stack stops below them (3.6). So the starting board never has stack floating over empty cells.
+   **The stack only grows up from stack**: new stack cells are only added on top of stack, never above a cell you build. This matters for the later spins: where an earlier build put pieces beside the well, a later setup's stack stops below them (3.6). So the starting board never has stack floating over empty cells.
 4. **Caps and the garbage hole**: for every way of capping the slot columns (at most 16), the code checks the slot on a board with walls and caps of height 1:
    - The slot must be a **spin slot** (`is_spin_slot`): the piece fits there, can't move left, right, up or down from there, and can be reached from spawn (3.7).
    - For the first spin, the garbage hole is dug under one of the open columns, and the slot is checked again with it.
-   - For the second spin, the open columns must include `must_open` (3.6).
+   - For the later spins, the open columns must include `must_open` (3.6).
 
    One valid capping is picked at random.
 5. **Wall height**: the lowest height from 1 to 6 whose range (every build column one row lower, up to one row higher in the well and three rows higher beside it) contains `need`. A shallow well keeps the way into the slot open, which narrow wells need.
@@ -163,17 +160,19 @@ This works backwards, like the other modes' generators: it removes pieces from t
   - it is **reachable**, either with nothing above it (a straight hard drop) or through the move search (3.7), on the board as it will be when the player places it.
 - It recurses on the remaining cells and backtracks when stuck. It gives up at the attempt's deadline.
 
-### 3.6 `second_setup` / `try_second_setup`: the second spin
+### 3.6 The later spins: `next_setup`, `try_second_setup`, `chain_start`, `chain_works`
 
-1. `R = after_spin(first)`: the first setup built, its spin piece in the slot, and the full rows cleared. That's the board you'll have after the first spin.
-2. The second slot is **dropped** onto `R` like a hard drop at a random column of the well. It rests where it lands, so its spin rows sit on what the first setup left.
-3. **`must_open`**: well columns with an empty cell right under the new spin rows. These are the first slot's entry, down to the garbage hole. Such a column must be an *open* column of the second slot, so that after the second spin it is clear all the way down (clean well). A slot that doesn't cover them is rejected.
-4. Empty cells outside the well, up to the new spin rows, are filled. A cell with stack under it becomes stack. A cell over a piece of the first build becomes `B` if it is in the spin rows (you build it). If it is below them, this slot position is rejected, because it would leave a hole. Empty well cells in the spin rows become `B`. There are no pockets here: a pocket would float in the middle of the well at the start.
-5. `finish_setup` as in 3.4 (without digging a hole). The stack only grows up from stack, never over the first build's pieces.
-6. **Starting board**: the first setup's board, plus the second setup's new stack cells moved up by the number of lines the first spin clears. They must fit at row 16 or lower.
-7. **`still_works`**: the taller stack must not get in the way of the first setup. Each first-setup piece is placed in order on the real starting board, checking it can be reached, and then the first slot must still be a spin slot.
+The setups form a chain; each one after the first is built on what the previous spin leaves:
 
-Each call to `second_setup` tries for up to **500 ms**, with random spin pieces from the options and sizes near `n`.
+1. `R = after_spin(previous)`: the previous setup built, its spin piece in the slot, and the full rows cleared. That's the board you'll have after that spin.
+2. The new slot is **dropped** onto `R` like a hard drop at a random column of the well. It rests where it lands, so its spin rows sit on what the earlier setups left.
+3. **`must_open`**: well columns with an empty cell right under the new spin rows. These are the previous slot's entry, down to the garbage hole. Such a column must be an *open* column of the new slot, so that after the new spin it is clear all the way down (clean well). A slot that doesn't cover them is rejected.
+4. Empty cells outside the well, up to the new spin rows, are filled. A cell with stack under it becomes stack. A cell over a piece of an earlier build becomes `B` if it is in the spin rows (you build it). If it is below them, this slot position is rejected, because it would leave a hole. Empty well cells in the spin rows become `B`. There are no pockets here: a pocket would float in the middle of the well at the start.
+5. `finish_setup` as in 3.4 (without digging a hole). The stack only grows up from stack, never over an earlier build's pieces.
+6. **Starting board** (`chain_start`): the first setup's board, plus each later setup's new stack cells moved up by all the lines cleared before it (`row_at_start`). They must fit at row 16 or lower.
+7. **`chain_works`**: the whole solution is played on the real starting board. Every build piece must be reachable where it goes (3.7), every slot must be a spin slot (`slot_pose` finds the piece's position) that clears exactly its lines, and the well must be clean after the last spin. This catches a later setup's taller stack getting in the way of an earlier one.
+
+Each call to `next_setup` tries for up to **500 ms**, with random spin pieces from the options and sizes near `n`. If a spin can't be added, the whole chain starts again (up to 10 times), then with one spin fewer.
 
 ### 3.7 Reachability: `can_reach`
 
@@ -192,7 +191,7 @@ It uses the game's own SRS kicks. For 180 it uses the **simple** kick table, whi
 `is_clean(after_spin(last setup))`: after the last spin, no empty cell of the well has a filled cell above it. This holds by construction:
 
 - the hole goes under an open column (3.4);
-- the second spin keeps the first entry open (3.6);
+- each later spin keeps the previous entry open (3.6);
 - side-stack cells sit on the stack.
 
 The check stays as a safety net, and maps that fail it are dropped.
@@ -209,7 +208,7 @@ For each spin: the build pieces in placement order (the reverse of `carve`'s rem
 | --- | --- |
 | Each spin slot can only be entered by a rotation, and the piece rests there | `is_spin_slot` (3.4, again in 3.6) |
 | Every build piece rests on something and can be reached, in placement order | `carve` (3.5) |
-| The taller stack of the second setup doesn't block the first one | `still_works` (3.6) |
+| The whole solution plays out: each piece reachable, each slot a spin clearing its lines, clean well at the end, later stacks not blocking earlier setups | `chain_works` (3.6) |
 | No line clears while you build; each spin clears exactly its rows | full-row check (3.4); spin rows = slot rows |
 | The well is clean after the last spin | `is_clean` (3.8) |
 | The starting board has no stack cell over an empty cell | `clean_start` (`play_a_map`) |
@@ -224,7 +223,7 @@ For each spin: the build pieces in placement order (the reverse of `carve`'s rem
 `allspin-practice.html#daily` generates the day's map. `common.js` replaces `Math.random` with a generator seeded from the UTC date and the page name while the page loads. To give the same map on every device:
 
 - the generator's time limits use `budget_clock()`, which counts calls instead of milliseconds while the daily map is being made (1 call ≈ ⅓ ms);
-- the saved options are ignored, so the daily map uses the defaults: 2 spins, 5 pieces, no repeated pieces, all spin pieces.
+- the saved options are ignored, so the daily map uses the defaults: 2 spins, 5 pieces per spin, no repeated pieces, all spin pieces.
 
 Changing the generator changes that day's daily map (it stays the same for everyone once deployed).
 
@@ -241,8 +240,8 @@ Changing the generator changes that day's daily map (it stays the same for every
 | Side build | `finish_setup`: `side_cols`, `high` | 2 columns each side, up to 3 above the wall |
 | Build flatness | `finish_setup`: `low` / `high` for well columns, scoring | wall −1..+1 |
 | Wall height range | `finish_setup` | 1-6 (lowest that fits) |
-| Spawn room | `finish_setup`, `second_setup` | stack at row 16 or lower |
-| Time limits | `first_setup` 700 ms per piece, `second_setup` 500 ms, 100 ms per attempt | |
+| Spawn room | `finish_setup`, `chain_start` | stack at row 16 or lower |
+| Time limits | `first_setup` 700 ms per piece, `next_setup` 500 ms, 100 ms per attempt | |
 | Attempts per map | `play_a_map` | 10 |
 
 After a change, run the test in section 8.
@@ -254,9 +253,9 @@ After a change, run the test in section 8.
 - **Slot shapes**: only flat slots (T: pointing down). No upright S/Z/L/J/I slots, no T-spin triples or minis. So spins are Doubles, and I-spins are Singles.
 - **Well widths**:
   - with one spin they range over 3-6, with 3 or 4 wide in about half the maps;
-  - with two spins, 3-6 wide, with 3 or 4 wide in about a third of the maps (3-wide is the rarest: the second setup can't use pockets, since they would float in the well).
+  - with two or more spins, 3-6 wide, with 3 or 4 wide in about a third of the maps (3-wide is the rarest: the later setups can't use pockets, since they would float in the well).
 - **Generation time**: about 0.1-0.2 s per map on a desktop (up to ~0.6 s), more on a phone.
-- **At most two spins** per map.
+- **At most four spins** per map. The more spins and the more pieces per spin, the taller the starting stack. With 3 pieces per spin, 4 spins make an 8-14 row stack. With big setups (5+ pieces each), 4 spins often don't fit under the spawn limit and the map falls back to fewer spins. 4-spin maps take about 0.6 s to generate on a desktop (up to ~3 s).
 
 ---
 
@@ -313,8 +312,8 @@ report_result = won => results.push(won)
 Config.auto_next_ind = false
 const out = {won: 0, failed: []}
 for (let i = 0; i < 20; i++){
-    Config.spins = i < 14? 2: 1
-    Config.no_of_piece = [4, 5, 6][i % 3]
+    Config.spins = [1, 2, 2, 3, 4][i % 5]
+    Config.no_of_piece = Config.spins > 2? 3: [4, 5, 6][i % 3]
     play_a_map(); results = []
     const r = solve()
     if (r == 'done' && results.length == 1 && results[0]) out.won++
@@ -324,7 +323,7 @@ report_result = report
 out
 ```
 
-The last result should be `won: 20` and no `failed` entries. The latest run: 24/24 won, all 24 starting boards clean, and no hole anywhere on the final boards.
+The last result should be `won: 20` and no `failed` entries. The latest run (1-4 spins, 3-5 pieces per spin): 31/31 won, all starting boards clean, and no hole anywhere on the final boards.
 
 ---
 
@@ -334,12 +333,13 @@ The last result should be `won: 20` and no `failed` entries. The latest run: 24/
 | --- | --- |
 | `load_gamemode` / `save_gamemode` | Options, from / to the page and localStorage (`allspin_*`) |
 | `is_immobile`, `do_harddrop` | Spin detection on each drop, requested-spin bookkeeping, miss messages |
-| `play_a_map`, `first_setup`, `second_setup` | Map assembly (3.1, 3.2, 3.6) |
+| `play_a_map`, `chain_setup`, `first_setup`, `next_setup` | Map assembly (3.1, 3.2, 3.6) |
+| `chain_start`, `row_at_start`, `chain_works`, `slot_pose` | Starting board of a chain; playing the whole solution through (3.6) |
 | `slot_shape`, `try_spin_setup`, `try_second_setup` | Slot placement for each spin (3.3, 3.6) |
 | `finish_setup` | Caps, hole, bumpy stack, wall height, build shapes (3.4) |
 | `terrain_bumps`, `fill_pockets`, `dig` | Bumpy stack, shut-in cells, garbage hole |
 | `carve`, `is_even_distributed`, `groups_of_four`, `with_stacks` | Splitting the build into pieces (3.5) |
-| `can_reach`, `is_spin_slot`, `still_works` | Reachability and spin checks (3.7, 3.6) |
+| `can_reach`, `is_spin_slot` | Reachability and spin checks (3.7) |
 | `after_spin`, `is_clean`, `clean_start` | Board after a spin; clean well at the end (3.8); clean starting board |
 | `play`, `detect_win`, `update_goal`, `spin_name` | Starting a map, judging it, the goal text |
 | `show_ans`, `stop_answer` | Show Answer replay |

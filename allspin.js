@@ -20,7 +20,7 @@ function load_gamemode(){
         var n = parseInt(localStorage.getItem('allspin_no_of_piece'))
         if (n>=3 && n<=7) Config.no_of_piece = n
         var spins = parseInt(localStorage.getItem('allspin_spins'))
-        if (spins == 1 || spins == 2) Config.spins = spins
+        if (spins >= 1 && spins <= 4) Config.spins = spins
     }
     catch(err){}
     document.getElementById('input13').value = Config.no_of_piece
@@ -38,7 +38,7 @@ function save_gamemode(){
         Config.no_of_piece = 5
     }
     Config.unqiue_ind = document.getElementById('input16').checked
-    Config.spins = parseInt(document.getElementById('spins').value) == 1? 1: 2
+    Config.spins = Math.max(1, Math.min(4, parseInt(document.getElementById('spins').value) || 2))
     var pieces = [...'SZLJIT'].filter(piece => document.getElementById('spin_'+piece).checked).join('')
     if (pieces == ''){
         alert('Choose at least one spin piece')
@@ -590,28 +590,6 @@ function after_spin(board, setup){
     return rows
 }
 
-// Place the build pieces in order on the real starting board, then check the spin
-// slot: the first setup was made with low walls, the second one adds to them.
-function still_works(start, setup){
-    var b = start.map(row => row.map(c => c == 'G'? 'G': 'N'))
-    for (var {piece, cells} of [...setup.build].reverse()){
-        if (!can_reach(b, piece, cells)) return false
-        for (var [col, row] of cells) b[row][col] = piece
-    }
-    var g = new Game()
-    g.tetramino = setup.piece
-    for (var o=0; o<4; o++){
-        // find the orientation / position of the slot cells
-        for (var [dx, dy] of shape_table[setup.piece][o]){
-            var [tx, ty] = setup.cells[0]
-            var cells = piece_cells(setup.piece, o, tx - dx, ty - dy)
-            if (cells.map(c => c.join()).sort().join('|') == setup.cells.map(c => c.join()).sort().join('|'))
-                return is_spin_slot(b, setup.piece, o, tx - dx, ty - dy, setup.cells)
-        }
-    }
-    return false
-}
-
 // Tetrominoes can only tile a group of touching cells whose size is a multiple of 4
 function groups_of_four(cells){
     var seen = new Set()
@@ -680,55 +658,113 @@ function first_setup(n_build, side){
     return setup
 }
 
-// The second spin, built on what the first one leaves. Returns it with the starting
-// board (the first setup's, walls raised for the second), or null if nothing fits.
-function second_setup(first, n_build){
-    var R = after_spin(first.board, first)
+// The spins after the first, each built on what the previous one leaves.
+
+// Rows of a setup's board sit higher on the starting board by the lines cleared
+// before it: map a row of the board left after spins 1..i (0-based: after chain[i])
+// back to the starting board
+function row_at_start(chain, i, row){
+    for (var j=i; j>=0; j--)
+        if (row >= chain[j].bottom) row += chain[j].lines
+    return row
+}
+
+// The starting board of a chain of setups: the first setup's board, plus the stack
+// each later setup adds, moved up by the lines cleared before it. null if the stack
+// would leave no room to spawn.
+function chain_start(chain){
+    var start = clone(chain[0].board)
+    for (var i=1; i<chain.length; i++){
+        var before = after_spin(chain[i-1].board, chain[i-1])
+        for (var row=0; row<20; row++)
+            for (var col=0; col<10; col++)
+                if (chain[i].board[row][col] == 'G' && before[row][col] != 'G'){
+                    var r = row_at_start(chain, i-1, row)
+                    if (r > 16) return null
+                    start[r][col] = 'G'
+                }
+    }
+    return start
+}
+
+// where the spin piece sits in its slot: [orientation, x, y]
+function slot_pose(setup){
+    var want = setup.cells.map(c => c.join()).sort().join('|')
+    for (var o=0; o<4; o++)
+        for (var [dx, dy] of shape_table[setup.piece][o]){
+            var [tx, ty] = setup.cells[0]
+            if (piece_cells(setup.piece, o, tx - dx, ty - dy).map(c => c.join()).sort().join('|') == want)
+                return [o, tx - dx, ty - dy]
+        }
+    return null
+}
+
+// Play the whole solution on the real starting board: every build piece can be
+// reached where it goes, every slot is a spin slot that clears its lines, and the
+// well is clean after the last spin. (The later setups' taller stack must not get
+// in the way of the earlier ones.)
+function chain_works(start, chain){
+    var b = start.map(row => row.map(c => c == 'G'? 'G': 'N'))
+    for (var setup of chain){
+        for (var {piece, cells} of [...setup.build].reverse()){
+            if (!can_reach(b, piece, cells)) return false
+            for (var [col, row] of cells) b[row][col] = piece
+        }
+        var pose = slot_pose(setup)
+        if (!pose || !is_spin_slot(b, setup.piece, pose[0], pose[1], pose[2], setup.cells)) return false
+        for (var [col, row] of setup.cells) b[row][col] = setup.piece
+        var rows = b.filter(row => row.some(c => c == 'N'))
+        if (20 - rows.length != setup.lines) return false
+        while (rows.length < 20) rows.push(Array(10).fill('N'))
+        b = rows
+    }
+    var last = chain[chain.length-1]
+    return is_clean(b, last.left, last.right)
+}
+
+// One more setup on what the chain leaves, or null if nothing fits in time
+function next_setup(chain, n_build){
+    var prev = chain[chain.length-1]
+    var R = after_spin(prev.board, prev)
     var give_up = budget_clock() + 500
     while (budget_clock() < give_up){
         var piece = Config.spin_pieces[random_int(Config.spin_pieces.length)]
         Record.spin_piece = piece
         Record.deadline = budget_clock() + 100
         var sizes = [n_build, n_build, n_build+1, n_build-1].filter(n => n >= 1 && n <= 6)
-        var setup = try_second_setup(R, first.left, first.right, piece, sizes[random_int(sizes.length)])
+        var setup = try_second_setup(R, prev.left, prev.right, piece, sizes[random_int(sizes.length)])
         if (!setup) continue
-        // rows above the first spin's lines sit that many rows higher at the start
-        var start = clone(first.board), fits = true
-        for (var row=first.bottom; row<20; row++)
-            for (var col=0; col<10; col++)
-                if (setup.board[row][col] == 'G' && R[row][col] != 'G'){
-                    if (row + first.lines > 16) fits = false
-                    else start[row + first.lines][col] = 'G'
-                }
-        // the taller walls must not get in the way of the first build or spin
-        if (fits && still_works(start, first)) return {start: start, setup: setup}
+        var longer = chain.concat([setup])
+        var start = chain_start(longer)
+        if (start && clean_start(start) && chain_works(start, longer)) return {chain: longer, start: start}
     }
     return null
+}
+
+// A map with k spins: {chain, start}, or null
+function chain_setup(k, n_build){
+    var first = first_setup(n_build, true)
+    var result = {chain: [first], start: first.board}
+    if (!clean_start(first.board) || !chain_works(first.board, [first])) return null
+    for (var i=1; i<k; i++){
+        result = next_setup(result.chain, n_build)
+        if (!result) return null
+    }
+    return result
 }
 
 function play_a_map(){
     stop_answer()
     var n_build = Config.no_of_piece - 1
-    // the well must be clean once the last spin is done: nothing left over a hole
-    var clean_after = setup => is_clean(after_spin(setup.board, setup), setup.left, setup.right)
-    var spins = null, start = null, fallback = null
-    for (var attempt=0; attempt<10 && !spins; attempt++){
-        var first = first_setup(n_build, true)
-        if (!clean_after(first) || !clean_start(first.board)) continue
-        if (Config.spins == 1){ spins = [first]; start = first.board; break }
-        var second = second_setup(first, n_build)
-        if (second && clean_after(second.setup) && clean_start(second.start)){ spins = [first, second.setup]; start = second.start }
-    }
-    // very rarely nothing fits on top: settle for one spin
-    if (!spins){
-        while (!fallback){
-            var first = first_setup(n_build, true)
-            if (clean_after(first) && clean_start(first.board)) fallback = first
-        }
-        spins = [fallback]; start = fallback.board
-    }
+    var result = null
+    for (var attempt=0; attempt<10 && !result; attempt++) result = chain_setup(Config.spins, n_build)
+    // very rarely nothing fits on top: settle for fewer spins
+    for (var k=Config.spins-1; k>=1 && !result; k--)
+        for (var attempt=0; attempt<10 && !result; attempt++) result = chain_setup(k, n_build)
+    while (!result) result = chain_setup(1, n_build)
+    var spins = result.chain
     Record.spins = spins.map(s => ({piece: s.piece, lines: s.lines, cells: s.cells, build: s.build}))
-    Record.board = [start]
+    Record.board = [result.start]
     // each spin's pieces are shuffled on their own (the hold table goes up to 7 pieces):
     // build pieces go in the reverse of the order they were carved out, then the spin piece
     Record.shuffled_queue = []
