@@ -1220,6 +1220,11 @@ function update_goal(){
 }
 
 function play(){
+    // a restart (Retry, a new map...) during Show Answer stops the replay
+    if (Record.showing && !Record.answer_starting){
+        stop_answer()
+        document.getElementById('spin_message').textContent = ''
+    }
     game = new Game()
     Record.done_spins = 0
     Record.miss = null
@@ -1340,7 +1345,9 @@ function stop_answer(){
 function show_ans(){
     if (Record.showing) return
     Record.showing = true
+    Record.answer_starting = true
     play()
+    Record.answer_starting = false
     game.tetramino = 'G'   // hide the falling piece while replaying
     render()
     var steps = []
