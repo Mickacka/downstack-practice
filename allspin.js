@@ -1375,12 +1375,14 @@ function spin_name(spin){
     return `${spin.piece}-Spin ${LINE_NAMES[spin.lines]}`
 }
 
-// "Do an S-Spin Double, then a T-Spin Single", with the done ones ticked
+// "S-Spin → T-Spin", with the done ones ticked. The lines cleared are only named
+// with the Mix option (otherwise they're always the same: I-spins single, the others
+// as the option says).
 function update_goal(){
     var parts = Record.spins.map((spin, i) => (i < Record.done_spins? '✓ ': '') +
-        ("SLI".includes(spin.piece)? "an ": "a ") + spin_name(spin))
+        (Config.clears == 'mix' && spin.piece != 'I'? spin_name(spin): spin.piece + '-Spin'))
     set_spin_text(document.getElementById('winning_requirement1'),
-        (Config.continuous? 'Part ' + (Record.part || 1) + ': do ': 'Do ') + parts.join(', then '))
+        (Config.continuous? 'Part ' + (Record.part || 1) + ': ': '') + parts.join(' → '))
 }
 
 function play(){

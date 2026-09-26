@@ -12,7 +12,9 @@ This file explains how to play the mode, then how every map is generated and che
 
 Each map asks for **several spins in a row**: 1 to 4 (*Options > Spins per map*, default 2), for example:
 
-> Do an S-Spin Double, then a T-Spin Double
+> S-Spin → T-Spin
+
+(The lines to clear are named only with *Line clears: Mix*, e.g. *S-Spin Single → T-Spin Double*; otherwise I-spins are singles and the others are what the option says.)
 
 For each spin:
 
@@ -53,7 +55,7 @@ With **Continuous** on, the game goes on in parts:
 4. If nothing fits your board (within about 1.5-2.5 s), the game goes on with a **new board** ("Part N · new board"). On a board the look-ahead can't plan past, a part without it is tried first.
 5. **No pause between parts**: while you play a part, the next one is planned in the background (a Web Worker, `allspin-worker.js`) from the board the planned solution leaves. If you finish with the same cells filled (whatever pieces you used where), that plan is used at once; otherwise the next part is planned from your board then (up to about 2 s).
 
-The goal shows *Part N: do …*. In testing (5 pieces per spin, playing the planned solutions), about 1 checkpoint in 4 went on with a new board, and the pause between parts was about 2 s before background planning (now about 10 ms when you finish as planned). Continuous mode is off in the daily puzzle.
+The goal shows *Part N: …*. In testing (5 pieces per spin, playing the planned solutions), about 1 checkpoint in 4 went on with a new board, and the pause between parts was about 2 s before background planning (now about 10 ms when you finish as planned). Continuous mode is off in the daily puzzle.
 
 ### Options (right panel, saved in the browser)
 
