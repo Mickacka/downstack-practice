@@ -119,12 +119,40 @@ function show_spin_message(text){
 */
 
 Controls.harddrop = () => do_harddrop()
-// Show Hint: the slot of the spin to do next, outlined in the spin piece's colour
+// Show Hint, in 3 steps for the spin to do next (Record.hint: 0 to 3):
+// 1. the rows the spin piece ends in, 2. the setup's pieces still to place, outlined
+// in their colours, 3. the slot itself, in the spin piece's colour
+const HINT_TEXT = ['', 'Hint 1/3: the spin is in these rows', 'Hint 2/3: the setup to build',
+    'Hint 3/3: the slot']
 Controls.draw_overlay = (ctx, x, y) => {
     if (Record.finding) draw_finding(ctx, x, y)
     var spin = Record.hint && Record.spins[Record.done_spins]
     if (!spin || Record.showing) return
     ctx.save()
+    var rows = spin.cells.map(c => c[1])
+    var top = Math.max(...rows), bottom = Math.min(...rows)
+    if (Record.hint == 1){
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.12)'
+        ctx.fillRect(x, (19-top)*30 + y, 300, (top - bottom + 1)*30)
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)'
+        ctx.lineWidth = 2
+        ctx.setLineDash([6, 4])
+        ctx.strokeRect(x + 1, (19-top)*30 + y + 1, 298, (top - bottom + 1)*30 - 2)
+        ctx.restore()
+        return
+    }
+    if (Record.hint == 2){
+        // only where nothing is placed yet
+        ctx.lineWidth = 3
+        ctx.setLineDash([5, 4])
+        for (var p of spin.build){
+            ctx.strokeStyle = color_table[p.piece]
+            for (var [col, row] of p.cells)
+                if (game.board[row][col] == 'N') ctx.strokeRect(col*30 + x + 3, (19-row)*30 + y + 3, 24, 24)
+        }
+        ctx.restore()
+        return
+    }
     ctx.globalAlpha = 0.3
     ctx.fillStyle = color_table[spin.piece]
     for (var [col, row] of spin.cells) ctx.fillRect(col*30 + x, (19-row)*30 + y, 30, 30)
@@ -139,14 +167,15 @@ Controls.draw_overlay = (ctx, x, y) => {
 function toggle_hint(){
     // during the drill, the hint gives up: the slot is shown, not counted
     if (Record.finding && !Record.finding.result){ reveal_slot(null); return }
-    Record.hint = !Record.hint
+    Record.hint = (Record.hint + 1) % 4
     hint_label()
     render()
+    if (Record.hint) show_spin_message(HINT_TEXT[Record.hint])
 }
 
 function hint_label(){
     var button = document.getElementById('hint_button')
-    if (button) button.textContent = Record.hint? 'Hide Hint': 'Show Hint'
+    if (button) button.textContent = ['Show Hint', 'More Hint', 'More Hint', 'Hide Hint'][Record.hint || 0]
     if (button && typeof set_short_label == 'function') set_short_label(button)
 }
 Controls.can_play = () => !Record.showing && !Record.finding
@@ -1072,7 +1101,7 @@ function play(){
     Record.miss = null
     Record.solved = false
     // a new attempt starts without the hint
-    Record.hint = false
+    Record.hint = 0
     hint_label()
     game.bag = Record.shuffled_queue.concat(Array(14).fill('G'))
     game.update()

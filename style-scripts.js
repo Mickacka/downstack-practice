@@ -103,7 +103,7 @@ document.addEventListener('touchstart', e => {
 // Short button labels for the compact landscape layout (the stylesheet shows
 // data-short instead of the text there)
 const SHORT_LABELS = {
-    'Copy link': 'Link', 'Show Answer': 'Answer', 'Show Hint': 'Hint', 'Hide Hint': 'Hide',
+    'Copy link': 'Link', 'Show Answer': 'Answer', 'Show Hint': 'Hint', 'More Hint': 'Hint+', 'Hide Hint': 'Hide',
     'Rush (3 min)': 'Rush', 'Stop rush': 'Stop',
     'Get help from PC finder (At most 4 lines)': 'PC finder', 'Get help from S finder (Any number of line)': 'S finder',
     // modes
