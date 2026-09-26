@@ -1099,6 +1099,15 @@ function chain_setup(k, n_build){
 function play_a_map(){
     stop_answer()
     draw_mix_plan()
+    var result = new_map()
+    Record.well = [result.chain[0].left, result.chain[0].right]
+    Record.part = 1
+    document.getElementById('spin_message').textContent = ''
+    set_plan(result.chain, result.start, false)
+}
+
+// A new map: {chain, start}
+function new_map(){
     var n_build = Config.no_of_piece - 1
     var result = null
     for (var attempt=0; attempt<10 && !result; attempt++) result = chain_setup(Config.spins, n_build)
@@ -1114,16 +1123,14 @@ function play_a_map(){
             var other = chain_setup(Config.spins, n_build)
             if (other) result = other
         }
-    Record.well = [result.chain[0].left, result.chain[0].right]
-    Record.part = 1
-    document.getElementById('spin_message').textContent = ''
-    set_plan(result.chain, result.start, false)
+    return result
 }
 
 // Start playing a plan: its spins, the starting board and the queue. `in_play`: the
 // board is the one from the game in progress (continuous mode), pieces included.
 function set_plan(spins, start, in_play){
     Record.spins = spins.map(s => ({piece: s.piece, lines: s.lines, cells: s.cells, build: s.build}))
+    prepare_next_part(start)
     Record.board = [start]
     Record.in_play = in_play
     // each spin's pieces are shuffled on their own (the hold table goes up to 7 pieces):
@@ -1224,24 +1231,93 @@ function add_garbage(board, rows){
     return {board: nb, rows: rows}
 }
 
-function next_part(){
-    draw_mix_plan()
-    var cleared = Record.spins.reduce((a, s) => a + s.lines, 0)
+// The next part, planned from `board` (the board once the spins are done): the plan
+// on the board with its garbage, or null if nothing fits (then a new board)
+function plan_next_part(board, cleared){
     var n_build = Config.no_of_piece - 1
-    var plan = null, garbage = null
-    garbage = add_garbage(clone(game.board), cleared)
+    var plan = null
+    var garbage = add_garbage(clone(board), cleared)
     // about 1.5 s at most before settling for a fresh map
     var give_up = budget_clock() + 1500
     for (var k=Config.spins; k>=1 && !plan; k--)
         while (!plan && budget_clock() < give_up - (k - 1) * 400) plan = plan_from(garbage.board, k, n_build, true)
     // a plan without the look-ahead rather than a new board
     while (!plan && budget_clock() < give_up + 800) plan = plan_from(garbage.board, 1, n_build, false)
+    return plan
+}
+
+// The next part is planned ahead, in the background (allspin-worker.js), from the
+// board the planned solution leaves; when you finish the part with the same cells
+// filled (whatever the pieces), it's used as is, with no pause. Otherwise it is
+// planned then, from your board.
+var planner = {worker: null, id: 0, ready: null}
+
+// the cells filled, as a key
+const fill_key = board => board.map(row => row.map(c => c == 'N'? '.': '#').join('')).join('/')
+
+function prepare_next_part(start){
+    planner.ready = null
+    planner.id += 1
+    if (!Config.continuous || typeof Worker == 'undefined' || typeof PLANNER != 'undefined') return
+    // the board once the planned solution is played
+    var end = clone(start)
+    for (var s of Record.spins){
+        for (var p of s.build.concat([{piece: s.piece, cells: s.cells}]))
+            for (var [col, row] of p.cells) end[row][col] = p.piece
+        var rows = end.filter(row => row.some(c => c == 'N'))
+        while (rows.length < 20) rows.push(Array(10).fill('N'))
+        end = rows
+    }
+    try{
+        if (!planner.worker){
+            planner.worker = new Worker('allspin-worker.js')
+            planner.worker.onmessage = e => {
+                if (e.data.id == planner.id) planner.ready = e.data
+            }
+            planner.worker.onerror = () => { planner.worker = null }
+        }
+        planner.worker.postMessage({id: planner.id, board: end, key: fill_key(end),
+            cleared: Record.spins.reduce((a, s) => a + s.lines, 0),
+            config: {spins: Config.spins, no_of_piece: Config.no_of_piece, clears: Config.clears,
+                spin_pieces: Config.spin_pieces, unqiue_ind: Config.unqiue_ind, focus_weak: Config.focus_weak,
+                continuous: true},
+            stats: localStorage.getItem('allspin_spin_stats')})
+    }
+    catch(err){ planner.worker = null }
+}
+
+function next_part(){
+    var cleared = Record.spins.reduce((a, s) => a + s.lines, 0)
+    var garbage = add_garbage(clone(game.board), cleared)
+    var ready = planner.ready && planner.ready.key == fill_key(game.board)? planner.ready: null
+    var plan = null, fresh = null
+    if (ready){
+        // planned ahead on the same cells: put it on the real board (its pieces' colours)
+        if (ready.plan){
+            plan = ready.plan
+            var start = clone(garbage.board)
+            for (var row=0; row<20; row++)
+                for (var col=0; col<10; col++)
+                    if (plan.start[row][col] != 'N' && start[row][col] == 'N') start[row][col] = 'G'
+            plan.start = start
+        }
+        else fresh = ready.fresh
+    }
+    else{
+        draw_mix_plan()
+        plan = plan_next_part(game.board, cleared)
+    }
     if (!plan){
         // nothing fits on this board any more: go on with a fresh board
         var part = Record.part + 1
-        play_a_map()
+        stop_answer()
+        if (!fresh){
+            draw_mix_plan()
+            fresh = new_map()
+        }
+        Record.well = [fresh.chain[0].left, fresh.chain[0].right]
         Record.part = part
-        update_goal()
+        set_plan(fresh.chain, fresh.start, false)
         show_spin_message('Part ' + part + ' · new board' + finding_prompt(' · '))
         return
     }
@@ -1479,10 +1555,13 @@ function show_ans(){
 /*
 5. start
 */
-set_event_listener()
-load_setting()
-load_gamemode()
-update_keybind()
-board.focus()
-play_a_map()
-render()
+// (not in the background planner, which only needs the generator)
+if (typeof PLANNER == 'undefined'){
+    set_event_listener()
+    load_setting()
+    load_gamemode()
+    update_keybind()
+    board.focus()
+    play_a_map()
+    render()
+}

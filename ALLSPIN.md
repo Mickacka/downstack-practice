@@ -51,8 +51,9 @@ With **Continuous** on, the game goes on in parts:
    - **look-ahead**: a part is only kept if the board its planned solution leaves still has a next part (so if you build as planned, the game can go on). The first part of a map is chosen the same way.
 3. A part is done as soon as its last spin lands; the next one starts right away (pieces left over are dropped). If you miss a part, it restarts from its own start: the **checkpoint** (your earlier pieces included). Undo works within a part.
 4. If nothing fits your board (within about 1.5-2.5 s), the game goes on with a **new board** ("Part N · new board"). On a board the look-ahead can't plan past, a part without it is tried first.
+5. **No pause between parts**: while you play a part, the next one is planned in the background (a Web Worker, `allspin-worker.js`) from the board the planned solution leaves. If you finish with the same cells filled (whatever pieces you used where), that plan is used at once; otherwise the next part is planned from your board then (up to about 2 s).
 
-The goal shows *Part N: do …*. In testing (5 pieces per spin, playing the planned solutions), about 1 checkpoint in 4 went on with a new board, and the pause between parts was about 2 s. Continuous mode is off in the daily puzzle.
+The goal shows *Part N: do …*. In testing (5 pieces per spin, playing the planned solutions), about 1 checkpoint in 4 went on with a new board, and the pause between parts was about 2 s before background planning (now about 10 ms when you finish as planned). Continuous mode is off in the daily puzzle.
 
 ### Options (right panel, saved in the browser)
 
@@ -381,7 +382,9 @@ The last result should be `won: 20` and no `failed` entries. The latest run (1-4
 | `is_immobile`, `do_harddrop` | Spin detection on each drop, requested-spin bookkeeping, miss messages |
 | `play_a_map`, `chain_setup`, `first_setup`, `next_setup` | Map assembly (3.1, 3.2, 3.6) |
 | `chain_start`, `row_at_start`, `chain_works`, `slot_pose` | Starting board of a chain; playing the whole solution through (3.6) |
-| `set_plan`, `next_part`, `plan_from`, `well_candidates`, `add_garbage` | Continuous mode: starting a plan, planning the next part from the board in play, garbage (1.1) |
+| `set_plan`, `next_part`, `plan_next_part`, `plan_from`, `well_candidates`, `add_garbage` | Continuous mode: starting a plan, planning the next part from the board in play, garbage (1.1) |
+| `prepare_next_part`, `fill_key`, `allspin-worker.js` | Continuous mode: the next part planned ahead in the background |
+| `new_map` | A new map (`play_a_map` without starting it) |
 | `slot_shape`, `try_spin_setup`, `try_second_setup` | Slot placement for each spin (3.3, 3.6) |
 | `finish_setup` | Caps, hole, bumpy stack, wall height, build shapes (3.4) |
 | `terrain_bumps`, `fill_pockets`, `dig` | Bumpy stack, shut-in cells, garbage hole |
