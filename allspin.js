@@ -2,7 +2,7 @@ var game = new Game();
 var Config = {'das':100, 'arr':0, 'delay':0, 'pressing_left':false, 'pressing_right': false, 'pressing_down': false, 'pressing':{},
 'unqiue_ind':true, 'auto_next_ind':true,
 'spin_pieces':'SZLJIT',
-'mode':'allspin', 'no_of_piece':5, 'spins':2, 'continuous':false, 'answer_inputs':false, 'find_slot':false, 'review':true, 'focus_weak':false, 'preview':5,
+'mode':'allspin', 'no_of_piece':5, 'spins':2, 'continuous':false, 'answer_inputs':false, 'find_slot':false, 'review':true, 'focus_weak':false, 'preview':5, 'clears':'double',
 'no_of_trial':0, 'no_of_success':0}
 
 
@@ -26,6 +26,8 @@ function load_gamemode(){
         Config.find_slot = localStorage.getItem('allspin_find_slot') == 'on'
         Config.review = localStorage.getItem('allspin_review') != 'off'
         Config.focus_weak = localStorage.getItem('allspin_focus_weak') == 'on'
+        var clears = localStorage.getItem('allspin_clears')
+        if (['double', 'single', 'mix'].includes(clears)) Config.clears = clears
         var preview = parseInt(localStorage.getItem('allspin_preview'))
         if (preview >= 1 && preview <= 5) Config.preview = preview
     }
@@ -38,6 +40,7 @@ function load_gamemode(){
     document.getElementById('review').checked = Config.review
     document.getElementById('focus_weak').checked = Config.focus_weak
     document.getElementById('preview').value = Config.preview
+    document.getElementById('clears').value = Config.clears
     Controls.preview = Config.preview
     document.getElementById('input16').checked = Config.unqiue_ind
     for (var piece of 'SZLJIT'){
@@ -59,6 +62,7 @@ function save_gamemode(){
     Config.review = document.getElementById('review').checked
     Config.focus_weak = document.getElementById('focus_weak').checked
     Config.preview = parseInt(document.getElementById('preview').value) || 5
+    Config.clears = document.getElementById('clears').value
     Controls.preview = Config.preview
     render()
     if (Record.spins.length) update_goal()
@@ -79,6 +83,7 @@ function save_gamemode(){
         localStorage.setItem('allspin_review', Config.review? 'on': 'off')
         localStorage.setItem('allspin_focus_weak', Config.focus_weak? 'on': 'off')
         localStorage.setItem('allspin_preview', Config.preview)
+        localStorage.setItem('allspin_clears', Config.clears)
     }
     catch(err){}
 }
@@ -359,7 +364,7 @@ document.getElementById('board').addEventListener('pointerdown', e => {
 })
 Controls.bind_options = () => {
     document.getElementById('input13').oninput = e=>{save_gamemode()}
-    for (var id of ['spins', 'continuous', 'answer_inputs', 'find_slot', 'review', 'focus_weak', 'preview', 'input16', 'spin_S', 'spin_Z', 'spin_L', 'spin_J', 'spin_I', 'spin_T']){
+    for (var id of ['spins', 'continuous', 'answer_inputs', 'find_slot', 'review', 'focus_weak', 'preview', 'clears', 'input16', 'spin_S', 'spin_Z', 'spin_L', 'spin_J', 'spin_I', 'spin_T']){
         document.getElementById(id).onchange = e=>{save_gamemode()}
     }
 }
@@ -490,6 +495,20 @@ function carve(b, cells, used){
     return null
 }
 
+// Whether this spin clears one line instead of two ("Line clears" option; the flat
+// I always clears one). The daily always has doubles.
+// In a mix, which spins are singles is drawn once per map (Record.mix_plan, by spin
+// index: Record.spin_index), or the doubles, easier to fit, would win most retries.
+function wants_single(piece){
+    if (piece == 'I' || Daily.seeding || is_daily_map()) return false
+    if (Config.clears == 'mix') return (Record.mix_plan || [])[Record.spin_index || 0] || false
+    return Config.clears == 'single'
+}
+
+function draw_mix_plan(){
+    if (Config.clears == 'mix' && !Daily.seeding) Record.mix_plan = [0, 1, 2, 3].map(() => random_int(2) == 0)
+}
+
 // only flat slots ever work out (and for T, only pointing down: the T-spin double shape)
 function slot_shape(piece){
     var orientation = piece == 'T'? 2: 2 * random_int(2)
@@ -504,6 +523,9 @@ function slot_shape(piece){
 // `side`: whether the build may spread onto the stack beside the well.
 function try_spin_setup(piece, n_build, side){
     var {orientation, xs, ys, width: slot_width} = slot_shape(piece)
+    var single = wants_single(piece)
+    // (a single fills fewer cells in its spin rows: one build piece less)
+    if (single) n_build = Math.max(1, n_build - 1)
 
     // The well: the slot plus some spare columns (none needed: cells shut in under
     // the slot, like under a T's arms, are part of the stack). Pick a width where the
@@ -511,10 +533,13 @@ function try_spin_setup(piece, n_build, side){
     // column over the slot stays open), favouring 3 and 4 wide wells like mid-game.
     var spin_rows = Math.max(...ys) - Math.min(...ys) + 1
     var widths = []
-    for (var w = slot_width; w <= 6; w++){
+    // (a single needs a well column beside the slot for its gap)
+    for (var w = slot_width + (single? 1: 0); w <= 6; w++){
         var fill = 4*n_build - (spin_rows*w - 4)
         // (the build can also spread onto the stack beside the well, about 2 columns' worth)
-        var est_wall = fill / (w - 1 + (side? 2: 0))
+        // (a single also keeps its gap column clear, and the build beside the well can only
+        // go on one side of an edge gap)
+        var est_wall = single? fill / (w - 2 + (side? 1: 0)): fill / (w - 1 + (side? 2: 0))
         if (est_wall >= 1 && est_wall <= 6) widths.push(w)
     }
     if (widths.length == 0) return null
@@ -524,6 +549,7 @@ function try_spin_setup(piece, n_build, side){
     var left = random_int(10 - well_width + 1)
     var right = left + well_width - 1
     var slot_left = left + random_int(well_width - slot_width + 1)
+    if (single && well_width == slot_width) return null
     var floor = random_int(3)
     var x = slot_left - Math.min(...xs)
     var y = floor - Math.min(...ys)
@@ -543,7 +569,7 @@ function try_spin_setup(piece, n_build, side){
             b[row][col] = !in_well(col)? 'G': is_slot(col, row)? 'N': 'B'
     fill_pockets(b, top)
     return finish_setup({b: b, piece: piece, orientation: orientation, x: x, y: y, slot: slot,
-        top: top, bottom: bottom, left: left, right: right, dig: bottom > 0, must_open: [], side: side}, n_build)
+        top: top, bottom: bottom, left: left, right: right, dig: bottom > 0, must_open: [], side: side, single: single}, n_build)
 }
 
 // The second spin, on the board left once the first one has cleared its lines,
@@ -555,7 +581,10 @@ function try_spin_setup(piece, n_build, side){
 // the board in play, where the start check still rejects stack over empty cells)
 function try_second_setup(R, left, right, piece, n_build, pockets){
     var {orientation, xs, ys, width: slot_width} = slot_shape(piece)
-    if (slot_width + (piece == 'T'? 2: 0) > right - left + 1) return null
+    var single = wants_single(piece)
+    // (a single fills fewer cells in its spin rows: one build piece less)
+    if (single) n_build = Math.max(1, n_build - 1)
+    if (slot_width + (piece == 'T'? 2: 0) + (single? 1: 0) > right - left + 1) return null
     var slot_left = left + random_int(right - left - slot_width + 2)
     var g = new Game()
     g.board = R
@@ -572,7 +601,8 @@ function try_second_setup(R, left, right, piece, n_build, pockets){
     var must_open = []
     for (var col=left; col<=right; col++)
         if (bottom > 0 && R[bottom-1][col] == 'N') must_open.push(col)
-    if (!must_open.every(col => slot.some(c => c[0] == col))) return null
+    // (for a single, finish_setup checks: the gap's column can be one of them too)
+    if (!single && !must_open.every(col => slot.some(c => c[0] == col))) return null
     var b = clone(R)
     // Outside the well, every empty cell up to the spin rows is filled. The stack only
     // grows up from stack; over a piece of the first build (placed beside the well)
@@ -590,7 +620,7 @@ function try_second_setup(R, left, right, piece, n_build, pockets){
         }
     if (pockets) fill_pockets(b, top)
     return finish_setup({b: b, piece: piece, orientation: orientation, x: x, y: y, slot: slot,
-        top: top, bottom: bottom, left: left, right: right, dig: false, must_open: must_open, side: true}, n_build)
+        top: top, bottom: bottom, left: left, right: right, dig: false, must_open: must_open, side: true, single: single}, n_build)
 }
 
 // Height offsets of the stack outside the well, a random walk outwards from each
@@ -672,12 +702,40 @@ function finish_setup(s, n_build){
         return nb
     }
 
+    // A single: one cell of the slot's top row stays empty, in a well column beside
+    // the slot with nothing built above it (and something under it), so only the
+    // bottom row clears and the gap stays open (the well is clean at the end)
+    // Columns that must stay open to the bottom (a gap under the spin rows, the
+    // garbage hole) are the gap's, or one where the slot has no cell in the top row.
+    var gap_col = null
+    var clear_after = col => s.single? !slot.some(c => c[0] == col && c[1] == top): slot_cols.includes(col)
+    if (s.single){
+        if (top == bottom) return null
+        var gaps = []
+        for (var col=left; col<=right; col++)
+            // (for the first spin, right beside the slot's top row: elsewhere it mostly cuts
+            // off a column of the build; later spins, in a set well, take any that works)
+            if (!slot_cols.includes(col) && b[top][col] == 'B' && b[bottom][col] != 'N' &&
+                (Record.spin_index > 0 || slot.some(c => c[1] == top && Math.abs(c[0] - col) == 1)) &&
+                s.must_open.every(c => c == col || (slot_cols.includes(c) && clear_after(c)))) gaps.push(col)
+        if (gaps.length == 0) return null
+        gap_col = gaps[random_int(gaps.length)]
+        b = clone(b)
+        b[top][gap_col] = 'N'
+        // cells cut off by the gap (under it, in a narrow well) are stack, as in a
+        // T-spin single's hole
+        fill_pockets(b, top)
+    }
+
     var spin_row_cells = b.flat().filter(c => c == 'B').length
     var need = 4*n_build - spin_row_cells
     // the build goes in the well and may spread onto the stack beside it (up to 2
     // columns each side), filling its dips and rising up to 3 rows above the wall
     // height (the second setup's stack never goes above those pieces: with_walls)
     var side_cols = s.side? [left-2, left-1, right+1, right+2].filter(col => col >= 0 && col < 10): []
+    // (nothing is built past a gap at the edge of the well: it would be cut off)
+    if (gap_col === left) side_cols = side_cols.filter(col => col > right)
+    if (gap_col === right) side_cols = side_cols.filter(col => col < left)
     // cheap early exit: the wall height would be out of range whatever gets capped
     if (need < well_width - slot_cols.length || need > 6 * (well_width + side_cols.length)) return null
 
@@ -690,17 +748,23 @@ function finish_setup(s, n_build){
         var h = Array(10).fill(0)
         slot_cols.forEach((col, i) => { if (mask & (1 << i)) h[col] = 1 })
         var open = slot_cols.filter((col, i) => !(mask & (1 << i)))
-        if (!s.must_open.every(col => open.includes(col))) continue
+        if (!s.must_open.every(col => open.includes(col) || col == gap_col)) continue
+        // a cell to build in the top spin row, in an open column with nothing to build
+        // beside it, could only be filled from above: nothing can fill it
+        if (open.some(col => b[top][col] == 'B' && b[top][col-1] != 'B' && b[top][col+1] != 'B')) continue
         var test = with_stacks(with_walls(b, 1), h, top)
         if (!s.dig){
             if (is_spin_slot(test, piece, orientation, x, y, slot)) valid.push({open: open})
             continue
         }
-        for (var col of shuffle([...open]))
+        // (after a single, the slot's top row stays: the hole goes under the gap or a
+        // column clear of it)
+        for (var col of shuffle(open.filter(clear_after).concat(gap_col === null? []: [gap_col]))){
             if (is_spin_slot(dig(test, bottom, col), piece, orientation, x, y, slot)){
                 valid.push({open: open, hole: col})
                 break
             }
+        }
     }
     if (valid.length == 0) return null
     var choice = valid[random_int(valid.length)]
@@ -711,7 +775,7 @@ function finish_setup(s, n_build){
     // well (and the dips of the stack beside it) is filled level with it
     var filled_cols = []
     for (var col=left; col<=right; col++)
-        if (!open_cols.includes(col)) filled_cols.push(col)
+        if (!open_cols.includes(col) && col != gap_col) filled_cols.push(col)
     var build_cols = filled_cols.concat(side_cols)
     // empty cells of a column up to k rows above the spin rows (for the second spin some
     // are already filled by what's left of the first; beside the well, the stack's)
@@ -801,7 +865,7 @@ function finish_setup(s, n_build){
         // the finished board with each piece in its own colour, for Show Answer
         for (var {piece: p, cells: pc} of build)
             for (var [col, row] of pc) finished[row][col] = p
-        return {board: finished, lines: top - bottom + 1, cells: slot, build: build, piece: piece,
+        return {board: finished, lines: s.single? 1: top - bottom + 1, cells: slot, build: build, piece: piece,
             left: left, right: right, bottom: bottom, top: top}
     }
     return null
@@ -906,6 +970,7 @@ function piece_order(){
 // for, favouring the exact size, and after a while moves on to another piece.
 function first_setup(n_build, side){
     var setup = null
+    Record.spin_index = 0
     for (var piece of piece_order()){
         Record.spin_piece = piece
         var sizes = [n_build, n_build, n_build, n_build+1, n_build-1].filter(n => n >= 2 && n <= 6)
@@ -1004,7 +1069,10 @@ function next_setup(chain, n_build){
     var give_up = budget_clock() + 500
     while (budget_clock() < give_up){
         var piece = piece_order()[0]
+        // (the flat I-spin fits most easily: tried a quarter as often until near the end)
+        if (piece == 'I' && !Daily.seeding && Config.spin_pieces.length > 1 && budget_clock() < give_up - 150 && random_int(4)) continue
         Record.spin_piece = piece
+        Record.spin_index = chain.filter(s => !s.base).length
         Record.deadline = budget_clock() + 100
         var sizes = [n_build, n_build, n_build+1, n_build-1].filter(n => n >= 1 && n <= 6)
         var setup = try_second_setup(R, prev.left, prev.right, piece, sizes[random_int(sizes.length)], chain[0].base)
@@ -1030,6 +1098,7 @@ function chain_setup(k, n_build){
 
 function play_a_map(){
     stop_answer()
+    draw_mix_plan()
     var n_build = Config.no_of_piece - 1
     var result = null
     for (var attempt=0; attempt<10 && !result; attempt++) result = chain_setup(Config.spins, n_build)
@@ -1156,6 +1225,7 @@ function add_garbage(board, rows){
 }
 
 function next_part(){
+    draw_mix_plan()
     var cleared = Record.spins.reduce((a, s) => a + s.lines, 0)
     var n_build = Config.no_of_piece - 1
     var plan = null, garbage = null

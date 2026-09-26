@@ -59,6 +59,7 @@ The goal shows *Part N: do …*. In testing (5 pieces per spin, playing the plan
 | Option | Default | Effect |
 | --- | --- | --- |
 | Spins per map | 2 | 1 to 4 spins in a row (in continuous mode: per part) |
+| Line clears | Doubles | Doubles, Singles (see 3.10) or a mix (each spin of a map drawn single or double). The I-spin is always a single. The daily always has doubles. |
 | Continuous | off | When the planned spins are done, the next ones are planned from your board as it is (see 1.1) |
 | Pieces per spin, about | 5 | Size of each setup: build pieces + the spin piece (3-7). The generator may use one more or one less. |
 | No repeated pieces | on | Each piece type at most once per setup (a spin piece is never also a build piece). Off: up to twice. |
@@ -102,7 +103,7 @@ This is a schematic, not an exact board (`#` stack, `.` empty):
 | --- | --- |
 | **Well** | The columns (3-6 wide) where the setup is built. The stack on both sides starts out taller. |
 | **Slot** | The 4 cells where the spin piece ends up. It is always *flat*: S, Z, L, J lying down, I horizontal, and T pointing down (the T-spin double shape). |
-| **Spin rows** | The rows of the slot (1 for I, 2 for the others). After the spin they are full and clear: I-Spin Single, otherwise Doubles. |
+| **Spin rows** | The rows of the slot (1 for I, 2 for the others). After the spin they are full and clear: I-Spin Single, otherwise Doubles (for a single, only the bottom row is full: 3.10). |
 | **Caps** | Build cells just above the slot. They make the overhang the spin piece has to rotate under. |
 | **Open columns** | Slot columns with no cap: the way into the slot. After the last spin they are clear all the way down to the garbage hole. |
 | **Stack / walls** | Grey cells outside the well, a little uneven like a mid-game board (each column at most 1 row above or below the others' level). The starting board never has grey cells over empty ones. |
@@ -177,6 +178,8 @@ Every single attempt has a **100 ms deadline** (`Record.deadline`). The deep sea
    - the finished board with each build piece in its colour;
    - the slot cells, the number of lines, and the well's `left`, `right`, `bottom`, `top`.
 
+   For a spin single, see 3.10 (a gap in the top spin row, before step 2).
+
 ### 3.5 `carve`: splitting the build into placeable pieces
 
 This works backwards, like the other modes' generators: it removes pieces from the finished build, top first, so the player places them in the reverse order.
@@ -230,6 +233,21 @@ For each spin: the build pieces in placement order (the reverse of `carve`'s rem
 
 ---
 
+### 3.10 Spin singles (option *Line clears*)
+
+A single uses the same flat slot as a double (2 rows; the flat I is already a single), but **only its bottom row clears**:
+
+- `wants_single` decides per spin (always for *Singles*; for *Mix*, from `Record.mix_plan`, drawn once per map so the doubles, which fit more easily, don't win most retries). Never in the daily.
+- A single takes **one build piece less** (its spin rows have fewer cells to build), and the first spin's well is one column wider than the slot at least.
+- In `finish_setup`, one cell of the slot's **top row** is left empty: the **gap**, in a well column that isn't a slot column, with something under it, and nothing built above it. For the first spin it must be right beside the slot's top row (elsewhere it mostly cuts off a column of the build); later spins take any column that works. Cells cut off by the gap (under it, in a narrow well) become stack, like a T-spin single's hole (`fill_pockets` again), and no side build goes past a gap at the edge of the well.
+- The gap keeps the top row from clearing; its column stays open all the way up, so the well is clean at the end (checked by `chain_works` as for every map).
+- Columns that must stay open to the bottom (the first spin's garbage hole, a gap under a later spin's rows) are the gap's, or a slot column with no slot cell in the top row: after the single, the top row stays and would cover them otherwise.
+- `next_setup` tries the I-spin a quarter as often until near the end of its time: it fits far more easily and would take most later spins.
+
+In testing (2 spins, 5 pieces per spin), every generated map was solved by playing its solution. With *Singles*, about half the spins are T/S/Z/L/J singles and half I-spin singles (the later spins are the hard ones: the well is set by the first spin and the previous gap must stay open), in about 0.5 s per map (up to 1.5 s). *Mix* gives about half singles, mostly I-spins. In continuous mode, parts take longer to plan (2-5 s with a new board).
+
+Also used by doubles since this change: a way into the slot that leaves a cell to build in the top spin row, in an open column with nothing to build beside it, is skipped (nothing could fill that cell).
+
 ## 4. Checks every map passes
 
 | Check | Where |
@@ -278,7 +296,7 @@ After a change, run the test in section 8.
 
 ## 7. Known limits
 
-- **Slot shapes**: only flat slots (T: pointing down). No upright S/Z/L/J/I slots, no T-spin triples or minis. So spins are Doubles, and I-spins are Singles.
+- **Slot shapes**: only flat slots (T: pointing down). No upright S/Z/L/J/I slots, no T-spin triples or minis. So spins are Doubles, or Singles with the *Line clears* option (3.10), and I-spins are Singles.
 - **Well widths**:
   - with one spin they range over 3-6, with 3 or 4 wide in about half the maps;
   - with two or more spins, 3-6 wide, with 3 or 4 wide in about a third of the maps (3-wide is the rarest: the later setups can't use pockets, since they would float in the well).
@@ -373,6 +391,7 @@ The last result should be `won: 20` and no `failed` entries. The latest run (1-4
 | `play`, `detect_win`, `update_goal`, `spin_name` | Starting a map, judging it, the goal text |
 | `show_ans`, `stop_answer`, `input_path` | Show Answer replay; the fewest inputs from spawn to a placement (for the spin pieces) |
 | `toggle_hint`, `Controls.draw_overlay` | Show Hint: the next slot outlined over the board |
+| `wants_single`, `draw_mix_plan` | Spin singles (3.10; the gap is made in `finish_setup`) |
 | `spin_stats`, `log_spins`, `piece_order` | Results per spin; the spin piece order (Focus on my weak spins) |
 | `start_review`, `draw_review`, `end_review` | Review after a miss |
 | `start_finding`, `pick_cell`, `reveal_slot`, `draw_finding` | Find the slot (vision drill) |
