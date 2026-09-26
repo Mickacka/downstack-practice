@@ -68,6 +68,17 @@
             </div>
         </section>
 
+        <section class="stats-section" id="spins" hidden>
+            <h3>All-Spin by spin</h3>
+            <div class="table-wrap">
+                <table class="stats-table">
+                    <thead><tr><th>Spin</th><th title="Times this spin came up in an attempt">Tries</th><th>Done</th><th>Rate</th></tr></thead>
+                    <tbody id="spin-rows"></tbody>
+                </table>
+            </div>
+            <p class="stats-note" id="spin-note"></p>
+        </section>
+
         <section class="stats-section">
             <h3>Daily puzzles</h3>
             <div class="calendar" id="calendar"></div>
@@ -225,6 +236,24 @@
         cell(row, read('rush:' + m.page + ':' + m.mode, null) ?? '–')
         tbody.appendChild(row)
     }
+
+    // All-Spin, per spin (weakest first) and the Find the slot drill
+    var spins = Object.entries(read('allspin_spin_stats', {}))
+        .map(([name, [done, tries]]) => ({name: name, done: done, tries: tries}))
+        .sort((a, b) => a.done / a.tries - b.done / b.tries || b.tries - a.tries)
+    var find = read('allspin_find_score', null)
+    document.getElementById('spins').hidden = !spins.length && !(find && find.tries)
+    for (var sp of spins){
+        var row = document.createElement('tr')
+        var rate = Math.round(100 * sp.done / sp.tries)
+        cell(row, sp.name)
+        cell(row, sp.tries)
+        cell(row, sp.done)
+        cell(row, rate + '%', rate < 50? 'lost': rate >= 80? 'won': '')
+        document.getElementById('spin-rows').appendChild(row)
+    }
+    document.getElementById('spin-note').textContent = (spins.length? 'Weakest first. ': '') +
+        (find && find.tries? 'Find the slot: ' + find.hits + ' of ' + find.tries + ' found (' + Math.round(100 * find.hits / find.tries) + '%).': '')
 
     // daily calendar: 5 weeks ending this week, Monday first
     var calendar = document.getElementById('calendar')

@@ -2,7 +2,7 @@ var game = new Game();
 var Config = {'das':100, 'arr':0, 'delay':0, 'pressing_left':false, 'pressing_right': false, 'pressing_down': false, 'pressing':{},
 'unqiue_ind':true, 'auto_next_ind':true,
 'spin_pieces':'SZLJIT',
-'mode':'allspin', 'no_of_piece':5, 'spins':2, 'continuous':false, 'answer_inputs':false, 'find_slot':false, 'review':true,
+'mode':'allspin', 'no_of_piece':5, 'spins':2, 'continuous':false, 'answer_inputs':false, 'find_slot':false, 'review':true, 'focus_weak':false,
 'no_of_trial':0, 'no_of_success':0}
 
 
@@ -25,6 +25,7 @@ function load_gamemode(){
         Config.answer_inputs = localStorage.getItem('allspin_answer_inputs') == 'on'
         Config.find_slot = localStorage.getItem('allspin_find_slot') == 'on'
         Config.review = localStorage.getItem('allspin_review') != 'off'
+        Config.focus_weak = localStorage.getItem('allspin_focus_weak') == 'on'
     }
     catch(err){}
     document.getElementById('input13').value = Config.no_of_piece
@@ -33,6 +34,7 @@ function load_gamemode(){
     document.getElementById('answer_inputs').checked = Config.answer_inputs
     document.getElementById('find_slot').checked = Config.find_slot
     document.getElementById('review').checked = Config.review
+    document.getElementById('focus_weak').checked = Config.focus_weak
     document.getElementById('input16').checked = Config.unqiue_ind
     for (var piece of 'SZLJIT'){
         document.getElementById('spin_'+piece).checked = Config.spin_pieces.includes(piece)
@@ -51,6 +53,7 @@ function save_gamemode(){
     Config.answer_inputs = document.getElementById('answer_inputs').checked
     Config.find_slot = document.getElementById('find_slot').checked
     Config.review = document.getElementById('review').checked
+    Config.focus_weak = document.getElementById('focus_weak').checked
     if (Record.spins.length) update_goal()
     var pieces = [...'SZLJIT'].filter(piece => document.getElementById('spin_'+piece).checked).join('')
     if (pieces == ''){
@@ -67,6 +70,7 @@ function save_gamemode(){
         localStorage.setItem('allspin_answer_inputs', Config.answer_inputs? 'on': 'off')
         localStorage.setItem('allspin_find_slot', Config.find_slot? 'on': 'off')
         localStorage.setItem('allspin_review', Config.review? 'on': 'off')
+        localStorage.setItem('allspin_focus_weak', Config.focus_weak? 'on': 'off')
     }
     catch(err){}
 }
@@ -347,7 +351,7 @@ document.getElementById('board').addEventListener('pointerdown', e => {
 })
 Controls.bind_options = () => {
     document.getElementById('input13').oninput = e=>{save_gamemode()}
-    for (var id of ['spins', 'continuous', 'answer_inputs', 'find_slot', 'review', 'input16', 'spin_S', 'spin_Z', 'spin_L', 'spin_J', 'spin_I', 'spin_T']){
+    for (var id of ['spins', 'continuous', 'answer_inputs', 'find_slot', 'review', 'focus_weak', 'input16', 'spin_S', 'spin_Z', 'spin_L', 'spin_J', 'spin_I', 'spin_T']){
         document.getElementById(id).onchange = e=>{save_gamemode()}
     }
 }
@@ -847,13 +851,54 @@ function is_spin_slot(b, piece, orientation, x, y, slot){
 
 // 4.2 build a map, shuffle the queue and play / restart
 
+// Per-spin results, kept in the browser: {"T-Spin Double": [done, tries], ...}. A try
+// is a spin reached in an attempt: done if it was made, missed if the attempt ended there.
+function spin_stats(){
+    try{ return JSON.parse(localStorage.getItem('allspin_spin_stats')) || {} }
+    catch(err){ return {} }
+}
+
+function log_spins(){
+    // (not while Show Answer replays, nor in the daily's seeded runs)
+    if (Record.showing) return
+    var stats = spin_stats()
+    Record.spins.slice(0, Record.done_spins + 1).forEach((spin, i) => {
+        var s = stats[spin_name(spin)] || [0, 0]
+        s[1] += 1
+        if (i < Record.done_spins) s[0] += 1
+        stats[spin_name(spin)] = s
+    })
+    try{ localStorage.setItem('allspin_spin_stats', JSON.stringify(stats)) }catch(err){}
+}
+
+// The spin pieces to try, in order: shuffled, or with "Focus on my weak spins",
+// drawn with a weight that grows with the piece's miss rate (a piece never tried
+// counts as half missed), so the weak ones come first more often.
+function piece_order(){
+    var pieces = [...Config.spin_pieces]
+    if (!Config.focus_weak || Daily.seeding || is_daily_map()) return shuffle(pieces)
+    var stats = spin_stats(), order = []
+    var weight = piece => {
+        var done = 0, tries = 0
+        for (var name in stats) if (name[0] == piece){ done += stats[name][0]; tries += stats[name][1] }
+        return 1 + 6 * (tries - done + 1) / (tries + 2)
+    }
+    while (pieces.length){
+        var weights = pieces.map(weight), total = weights.reduce((a, b) => a + b), r = Math.random() * total
+        var i = 0
+        while (i < pieces.length - 1 && r >= weights[i]){ r -= weights[i]; i++ }
+        order.push(pieces.splice(i, 1)[0])
+    }
+    return order
+}
+
 // The first spin. Pick the spin piece first (not per attempt), so rarer setups like
 // T come up as often. Some piece/size combinations are rare or impossible in a well
 // (a flat I-spin leaves little room), so each attempt picks a size near the one asked
 // for, favouring the exact size, and after a while moves on to another piece.
 function first_setup(n_build, side){
     var setup = null
-    for (var piece of shuffle([...Config.spin_pieces])){
+    for (var piece of piece_order()){
         Record.spin_piece = piece
         var sizes = [n_build, n_build, n_build, n_build+1, n_build-1].filter(n => n >= 2 && n <= 6)
         var give_up = budget_clock() + 700
@@ -950,7 +995,7 @@ function next_setup(chain, n_build){
     var R = after_spin(prev.board, prev)
     var give_up = budget_clock() + 500
     while (budget_clock() < give_up){
-        var piece = Config.spin_pieces[random_int(Config.spin_pieces.length)]
+        var piece = piece_order()[0]
         Record.spin_piece = piece
         Record.deadline = budget_clock() + 100
         var sizes = [n_build, n_build, n_build+1, n_build-1].filter(n => n >= 1 && n <= 6)
@@ -1204,6 +1249,7 @@ function detect_win(){
     // done as soon as every requested spin is: pieces left in the queue aren't needed
     if (Record.done_spins == Record.spins.length){
         Record.solved = true
+        log_spins()
         Config.no_of_success += 1
         if (Config.continuous){
             report_result(true, 'Part ' + Record.part + ' done')
@@ -1223,6 +1269,7 @@ function detect_win(){
     }
     if (game.total_piece == Record.shuffled_queue.length){
         var why = Record.miss || `No ${spin_name(Record.spins[Record.done_spins])}`
+        log_spins()
         report_result(false, why)
         // (not in a rush: a miss moves on to the next puzzle)
         if (Config.review && !rush.on && Record.spins[Record.done_spins]) start_review(why)
