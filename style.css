@@ -979,14 +979,19 @@ html.portrait-zoom #scrollable { height: 18rem; }
     /* All-Spin's spin messages pop up over the board instead of taking a row */
     body.touch #spin_message {
         position: fixed;
-        left: 0;
-        right: 0;
+        /* over the board (the middle column) */
+        left: 29vw;
+        right: 29vw;
         top: 18%;
         min-height: 0;
         margin: 0;
         z-index: 25;
         pointer-events: none;
         text-shadow: 0 0 6px #000, 0 0 2px #000;
+    }
+    body.touch #spin_message.long {
+        top: 10%;
+        font-size: 0.95rem;
     }
     body.touch #leftpanel .game_button[data-short]::after { content: attr(data-short); font-size: 0.72rem; }
     /* the note under the goal: one line at most */

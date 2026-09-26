@@ -132,6 +132,8 @@ function do_harddrop(){
 const SPIN_TEXT_COLORS = {S: '#4cdc4c', Z: '#ff5a5a', L: '#ffa640', J: '#6f95ff', I: '#3fe0e8', T: '#e062e0'}
 function set_spin_text(el, text){
     el.textContent = ''
+    // (a long message, like the drill's or the review's, is set smaller)
+    el.classList.toggle('long', text.length > 32)
     var last = 0
     for (var m of text.matchAll(/\b([SZLJIT])-Spin( (Single|Double|Triple))?/g)){
         el.append(text.slice(last, m.index))
@@ -226,11 +228,12 @@ the planned setup for the missed spin over it: its pieces, dashed, where you lef
 gap; a cross where you put a piece in the slot, which had to stay empty. Any key or
 tap goes on to the retry.
 */
-function start_review(why){
+// (the reason for the miss is in the result popup)
+function start_review(){
     Record.review = {spin: Record.spins[Record.done_spins]}
     game.tetramino = 'G'   // no falling piece over the review
     render()
-    show_spin_message(why + ' · Review: dashed = the planned setup, ✗ = the slot, keep it empty. Tap or press a key to retry')
+    show_spin_message('Dashed: the planned setup. Tap to retry')
 }
 
 var review_ended = 0
@@ -307,8 +310,7 @@ function start_finding(){
 function finding_prompt(before){
     var f = Record.finding
     if (!f || f.result) return ''
-    return before + 'Find the slot: tap the 4 cells where the ' + f.spin.piece + ' piece ends its ' +
-        spin_name(f.spin) + ' (Hint to give up)'
+    return before + 'Tap the 4 cells of the ' + spin_name(f.spin) + ' slot (Hint: give up)'
 }
 
 function draw_finding(ctx, x, y){
@@ -1451,7 +1453,7 @@ function detect_win(){
         log_spins()
         report_result(false, why)
         // (not in a rush: a miss moves on to the next puzzle)
-        if (Config.review && !rush.on && Record.spins[Record.done_spins]) start_review(why)
+        if (Config.review && !rush.on && Record.spins[Record.done_spins]) start_review()
         else retry()
     }
 }
