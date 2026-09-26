@@ -127,9 +127,27 @@ function do_harddrop(){
     detect_win()
 }
 
+// Text with each "X-Spin ..." in the colour of its piece (lighter shades of the
+// board's colours, readable on the dark page)
+const SPIN_TEXT_COLORS = {S: '#4cdc4c', Z: '#ff5a5a', L: '#ffa640', J: '#6f95ff', I: '#3fe0e8', T: '#e062e0'}
+function set_spin_text(el, text){
+    el.textContent = ''
+    var last = 0
+    for (var m of text.matchAll(/\b([SZLJIT])-Spin( (Single|Double|Triple))?/g)){
+        el.append(text.slice(last, m.index))
+        var span = document.createElement('span')
+        span.className = 'spin-name'
+        span.style.color = SPIN_TEXT_COLORS[m[1]]
+        span.textContent = m[0]
+        el.append(span)
+        last = m.index + m[0].length
+    }
+    el.append(text.slice(last))
+}
+
 function show_spin_message(text){
     var msg = document.getElementById('spin_message')
-    msg.textContent = text
+    set_spin_text(msg, text)
     msg.classList.remove('flash')
     void msg.offsetWidth
     msg.classList.add('flash')
@@ -1361,8 +1379,8 @@ function spin_name(spin){
 function update_goal(){
     var parts = Record.spins.map((spin, i) => (i < Record.done_spins? '✓ ': '') +
         ("SLI".includes(spin.piece)? "an ": "a ") + spin_name(spin))
-    document.getElementById('winning_requirement1').textContent =
-        (Config.continuous? 'Part ' + (Record.part || 1) + ': do ': 'Do ') + parts.join(', then ')
+    set_spin_text(document.getElementById('winning_requirement1'),
+        (Config.continuous? 'Part ' + (Record.part || 1) + ': do ': 'Do ') + parts.join(', then '))
 }
 
 function play(){
@@ -1527,7 +1545,7 @@ function show_ans(){
         var path = input_path(game.board, step.piece, step.cells) || []
         // the inputs are written out only with the "Show the inputs" option
         var name = spin_name(step.spin), inputs = Config.answer_inputs
-        var say = text => { document.getElementById('spin_message').textContent = text }
+        var say = text => set_spin_text(document.getElementById('spin_message'), text)
         later(700, () => {
             game.tetramino = step.piece
             game.x = 4; game.y = 18; game.orientation = 0

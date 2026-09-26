@@ -533,6 +533,10 @@ body.tc-swap #tcc { grid-template-areas: ". dr . . . . hd ." "h cc c . . l d r";
     font-weight: bold;
     text-align: center;
 }
+/* "X-Spin Double" in its piece's colour (allspin.js) */
+.spin-name {
+    font-weight: bold;
+}
 #spin_message.flash {
     animation: spin-flash 1.2s ease-out;
 }
