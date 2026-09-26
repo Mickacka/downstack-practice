@@ -1017,9 +1017,51 @@ function detect_win(){
     }
 }
 
+// The fewest inputs from spawn to a resting placement covering exactly `target`:
+// [{move, x, y, orientation}], or null. Moves are the player's: left, right, soft
+// drop to the bottom, and the three rotations (180 with the simple kicks, which
+// work whatever the 180 setting).
+const MOVE_LABELS = {L: '←', R: '→', D: '↓', CW: '↻', CCW: '↺', '180': '180'}
+function input_path(board, piece, target){
+    var want = target.map(c => c.join()).sort().join('|')
+    var g = new Game()
+    g.board = board
+    g.tetramino = piece
+    g.x = 4; g.y = 18; g.orientation = 0
+    if (g.is_collide()) return null
+    var key = (x, y, o) => x + ',' + y + ',' + o
+    var moves = [['L', () => g.move_left()], ['R', () => g.move_right()],
+                 ['D', () => { var y = g.y; g.drop(); return g.y != y }],
+                 ['CW', () => g.rotate_clockwise()], ['CCW', () => g.rotate_anticlockwise()],
+                 ['180', () => g.rotate_180('simple')]]
+    var came = new Map([[key(4, 18, 0), null]])
+    var queue = [[4, 18, 0]]
+    for (var head=0; head<queue.length; head++){
+        var [x, y, o] = queue[head]
+        for (var [name, move] of moves){
+            g.x = x; g.y = y; g.orientation = o
+            if (!move()) continue
+            var k = key(g.x, g.y, g.orientation)
+            if (came.has(k)) continue
+            came.set(k, {from: key(x, y, o), move: name, x: g.x, y: g.y, orientation: g.orientation})
+            queue.push([g.x, g.y, g.orientation])
+            g.y -= 1
+            var rests = g.is_collide()
+            g.y += 1
+            if (rests && g.to_shape().map(c => c.join()).sort().join('|') == want){
+                var path = [], step = came.get(k)
+                while (step){ path.unshift(step); step = came.get(step.from) }
+                return path
+            }
+        }
+    }
+    return null
+}
+
 // Show Answer: replay the solution from the starting board, one build piece at a
-// time in the order you place them, then the spin piece in its slot (and its lines
-// clearing before the next setup)
+// time in the order you place them; each spin piece is moved in from spawn with its
+// inputs written out (how it gets into the slot), then its lines clear before the
+// next setup
 var answer_timers = []
 function stop_answer(){
     answer_timers.forEach(clearTimeout)
@@ -1038,29 +1080,53 @@ function show_ans(){
         for (var p of [...spin.build].reverse()) steps.push(p)
         steps.push({piece: spin.piece, cells: spin.cells, spin: spin})
     }
+    var later = (delay, action) => answer_timers.push(setTimeout(action, delay))
+    var place = step => { for (var [col, row] of step.cells) game.board[row][col] = step.piece }
     var clear_lines = () => {
         var rows = game.board.filter(row => row.some(c => c == 'N'))
         while (rows.length < 20) rows.push(Array(10).fill('N'))
         game.board = rows
     }
-    var time = 0
-    steps.forEach(step => {
-        time += 700
-        answer_timers.push(setTimeout(() => {
-            for (var [col, row] of step.cells) game.board[row][col] = step.piece
-            render()
-            if (step.spin) show_spin_message(`${spin_name(step.spin)} here`)
-        }, time))
-        if (step.spin){
-            time += 1200
-            answer_timers.push(setTimeout(() => { clear_lines(); render() }, time))
+    var next = 0
+    var run = () => {
+        if (next == steps.length){
+            later(1500, () => {
+                stop_answer()
+                retry()
+                document.getElementById('spin_message').textContent = ''
+            })
+            return
         }
-    })
-    answer_timers.push(setTimeout(() => {
-        stop_answer()
-        retry()
-        document.getElementById('spin_message').textContent = ''
-    }, time + 1200))
+        var step = steps[next++]
+        if (!step.spin){
+            later(600, () => { place(step); render(); run() })
+            return
+        }
+        // the spin piece: its inputs one by one, then the lines clear
+        var path = input_path(game.board, step.piece, step.cells) || []
+        var name = spin_name(step.spin) + ': '
+        later(700, () => {
+            game.tetramino = step.piece
+            game.x = 4; game.y = 18; game.orientation = 0
+            render()
+            show_spin_message(name + 'from spawn')
+        })
+        var done = []
+        path.forEach((move, i) => later(700 + 450 * (i + 1), () => {
+            game.x = move.x; game.y = move.y; game.orientation = move.orientation
+            done.push(MOVE_LABELS[move.move])
+            render()
+            document.getElementById('spin_message').textContent = name + done.join(' ')
+        }))
+        later(700 + 450 * path.length + 700, () => {
+            game.tetramino = 'G'
+            place(step)
+            render()
+            document.getElementById('spin_message').textContent = name + done.join(' ') + '  ✓'
+        })
+        later(700 + 450 * path.length + 1900, () => { clear_lines(); render(); run() })
+    }
+    run()
 }
 
 /*
