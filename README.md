@@ -44,6 +44,7 @@ The full guide, including how maps are generated and checked, is in [ALLSPIN.md]
 - Only the requested spins count, in order: the right piece, a real spin, and the right number of lines (e.g. an S-Spin **Double**, then a T-Spin **Double**). The goal ticks off each one as you do it; if you miss, the page says why.
 - **Show Hint** has 3 steps, one more each press: the rows of the next spin, then the setup to build, then the slot.
 - **Review after a miss** (option, on by default): your board stays, with the planned setup dashed over it and the slot marked, until you tap or press a key.
+- **Next pieces shown** (option): 1 to 5, to plan with less of the queue in sight.
 - **Focus on my weak spins** (option): spins you miss more come up more; the Progress page shows your results per spin.
 - **Find the slot first** (option): a vision drill. Before each new map or part, tap the 4 cells where the first spin piece will end; the slot is then shown and your score is kept.
 - **Show Answer** replays the solution one piece at a time, in build order; each spin piece is moved in from spawn, so you see how it gets into the slot (the option *Show Answer: write the inputs* also writes them out: ← → ↓ ↻ ↺ 180).

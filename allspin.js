@@ -2,7 +2,7 @@ var game = new Game();
 var Config = {'das':100, 'arr':0, 'delay':0, 'pressing_left':false, 'pressing_right': false, 'pressing_down': false, 'pressing':{},
 'unqiue_ind':true, 'auto_next_ind':true,
 'spin_pieces':'SZLJIT',
-'mode':'allspin', 'no_of_piece':5, 'spins':2, 'continuous':false, 'answer_inputs':false, 'find_slot':false, 'review':true, 'focus_weak':false,
+'mode':'allspin', 'no_of_piece':5, 'spins':2, 'continuous':false, 'answer_inputs':false, 'find_slot':false, 'review':true, 'focus_weak':false, 'preview':5,
 'no_of_trial':0, 'no_of_success':0}
 
 
@@ -26,6 +26,8 @@ function load_gamemode(){
         Config.find_slot = localStorage.getItem('allspin_find_slot') == 'on'
         Config.review = localStorage.getItem('allspin_review') != 'off'
         Config.focus_weak = localStorage.getItem('allspin_focus_weak') == 'on'
+        var preview = parseInt(localStorage.getItem('allspin_preview'))
+        if (preview >= 1 && preview <= 5) Config.preview = preview
     }
     catch(err){}
     document.getElementById('input13').value = Config.no_of_piece
@@ -35,6 +37,8 @@ function load_gamemode(){
     document.getElementById('find_slot').checked = Config.find_slot
     document.getElementById('review').checked = Config.review
     document.getElementById('focus_weak').checked = Config.focus_weak
+    document.getElementById('preview').value = Config.preview
+    Controls.preview = Config.preview
     document.getElementById('input16').checked = Config.unqiue_ind
     for (var piece of 'SZLJIT'){
         document.getElementById('spin_'+piece).checked = Config.spin_pieces.includes(piece)
@@ -54,6 +58,9 @@ function save_gamemode(){
     Config.find_slot = document.getElementById('find_slot').checked
     Config.review = document.getElementById('review').checked
     Config.focus_weak = document.getElementById('focus_weak').checked
+    Config.preview = parseInt(document.getElementById('preview').value) || 5
+    Controls.preview = Config.preview
+    render()
     if (Record.spins.length) update_goal()
     var pieces = [...'SZLJIT'].filter(piece => document.getElementById('spin_'+piece).checked).join('')
     if (pieces == ''){
@@ -71,6 +78,7 @@ function save_gamemode(){
         localStorage.setItem('allspin_find_slot', Config.find_slot? 'on': 'off')
         localStorage.setItem('allspin_review', Config.review? 'on': 'off')
         localStorage.setItem('allspin_focus_weak', Config.focus_weak? 'on': 'off')
+        localStorage.setItem('allspin_preview', Config.preview)
     }
     catch(err){}
 }
@@ -351,7 +359,7 @@ document.getElementById('board').addEventListener('pointerdown', e => {
 })
 Controls.bind_options = () => {
     document.getElementById('input13').oninput = e=>{save_gamemode()}
-    for (var id of ['spins', 'continuous', 'answer_inputs', 'find_slot', 'review', 'focus_weak', 'input16', 'spin_S', 'spin_Z', 'spin_L', 'spin_J', 'spin_I', 'spin_T']){
+    for (var id of ['spins', 'continuous', 'answer_inputs', 'find_slot', 'review', 'focus_weak', 'preview', 'input16', 'spin_S', 'spin_Z', 'spin_L', 'spin_J', 'spin_I', 'spin_T']){
         document.getElementById(id).onchange = e=>{save_gamemode()}
     }
 }

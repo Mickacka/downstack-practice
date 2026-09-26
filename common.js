@@ -109,6 +109,17 @@ function render(){
     ctx.strokeStyle = 'grey';
     ctx.strokeRect(offset_x,offset_y,100,410);
     for (var piece_idx=1; piece_idx<6; piece_idx++){
+        // (a page can show fewer next pieces: the rest are hidden)
+        if (piece_idx > Controls.preview){
+            if (game.bag[piece_idx] && game.bag[piece_idx] != 'G'){
+                ctx.fillStyle = '#555'
+                ctx.font = 'bold 36px Arial'
+                ctx.textAlign = 'center'
+                ctx.fillText('?', offset_x + 50, (piece_idx-1)*80 + offset_y + 52)
+                ctx.textAlign = 'left'
+            }
+            continue
+        }
         ctx.fillStyle = color_table[game.bag[piece_idx]]
         for (var [col, row] of game.to_shape(game.bag[piece_idx])){
             var piece_offset = 'IO'.includes(game.bag[piece_idx])? 10: 20;
@@ -299,6 +310,7 @@ var Controls = {
     can_play: () => true,
     can_undo: true,                  // false: no Undo (the timed challenge)
     bind_options: () => {},          // hook up the page's own options panel
+    preview: 5,                      // next pieces shown (1 to 5)
     draw_overlay: null,              // (ctx, x, y): draw over the board, whose top-left cell is at x, y
 }
 
