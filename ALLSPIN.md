@@ -34,7 +34,7 @@ The requested spin only counts if it is **the right piece**, **a real spin**, an
 - *"S-Spin, but it cleared no lines"*
 - *"That was an S-Spin Single, not a Double"*
 
-The attempt is judged when the queue is used up: every requested spin done means ✓, otherwise ✗ and the map restarts.
+The map is won as soon as every requested spin is done (pieces left in the queue aren't needed); if the queue runs out first, it's ✗ and the map restarts.
 
 ### 1.1 Continuous mode (option)
 
@@ -47,11 +47,12 @@ With **Continuous** on, the game goes on in parts:
    - the same pieces stay, and your pieces count as solid, so new stack may go on top of them;
    - the well is found again on the current board (a 3-6 wide window around the deepest column, preferably no higher than the columns on each side);
    - **garbage** rises from the bottom, as many rows as the part cleared (up to 8 rows of stack), with the holes lined up under the columns that are empty all the way down (the well's open shaft), so no hole is ever covered;
-   - the new part must keep the board at 12 rows or lower.
-3. If you miss a part, it restarts from its own start: the **checkpoint** (your earlier pieces included). Undo works within a part.
-4. If nothing fits your board (within about 1.5 s), the game goes on with a **new board** ("Part N · new board").
+   - the new part must keep the board at 12 rows or lower;
+   - **look-ahead**: a part is only kept if the board its planned solution leaves still has a next part (so if you build as planned, the game can go on). The first part of a map is chosen the same way.
+3. A part is done as soon as its last spin lands; the next one starts right away (pieces left over are dropped). If you miss a part, it restarts from its own start: the **checkpoint** (your earlier pieces included). Undo works within a part.
+4. If nothing fits your board (within about 1.5-2.5 s), the game goes on with a **new board** ("Part N · new board"). On a board the look-ahead can't plan past, a part without it is tried first.
 
-The goal shows *Part N: do …*. In testing, playing the planned solutions, all 16 parts in a row were won, and about half the checkpoints went on with a new board. Continuous mode is off in the daily puzzle.
+The goal shows *Part N: do …*. In testing (5 pieces per spin, playing the planned solutions), about 1 checkpoint in 4 went on with a new board, and the pause between parts was about 2 s. Continuous mode is off in the daily puzzle.
 
 ### Options (right panel, saved in the browser)
 

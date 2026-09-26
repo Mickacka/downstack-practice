@@ -333,7 +333,9 @@ function try_spin_setup(piece, n_build, side){
 // every other empty cell of its rows is filled by the build, and the walls go up
 // to match. A gap left under those rows (the way into the first slot, down to the
 // garbage hole) must be open above them too, so the well is clean at the end.
-function try_second_setup(R, left, right, piece, n_build){
+// `pockets`: cells shut in under the slot may become stack (only when planning from
+// the board in play, where the start check still rejects stack over empty cells)
+function try_second_setup(R, left, right, piece, n_build, pockets){
     var {orientation, xs, ys, width: slot_width} = slot_shape(piece)
     if (slot_width + (piece == 'T'? 2: 0) > right - left + 1) return null
     var slot_left = left + random_int(right - left - slot_width + 2)
@@ -368,6 +370,7 @@ function try_second_setup(R, left, right, piece, n_build){
             }
             else if (row >= bottom && !slot.some(c => c[0] == col && c[1] == row)) b[row][col] = 'B'
         }
+    if (pockets) fill_pockets(b, top)
     return finish_setup({b: b, piece: piece, orientation: orientation, x: x, y: y, slot: slot,
         top: top, bottom: bottom, left: left, right: right, dig: false, must_open: must_open, side: true}, n_build)
 }
@@ -709,25 +712,30 @@ function slot_pose(setup){
 // well is clean after the last spin. (The later setups' taller stack must not get
 // in the way of the earlier ones.)
 function chain_works(start, chain){
+    return chain_end(start, chain) != null
+}
+
+// The board once the whole solution is played, or null if it doesn't work out
+function chain_end(start, chain){
     // a chain planned from the board in play (continuous mode) starts from it as it
     // is; otherwise only the stack is there at the start
     var b = chain[0].base? clone(start): start.map(row => row.map(c => c == 'G'? 'G': 'N'))
     for (var setup of chain){
         if (setup.base) continue
         for (var {piece, cells} of [...setup.build].reverse()){
-            if (!can_reach(b, piece, cells)) return false
+            if (!can_reach(b, piece, cells)) return null
             for (var [col, row] of cells) b[row][col] = piece
         }
         var pose = slot_pose(setup)
-        if (!pose || !is_spin_slot(b, setup.piece, pose[0], pose[1], pose[2], setup.cells)) return false
+        if (!pose || !is_spin_slot(b, setup.piece, pose[0], pose[1], pose[2], setup.cells)) return null
         for (var [col, row] of setup.cells) b[row][col] = setup.piece
         var rows = b.filter(row => row.some(c => c == 'N'))
-        if (20 - rows.length != setup.lines) return false
+        if (20 - rows.length != setup.lines) return null
         while (rows.length < 20) rows.push(Array(10).fill('N'))
         b = rows
     }
     var last = chain[chain.length-1]
-    return is_clean(b, last.left, last.right)
+    return is_clean(b, last.left, last.right)? b: null
 }
 
 // One more setup on what the chain leaves, or null if nothing fits in time
@@ -740,7 +748,7 @@ function next_setup(chain, n_build){
         Record.spin_piece = piece
         Record.deadline = budget_clock() + 100
         var sizes = [n_build, n_build, n_build+1, n_build-1].filter(n => n >= 1 && n <= 6)
-        var setup = try_second_setup(R, prev.left, prev.right, piece, sizes[random_int(sizes.length)])
+        var setup = try_second_setup(R, prev.left, prev.right, piece, sizes[random_int(sizes.length)], chain[0].base)
         if (!setup) continue
         var longer = chain.concat([setup])
         var start = chain_start(longer)
@@ -770,6 +778,14 @@ function play_a_map(){
     for (var k=Config.spins-1; k>=1 && !result; k--)
         for (var attempt=0; attempt<10 && !result; attempt++) result = chain_setup(k, n_build)
     while (!result) result = chain_setup(1, n_build)
+    // continuous mode: prefer a first part whose end board has a next part
+    if (Config.continuous)
+        for (var attempt=0; attempt<6; attempt++){
+            var end = chain_end(result.start, result.chain)
+            if (end && has_next(end, lines_of(result.chain), n_build)) break
+            var other = chain_setup(Config.spins, n_build)
+            if (other) result = other
+        }
     Record.well = [result.chain[0].left, result.chain[0].right]
     Record.part = 1
     set_plan(result.chain, result.start, false)
@@ -822,7 +838,20 @@ function well_candidates(board){
     return walled.length? walled: found
 }
 
-function plan_from(board, k, n_build){
+// Can a next part be planned on the board a plan leaves (after its garbage)? A plan
+// that leads to a dead end would mean a new board at the next checkpoint.
+function has_next(end, cleared, n_build){
+    var next = add_garbage(clone(end), cleared).board
+    for (var i=0; i<2; i++) if (plan_from(next, 1, n_build, false)) return true
+    return false
+}
+
+function lines_of(chain){
+    return chain.reduce((a, s) => a + (s.lines || 0), 0)
+}
+
+// lookahead: only keep a plan if the board it leaves still has a next part
+function plan_from(board, k, n_build, lookahead){
     // the pieces already on the board are there for good: to the planner they are
     // stack like the rest (new stack may go on top of them)
     var solid = board.map(row => row.map(c => c == 'N'? 'N': 'G'))
@@ -838,6 +867,10 @@ function plan_from(board, k, n_build){
     }
     // keep the board low enough to go on: at most 12 rows at the start of a part
     for (var row=12; row<20; row++) if (result.start[row].some(c => c != 'N')) return null
+    if (lookahead){
+        var end = chain_end(result.start, result.chain)
+        if (!end || !has_next(end, lines_of(result.chain), n_build)) return null
+    }
     // the real board, pieces keeping their colours, plus the new stack
     var start = clone(board)
     for (var row=0; row<20; row++)
@@ -871,7 +904,9 @@ function next_part(){
     // about 1.5 s at most before settling for a fresh map
     var give_up = budget_clock() + 1500
     for (var k=Config.spins; k>=1 && !plan; k--)
-        while (!plan && budget_clock() < give_up - (k - 1) * 400) plan = plan_from(garbage.board, k, n_build)
+        while (!plan && budget_clock() < give_up - (k - 1) * 400) plan = plan_from(garbage.board, k, n_build, true)
+    // a plan without the look-ahead rather than a new board
+    while (!plan && budget_clock() < give_up + 800) plan = plan_from(garbage.board, 1, n_build, false)
     if (!plan){
         // nothing fits on this board any more: go on with a fresh board
         var part = Record.part + 1
@@ -929,6 +964,7 @@ function play(){
     game = new Game()
     Record.done_spins = 0
     Record.miss = null
+    Record.solved = false
     // a new attempt starts without the hint
     Record.hint = false
     hint_label()
@@ -953,22 +989,31 @@ function play(){
 function detect_win(){
     if (game.total_piece == 1){
         Config.no_of_trial += 1}
-    if (game.total_piece == Record.shuffled_queue.length){
-        if (Record.done_spins == Record.spins.length){
-            Config.no_of_success += 1
-            if (Config.continuous){
-                report_result(true, 'Part ' + Record.part + ' done')
-                next_part()
-                return
-            }
-            report_result(true, 'Solved!')
-            if (Config.auto_next_ind) play_a_map()
+    if (Record.solved) return
+    // done as soon as every requested spin is: pieces left in the queue aren't needed
+    if (Record.done_spins == Record.spins.length){
+        Record.solved = true
+        Config.no_of_success += 1
+        if (Config.continuous){
+            report_result(true, 'Part ' + Record.part + ' done')
+            next_part()
+            return
         }
+        report_result(true, 'Solved!')
+        if (Config.auto_next_ind) play_a_map()
         else{
-            var why = Record.miss || `No ${spin_name(Record.spins[Record.done_spins])}`
-            report_result(false, why)
-            retry()
+            // nothing left to place
+            game.bag = game.bag.map(() => 'G')
+            game.tetramino = 'G'
+            game.holdmino = ''
+            render()
         }
+        return
+    }
+    if (game.total_piece == Record.shuffled_queue.length){
+        var why = Record.miss || `No ${spin_name(Record.spins[Record.done_spins])}`
+        report_result(false, why)
+        retry()
     }
 }
 
