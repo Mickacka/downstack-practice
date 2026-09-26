@@ -66,6 +66,7 @@ The goal shows *Part N: do …*. In testing (5 pieces per spin, playing the plan
 
 ### Tools
 
+- **Review my board after a miss** (option, on by default): when a map is missed, the board stays as you left it, with the planned setup for the missed spin over it: its pieces dashed in their colours where you left a gap, and the slot outlined in the spin piece's colour, with a red cross where you put a piece in it (it had to stay empty). Any key or tap on the board goes on to the retry. Not in a rush, where a miss moves on.
 - **Find the slot first** (option, a vision drill): before each new map (and each new part in continuous mode), tap the 4 cells where the first spin piece will end, before any piece is placed, so you have to picture the finished setup. After the 4th cell the slot is shown: your right cells in green, wrong ones crossed in red. Then you play. Tapping a picked cell again unpicks it; Show Hint gives up (not counted). Your score ("found 7/10") is kept in the browser. A retry of the same map doesn't ask again.
 - **Show Hint** gives hints for the next spin, one more each press, so you take only as much help as you need:
   1. the rows the spin piece ends in (a dashed band);
@@ -370,6 +371,7 @@ The last result should be `won: 20` and no `failed` entries. The latest run (1-4
 | `play`, `detect_win`, `update_goal`, `spin_name` | Starting a map, judging it, the goal text |
 | `show_ans`, `stop_answer`, `input_path` | Show Answer replay; the fewest inputs from spawn to a placement (for the spin pieces) |
 | `toggle_hint`, `Controls.draw_overlay` | Show Hint: the next slot outlined over the board |
+| `start_review`, `draw_review`, `end_review` | Review after a miss |
 | `start_finding`, `pick_cell`, `reveal_slot`, `draw_finding` | Find the slot (vision drill) |
 
 Shared pieces live in `common.js`: result flash and stats, undo, share links, daily seeding and `budget_clock`, rush, finesse, and the touch controls.

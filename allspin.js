@@ -2,7 +2,7 @@ var game = new Game();
 var Config = {'das':100, 'arr':0, 'delay':0, 'pressing_left':false, 'pressing_right': false, 'pressing_down': false, 'pressing':{},
 'unqiue_ind':true, 'auto_next_ind':true,
 'spin_pieces':'SZLJIT',
-'mode':'allspin', 'no_of_piece':5, 'spins':2, 'continuous':false, 'answer_inputs':false, 'find_slot':false,
+'mode':'allspin', 'no_of_piece':5, 'spins':2, 'continuous':false, 'answer_inputs':false, 'find_slot':false, 'review':true,
 'no_of_trial':0, 'no_of_success':0}
 
 
@@ -24,6 +24,7 @@ function load_gamemode(){
         Config.continuous = localStorage.getItem('allspin_continuous') == 'on'
         Config.answer_inputs = localStorage.getItem('allspin_answer_inputs') == 'on'
         Config.find_slot = localStorage.getItem('allspin_find_slot') == 'on'
+        Config.review = localStorage.getItem('allspin_review') != 'off'
     }
     catch(err){}
     document.getElementById('input13').value = Config.no_of_piece
@@ -31,6 +32,7 @@ function load_gamemode(){
     document.getElementById('continuous').checked = Config.continuous
     document.getElementById('answer_inputs').checked = Config.answer_inputs
     document.getElementById('find_slot').checked = Config.find_slot
+    document.getElementById('review').checked = Config.review
     document.getElementById('input16').checked = Config.unqiue_ind
     for (var piece of 'SZLJIT'){
         document.getElementById('spin_'+piece).checked = Config.spin_pieces.includes(piece)
@@ -48,6 +50,7 @@ function save_gamemode(){
     Config.continuous = document.getElementById('continuous').checked
     Config.answer_inputs = document.getElementById('answer_inputs').checked
     Config.find_slot = document.getElementById('find_slot').checked
+    Config.review = document.getElementById('review').checked
     if (Record.spins.length) update_goal()
     var pieces = [...'SZLJIT'].filter(piece => document.getElementById('spin_'+piece).checked).join('')
     if (pieces == ''){
@@ -63,6 +66,7 @@ function save_gamemode(){
         localStorage.setItem('allspin_continuous', Config.continuous? 'on': 'off')
         localStorage.setItem('allspin_answer_inputs', Config.answer_inputs? 'on': 'off')
         localStorage.setItem('allspin_find_slot', Config.find_slot? 'on': 'off')
+        localStorage.setItem('allspin_review', Config.review? 'on': 'off')
     }
     catch(err){}
 }
@@ -126,6 +130,7 @@ const HINT_TEXT = ['', 'Hint 1/3: the spin is in these rows', 'Hint 2/3: the set
     'Hint 3/3: the slot']
 Controls.draw_overlay = (ctx, x, y) => {
     if (Record.finding) draw_finding(ctx, x, y)
+    if (Record.review) draw_review(ctx, x, y)
     var spin = Record.hint && Record.spins[Record.done_spins]
     if (!spin || Record.showing) return
     ctx.save()
@@ -178,7 +183,73 @@ function hint_label(){
     if (button) button.textContent = ['Show Hint', 'More Hint', 'More Hint', 'Hide Hint'][Record.hint || 0]
     if (button && typeof set_short_label == 'function') set_short_label(button)
 }
-Controls.can_play = () => !Record.showing && !Record.finding
+Controls.can_play = () => !Record.showing && !Record.finding && !Record.review
+
+/*
+Review after a miss (option, on by default): the board stays as you left it, with
+the planned setup for the missed spin over it: its pieces, dashed, where you left a
+gap; a cross where you put a piece in the slot, which had to stay empty. Any key or
+tap goes on to the retry.
+*/
+function start_review(why){
+    Record.review = {spin: Record.spins[Record.done_spins]}
+    game.tetramino = 'G'   // no falling piece over the review
+    render()
+    show_spin_message(why + ' · Review: dashed = the planned setup, ✗ = the slot, keep it empty. Tap or press a key to retry')
+}
+
+var review_ended = 0
+function end_review(){
+    if (!Record.review) return
+    Record.review = null
+    review_ended = performance.now()
+    document.getElementById('spin_message').textContent = ''
+    retry()
+}
+
+function draw_review(ctx, x, y){
+    var spin = Record.review.spin
+    ctx.save()
+    ctx.lineWidth = 3
+    ctx.setLineDash([5, 4])
+    for (var p of spin.build){
+        ctx.strokeStyle = color_table[p.piece]
+        for (var [col, row] of p.cells)
+            if (game.board[row][col] == 'N') ctx.strokeRect(col*30 + x + 3, (19-row)*30 + y + 3, 24, 24)
+    }
+    ctx.setLineDash([])
+    for (var [col, row] of spin.cells){
+        var cx = col*30 + x, cy = (19-row)*30 + y
+        ctx.strokeStyle = color_table[spin.piece]
+        ctx.lineWidth = 2
+        ctx.strokeRect(cx + 1, cy + 1, 28, 28)
+        if (game.board[row][col] != 'N'){
+            ctx.strokeStyle = '#e33'
+            ctx.lineWidth = 3
+            ctx.beginPath()
+            ctx.moveTo(cx + 7, cy + 7); ctx.lineTo(cx + 23, cy + 23)
+            ctx.moveTo(cx + 23, cy + 7); ctx.lineTo(cx + 7, cy + 23)
+            ctx.stroke()
+        }
+    }
+    ctx.restore()
+}
+
+// the first key or tap ends the review (and does nothing else)
+document.addEventListener('keydown', e => {
+    if (!Record.review || is_typing()) return
+    e.preventDefault(); e.stopImmediatePropagation()
+    end_review()
+}, true)
+// (the touch that ended it doesn't also press a touch button)
+document.addEventListener('touchstart', e => {
+    if (performance.now() - review_ended < 400 && e.target.closest('#tcc')) e.stopImmediatePropagation()
+}, true)
+document.addEventListener('pointerdown', e => {
+    if (!Record.review || e.target.closest('button, input, select, a, #rightpanel')) return
+    e.preventDefault(); e.stopImmediatePropagation()
+    end_review()
+}, true)
 
 /*
 Find the slot (vision drill, option): before playing a new map or part, tap the 4
@@ -276,7 +347,7 @@ document.getElementById('board').addEventListener('pointerdown', e => {
 })
 Controls.bind_options = () => {
     document.getElementById('input13').oninput = e=>{save_gamemode()}
-    for (var id of ['spins', 'continuous', 'answer_inputs', 'find_slot', 'input16', 'spin_S', 'spin_Z', 'spin_L', 'spin_J', 'spin_I', 'spin_T']){
+    for (var id of ['spins', 'continuous', 'answer_inputs', 'find_slot', 'review', 'input16', 'spin_S', 'spin_Z', 'spin_L', 'spin_J', 'spin_I', 'spin_T']){
         document.getElementById(id).onchange = e=>{save_gamemode()}
     }
 }
@@ -1108,6 +1179,7 @@ function play(){
     game.holdmino = ''
     game.hold()
     Record.finding = null
+    Record.review = null
     // a one-piece queue would otherwise start with the piece stuck in hold
     if (game.tetramino == 'G') game.hold()
     if (Record.board.length > 0){
@@ -1152,7 +1224,9 @@ function detect_win(){
     if (game.total_piece == Record.shuffled_queue.length){
         var why = Record.miss || `No ${spin_name(Record.spins[Record.done_spins])}`
         report_result(false, why)
-        retry()
+        // (not in a rush: a miss moves on to the next puzzle)
+        if (Config.review && !rush.on && Record.spins[Record.done_spins]) start_review(why)
+        else retry()
     }
 }
 
