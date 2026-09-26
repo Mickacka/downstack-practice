@@ -2,7 +2,7 @@ var game = new Game();
 var Config = {'das':100, 'arr':0, 'delay':0, 'pressing_left':false, 'pressing_right': false, 'pressing_down': false, 'pressing':{},
 'unqiue_ind':true, 'auto_next_ind':true,
 'spin_pieces':'SZLJIT',
-'mode':'allspin', 'no_of_piece':5, 'spins':2, 'continuous':false,
+'mode':'allspin', 'no_of_piece':5, 'spins':2, 'continuous':false, 'answer_inputs':false,
 'no_of_trial':0, 'no_of_success':0}
 
 
@@ -22,11 +22,13 @@ function load_gamemode(){
         var spins = parseInt(localStorage.getItem('allspin_spins'))
         if (spins >= 1 && spins <= 4) Config.spins = spins
         Config.continuous = localStorage.getItem('allspin_continuous') == 'on'
+        Config.answer_inputs = localStorage.getItem('allspin_answer_inputs') == 'on'
     }
     catch(err){}
     document.getElementById('input13').value = Config.no_of_piece
     document.getElementById('spins').value = Config.spins
     document.getElementById('continuous').checked = Config.continuous
+    document.getElementById('answer_inputs').checked = Config.answer_inputs
     document.getElementById('input16').checked = Config.unqiue_ind
     for (var piece of 'SZLJIT'){
         document.getElementById('spin_'+piece).checked = Config.spin_pieces.includes(piece)
@@ -42,6 +44,7 @@ function save_gamemode(){
     Config.unqiue_ind = document.getElementById('input16').checked
     Config.spins = Math.max(1, Math.min(4, parseInt(document.getElementById('spins').value) || 2))
     Config.continuous = document.getElementById('continuous').checked
+    Config.answer_inputs = document.getElementById('answer_inputs').checked
     if (Record.spins.length) update_goal()
     var pieces = [...'SZLJIT'].filter(piece => document.getElementById('spin_'+piece).checked).join('')
     if (pieces == ''){
@@ -55,6 +58,7 @@ function save_gamemode(){
         localStorage.setItem('allspin_no_of_piece', Config.no_of_piece)
         localStorage.setItem('allspin_spins', Config.spins)
         localStorage.setItem('allspin_continuous', Config.continuous? 'on': 'off')
+        localStorage.setItem('allspin_answer_inputs', Config.answer_inputs? 'on': 'off')
     }
     catch(err){}
 }
@@ -141,7 +145,7 @@ function hint_label(){
 Controls.can_play = () => !Record.showing
 Controls.bind_options = () => {
     document.getElementById('input13').oninput = e=>{save_gamemode()}
-    for (var id of ['spins', 'continuous', 'input16', 'spin_S', 'spin_Z', 'spin_L', 'spin_J', 'spin_I', 'spin_T']){
+    for (var id of ['spins', 'continuous', 'answer_inputs', 'input16', 'spin_S', 'spin_Z', 'spin_L', 'spin_J', 'spin_I', 'spin_T']){
         document.getElementById(id).onchange = e=>{save_gamemode()}
     }
 }
@@ -1104,25 +1108,27 @@ function show_ans(){
         }
         // the spin piece: its inputs one by one, then the lines clear
         var path = input_path(game.board, step.piece, step.cells) || []
-        var name = spin_name(step.spin) + ': '
+        // the inputs are written out only with the "Show the inputs" option
+        var name = spin_name(step.spin), inputs = Config.answer_inputs
+        var say = text => { document.getElementById('spin_message').textContent = text }
         later(700, () => {
             game.tetramino = step.piece
             game.x = 4; game.y = 18; game.orientation = 0
             render()
-            show_spin_message(name + 'from spawn')
+            show_spin_message(inputs? name + ': from spawn': name)
         })
         var done = []
         path.forEach((move, i) => later(700 + 450 * (i + 1), () => {
             game.x = move.x; game.y = move.y; game.orientation = move.orientation
             done.push(MOVE_LABELS[move.move])
             render()
-            document.getElementById('spin_message').textContent = name + done.join(' ')
+            if (inputs) say(name + ': ' + done.join(' '))
         }))
         later(700 + 450 * path.length + 700, () => {
             game.tetramino = 'G'
             place(step)
             render()
-            document.getElementById('spin_message').textContent = name + done.join(' ') + '  ✓'
+            say((inputs? name + ': ' + done.join(' '): name) + '  ✓')
         })
         later(700 + 450 * path.length + 1900, () => { clear_lines(); render(); run() })
     }

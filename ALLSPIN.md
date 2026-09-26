@@ -67,7 +67,7 @@ The goal shows *Part N: do …*. In testing (5 pieces per spin, playing the plan
 ### Tools
 
 - **Show Hint** outlines the slot of the next spin (where the spin piece has to end up), in the spin piece's colour, and leaves the build to you. Press again to hide it; it turns off when the map restarts.
-- **Show Answer** replays the solution one piece at a time, in placement order. Each spin piece is then moved in from spawn with the fewest inputs, written out as they happen (e.g. *T-Spin Double: ← ← ← ↺ ↓ ↺*), so you see how it gets into the slot, and its lines clear before the next setup.
+- **Show Answer** replays the solution one piece at a time, in placement order. Each spin piece is then moved in from spawn with the fewest inputs, so you see how it gets into the slot, and its lines clear before the next setup. With the option *Show Answer: write the inputs* (off by default), the inputs are also written out as they happen (e.g. *T-Spin Double: ← ← ← ↺ ↓ ↺*).
 - **Undo** (U) takes back a piece, **Retry** restarts the map, and **Copy link** copies a link to this exact map.
 - **Daily** plays today's map, the same for everyone (see section 5). **Rush (3 min)** gives you as many maps as you can solve in 3 minutes.
 - Settings shared with every page: keys, DAS/ARR, finesse feedback, 180° kicks, gravity, and the touch controls and their layout.
