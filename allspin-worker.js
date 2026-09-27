@@ -20,7 +20,7 @@ onmessage = e => {
     Object.assign(Config, config)
     if (stats) stored.allspin_spin_stats = stats
     draw_mix_plan()
-    // (3 times the usual search time: nobody waits for it)
-    var plan = plan_next_part(board, cleared, 3)
+    // (twice the usual search time: nobody waits for it)
+    var plan = plan_next_part(board, cleared, 2)
     postMessage({id: id, key: key, plan: plan, fresh: plan? null: new_map()})
 }

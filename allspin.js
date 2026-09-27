@@ -597,9 +597,10 @@ function try_spin_setup(piece, n_build, side){
 // every other empty cell of its rows is filled by the build, and the walls go up
 // to match. A gap left under those rows (the way into the first slot, down to the
 // garbage hole) must be open above them too, so the well is clean at the end.
-// `pockets`: cells shut in under the slot may become stack (only when planning from
-// the board in play, where the start check still rejects stack over empty cells)
-function try_second_setup(R, left, right, piece, n_build, pockets){
+// `in_play`: planned from the board in play (continuous mode). No new stack then: it
+// would appear over your pieces. The only new stack is the garbage rising from the
+// bottom; every cell to fill, even beside the well, is built by you.
+function try_second_setup(R, left, right, piece, n_build, in_play){
     var {orientation, xs, ys, width: slot_width} = slot_shape(piece)
     var single = wants_single(piece)
     // (a single fills fewer cells in its spin rows: one build piece less)
@@ -636,17 +637,16 @@ function try_second_setup(R, left, right, piece, n_build, pockets){
         for (var col=0; col<10; col++){
             if (b[row][col] != 'N') continue
             if (col < left || col > right){
-                if (row == 0 || b[row-1][col] == 'G') b[row][col] = 'G'
+                if (row == 0 || b[row-1][col] == 'G') b[row][col] = in_play? 'B': 'G'
                 else if (row >= bottom) b[row][col] = 'B'
                 else if (single) return null
                 else if (!donate.includes(col)) donate.push(col)
             }
             else if (row >= bottom && !slot.some(c => c[0] == col && c[1] == row)) b[row][col] = 'B'
         }
-    if (pockets) fill_pockets(b, top)
     return finish_setup({b: b, piece: piece, orientation: orientation, x: x, y: y, slot: slot,
         top: top, bottom: bottom, left: left, right: right, dig: false, must_open: must_open, side: true, single: single,
-        donate: donate}, n_build)
+        donate: donate, no_stack: in_play}, n_build)
 }
 
 // Height offsets of the stack outside the well, a random walk outwards from each
@@ -715,6 +715,8 @@ function finish_setup(s, n_build){
     var wall_height = (col, wall) => Math.max(col == left - 1 || col == right + 1? 1: 0, wall + bumps[col])
     var with_walls = (board, wall) => {
         var nb = clone(board)
+        // (no new stack on the board in play: the walls are what's there)
+        if (s.no_stack) return nb
         for (var col=0; col<10; col++){
             if (in_well(col)) continue
             // The stack only grows up from stack: for the second spin, where the first
@@ -749,8 +751,8 @@ function finish_setup(s, n_build){
         b = clone(b)
         b[top][gap_col] = 'N'
         // cells cut off by the gap (under it, in a narrow well) are stack, as in a
-        // T-spin single's hole
-        fill_pockets(b, top)
+        // T-spin single's hole (not on the board in play: no new stack there)
+        if (!s.no_stack) fill_pockets(b, top)
     }
 
     var spin_row_cells = b.flat().filter(c => c == 'B').length
@@ -1280,8 +1282,22 @@ function plan_next_part(board, cleared, time){
     var give_up = budget_clock() + 1500 * time
     for (var k=Config.spins; k>=1 && !plan; k--)
         while (!plan && budget_clock() < give_up - (k - 1) * 400 * time) plan = plan_from(garbage.board, k, n_build, true)
-    // a plan without the look-ahead rather than a new board
-    while (!plan && budget_clock() < give_up + 800 * time) plan = plan_from(garbage.board, 1, n_build, false)
+    // Rather than a new board, the rules are relaxed step by step: one spin without
+    // the look-ahead, then bigger setups (1 or 2 pieces more), then any spin piece
+    // and line clear, whatever the options
+    var steps = [{n: n_build}, {n: n_build + 1}, {n: n_build + 2}, {n: n_build + 1, any: true}]
+    for (var step of steps){
+        if (plan) break
+        var saved = {spin_pieces: Config.spin_pieces, clears: Config.clears}
+        if (step.any){
+            Config.spin_pieces = 'SZLJIT'
+            Config.clears = 'mix'
+            draw_mix_plan()
+        }
+        var until = budget_clock() + 400 * time
+        while (!plan && budget_clock() < until) plan = plan_from(garbage.board, 1, step.n, false)
+        Object.assign(Config, saved)
+    }
     return plan
 }
 
@@ -1397,11 +1413,12 @@ function spin_name(spin){
 }
 
 // "S-Spin → T-Spin", with the done ones ticked. The lines cleared are only named
-// with the Mix option (otherwise they're always the same: I-spins single, the others
-// as the option says).
+// with the Mix option, or when a spin isn't what the option says (a relaxed plan in
+// continuous mode); otherwise I-spins are singles and the others as the option says.
 function update_goal(){
     var parts = Record.spins.map((spin, i) => (i < Record.done_spins? '✓ ': '') +
-        (Config.clears == 'mix' && spin.piece != 'I'? spin_name(spin): spin.piece + '-Spin'))
+        (spin.piece != 'I' && (Config.clears == 'mix' || spin.lines != (Config.clears == 'single'? 1: 2))?
+            spin_name(spin): spin.piece + '-Spin'))
     set_spin_text(document.getElementById('winning_requirement1'),
         (Config.continuous? 'Part ' + (Record.part || 1) + ': ': '') + parts.join(' → '))
 }

@@ -46,16 +46,17 @@ With **Continuous** on, the game goes on in parts:
 
 1. A part is planned as usual (*Spins per map* spins, 2 by default), with its queue.
 2. When you finish it, the next part is planned **from your board as it is**, so it works whatever way you built:
-   - the same pieces stay, and your pieces count as solid, so new stack may go on top of them;
+   - the same pieces stay, and your pieces count as solid;
+   - **no new stack** is added on your board: the only new stack is the garbage rising from the bottom (pushing everything up), and every other cell of the next setups, even beside the well, is built by you (in `try_second_setup`, `in_play`: no walls, no pockets);
    - the well is found again on the current board (a 3-6 wide window around the deepest column, preferably no higher than the columns on each side);
    - **garbage** rises from the bottom, as many rows as the part cleared (up to 8 rows of stack), with the holes lined up under the columns that are empty all the way down (the well's open shaft), so no hole is ever covered;
    - the new part must keep the board at 12 rows or lower;
    - **look-ahead**: a part is only kept if the board its planned solution leaves still has a next part (so if you build as planned, the game can go on). The first part of a map is chosen the same way.
 3. A part is done as soon as its last spin lands; the next one starts right away (pieces left over are dropped). If you miss a part, it restarts from its own start: the **checkpoint** (your earlier pieces included). Undo works within a part.
-4. If nothing fits your board (within about 1.5-2.5 s, or 3 times that when planned in the background), the game goes on with a **new board** ("Part N · new board"). On a board the look-ahead can't plan past, a part without it is tried first.
+4. If nothing fits your board, the rules are **relaxed step by step** (`plan_next_part`): fewer spins, then one spin without the look-ahead, then bigger setups (1, then 2 pieces more per spin), then any spin piece and line clear whatever the options (the goal then names the lines, e.g. *L-Spin Single*). Only when all of that fails (about 3.5 s at most, twice that when planned in the background) does the game go on with a **new board** ("Part N · new board").
 5. **No pause between parts**: while you play a part, the next one is planned in the background (a Web Worker, `allspin-worker.js`) from the board the planned solution leaves. If you finish with the same cells filled (whatever pieces you used where), that plan is used at once; otherwise the next part is planned from your board then (up to about 2 s).
 
-The goal shows *Part N: …*. In testing (5 pieces per spin, playing the planned solutions), about 1 checkpoint in 4 went on with a new board before well moves and donations (3.6) and the longer background search; now about 1 in 7, and the pause between parts was about 2 s before background planning (now about 10 ms when you finish as planned). Continuous mode is off in the daily puzzle.
+The goal shows *Part N: …*. In testing (5 pieces per spin, playing the planned solutions), about 1 checkpoint in 4 went on with a new board at first; with well moves, donations (3.6) and the relaxed rules, about 1 in 20 (when the stack reaches 12 rows), and each part starts exactly from your board plus the garbage, and the pause between parts was about 2 s before background planning (now about 10 ms when you finish as planned). Continuous mode is off in the daily puzzle.
 
 ### Options (right panel, saved in the browser)
 
