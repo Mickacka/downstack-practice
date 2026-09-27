@@ -2,7 +2,7 @@ var game = new Game();
 var Config = {'das':100, 'arr':0, 'delay':0, 'pressing_left':false, 'pressing_right': false, 'pressing_down': false, 'pressing':{},
 'unqiue_ind':true, 'auto_next_ind':true,
 'spin_pieces':'SZLJIT',
-'mode':'allspin', 'no_of_piece':5, 'spins':2, 'continuous':false, 'answer_inputs':false, 'find_slot':false, 'review':true, 'focus_weak':false, 'preview':5, 'clears':'double',
+'mode':'allspin', 'no_of_piece':5, 'spins':2, 'continuous':false, 'answer_inputs':false, 'find_slot':false, 'review':true, 'focus_weak':false, 'preview':5, 'clears':'double', 'flash':0,
 'no_of_trial':0, 'no_of_success':0}
 
 
@@ -26,6 +26,8 @@ function load_gamemode(){
         Config.find_slot = localStorage.getItem('allspin_find_slot') == 'on'
         Config.review = localStorage.getItem('allspin_review') != 'off'
         Config.focus_weak = localStorage.getItem('allspin_focus_weak') == 'on'
+        var flash = parseInt(localStorage.getItem('allspin_flash'))
+        if ([1, 2, 4].includes(flash)) Config.flash = flash
         var clears = localStorage.getItem('allspin_clears')
         if (['double', 'single', 'mix'].includes(clears)) Config.clears = clears
         var preview = parseInt(localStorage.getItem('allspin_preview'))
@@ -41,6 +43,7 @@ function load_gamemode(){
     document.getElementById('focus_weak').checked = Config.focus_weak
     document.getElementById('preview').value = Config.preview
     document.getElementById('clears').value = Config.clears
+    document.getElementById('flash').value = Config.flash
     Controls.preview = Config.preview
     document.getElementById('input16').checked = Config.unqiue_ind
     for (var piece of 'SZLJIT'){
@@ -63,6 +66,7 @@ function save_gamemode(){
     Config.focus_weak = document.getElementById('focus_weak').checked
     Config.preview = parseInt(document.getElementById('preview').value) || 5
     Config.clears = document.getElementById('clears').value
+    Config.flash = parseInt(document.getElementById('flash').value) || 0
     Controls.preview = Config.preview
     render()
     if (Record.spins.length) update_goal()
@@ -84,6 +88,7 @@ function save_gamemode(){
         localStorage.setItem('allspin_focus_weak', Config.focus_weak? 'on': 'off')
         localStorage.setItem('allspin_preview', Config.preview)
         localStorage.setItem('allspin_clears', Config.clears)
+        localStorage.setItem('allspin_flash', Config.flash)
     }
     catch(err){}
 }
@@ -167,7 +172,8 @@ const HINT_TEXT = ['', 'Hint 1/3: the spin is in these rows', 'Hint 2/3: the set
     'Hint 3/3: the slot']
 Controls.draw_overlay = (ctx, x, y) => {
     if (Record.finding) draw_finding(ctx, x, y)
-    if (Record.review) draw_review(ctx, x, y)
+    if (Record.review) draw_review(ctx, x, y, Record.review.spin)
+    if (Record.flash) draw_review(ctx, x, y, Record.flash.spin)
     var spin = Record.hint && Record.spins[Record.done_spins]
     if (!spin || Record.showing) return
     ctx.save()
@@ -220,7 +226,7 @@ function hint_label(){
     if (button) button.textContent = ['Show Hint', 'More Hint', 'More Hint', 'Hide Hint'][Record.hint || 0]
     if (button && typeof set_short_label == 'function') set_short_label(button)
 }
-Controls.can_play = () => !Record.showing && !Record.finding && !Record.review
+Controls.can_play = () => !Record.showing && !Record.finding && !Record.review && !Record.flash
 
 /*
 Review after a miss (option, on by default): the board stays as you left it, with
@@ -245,8 +251,7 @@ function end_review(){
     retry()
 }
 
-function draw_review(ctx, x, y){
-    var spin = Record.review.spin
+function draw_review(ctx, x, y, spin){
     ctx.save()
     ctx.lineWidth = 3
     ctx.setLineDash([5, 4])
@@ -273,20 +278,48 @@ function draw_review(ctx, x, y){
     ctx.restore()
 }
 
-// the first key or tap ends the review (and does nothing else)
+/*
+Flash the setup (option: 1, 2 or 4 s): at the start of a new map or part, the setup
+for the first spin shows for a moment (its pieces dashed, the slot outlined), then
+you build it from memory. Once per map or part, after the Find the slot drill if
+that's on. A key or tap hides it early.
+*/
+var flash_timer = null
+function maybe_flash(){
+    if (!Config.flash || Record.showing || Record.finding || Record.flash_for === Record.spins || !Record.spins.length) return
+    Record.flash_for = Record.spins
+    Record.flash = {spin: Record.spins[0]}
+    render()
+    show_spin_message('Remember the setup')
+    clearTimeout(flash_timer)
+    flash_timer = setTimeout(end_flash, Config.flash * 1000)
+}
+
+function end_flash(){
+    clearTimeout(flash_timer)
+    if (!Record.flash) return
+    Record.flash = null
+    review_ended = performance.now()
+    document.getElementById('spin_message').textContent = ''
+    render()
+}
+
+// the first key or tap ends the review or the flash (and does nothing else)
 document.addEventListener('keydown', e => {
-    if (!Record.review || is_typing()) return
+    if (!(Record.review || Record.flash) || is_typing()) return
     e.preventDefault(); e.stopImmediatePropagation()
-    end_review()
+    if (Record.review) end_review()
+    else end_flash()
 }, true)
 // (the touch that ended it doesn't also press a touch button)
 document.addEventListener('touchstart', e => {
     if (performance.now() - review_ended < 400 && e.target.closest('#tcc')) e.stopImmediatePropagation()
 }, true)
 document.addEventListener('pointerdown', e => {
-    if (!Record.review || e.target.closest('button, input, select, a, #rightpanel')) return
+    if (!(Record.review || Record.flash) || e.target.closest('button, input, select, a, #rightpanel')) return
     e.preventDefault(); e.stopImmediatePropagation()
-    end_review()
+    if (Record.review) end_review()
+    else end_flash()
 }, true)
 
 /*
@@ -372,6 +405,7 @@ function reveal_slot(right){
         if (Record.finding != f) return
         Record.finding = null
         render()
+        maybe_flash()
     }, right == 4? 900: 2200)
 }
 
@@ -384,7 +418,7 @@ document.getElementById('board').addEventListener('pointerdown', e => {
 })
 Controls.bind_options = () => {
     document.getElementById('input13').oninput = e=>{save_gamemode()}
-    for (var id of ['spins', 'continuous', 'answer_inputs', 'find_slot', 'review', 'focus_weak', 'preview', 'clears', 'input16', 'spin_S', 'spin_Z', 'spin_L', 'spin_J', 'spin_I', 'spin_T']){
+    for (var id of ['spins', 'continuous', 'answer_inputs', 'find_slot', 'review', 'focus_weak', 'preview', 'clears', 'flash', 'input16', 'spin_S', 'spin_Z', 'spin_L', 'spin_J', 'spin_I', 'spin_T']){
         document.getElementById(id).onchange = e=>{save_gamemode()}
     }
 }
@@ -1459,6 +1493,8 @@ function play(){
     game.hold()
     Record.finding = null
     Record.review = null
+    Record.flash = null
+    clearTimeout(flash_timer)
     // a one-piece queue would otherwise start with the piece stuck in hold
     if (game.tetramino == 'G') game.hold()
     if (Record.board.length > 0){
@@ -1474,6 +1510,7 @@ function play(){
     // the vision drill, once per map or part (not again on a retry)
     if (Config.find_slot && !Record.showing && Record.find_for !== Record.spins && Record.spins.length)
         start_finding()
+    else maybe_flash()
 }
 
 function detect_win(){

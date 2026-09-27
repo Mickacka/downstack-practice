@@ -47,6 +47,7 @@ The full guide, including how maps are generated and checked, is in [ALLSPIN.md]
 - **Line clears** (option): spin Doubles, Singles (one row of the setup stays, with a gap) or a mix. See [ALLSPIN.md](ALLSPIN.md) 3.10.
 - **Next pieces shown** (option): 1 to 5, to plan with less of the queue in sight.
 - **Focus on my weak spins** (option): spins you miss more come up more; the Progress page shows your results per spin.
+- **Flash the setup** (option): the first setup shows for 1-4 s at the start, then you build it from memory.
 - **Find the slot first** (option): a vision drill. Before each new map or part, tap the 4 cells where the first spin piece will end; the slot is then shown and your score is kept.
 - **Show Answer** replays the solution one piece at a time, in build order; each spin piece is moved in from spawn, so you see how it gets into the slot (the option *Show Answer: write the inputs* also writes them out: ← → ↓ ↻ ↺ 180).
 - Options: spins per map (1 to 4), which pieces can be the spin piece, about how many pieces per spin, and unique pieces. Every map is checked to be buildable with the game's real moves.
