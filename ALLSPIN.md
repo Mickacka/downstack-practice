@@ -208,7 +208,7 @@ The setups form a chain; each one after the first is built on what the previous 
 6. **Starting board** (`chain_start`): the first setup's board, plus each later setup's new stack cells moved up by all the lines cleared before it (`row_at_start`). They must fit at row 16 or lower.
 7. **`chain_works`**: the whole solution is played on the real starting board. Every build piece must be reachable where it goes (3.7), every slot must be a spin slot (`slot_pose` finds the piece's position) that clears exactly its lines, and the board must be clean after the last spin (3.8). This catches a later setup's taller stack getting in the way of an earlier one.
 
-Each call to `next_setup` tries for up to **500 ms**, with random spin pieces from the options and sizes near `n`. If a spin can't be added, the whole chain starts again (up to 10 times), then with one spin fewer.
+Each call to `next_setup` tries for up to **500 ms**, with random spin pieces from the options and sizes near `n`. **Spin piece weights** (`piece_order`): the I-spin and the piece of the spin just before (in continuous mode, the last spin of the part just done) come up about 3 times less often, and `next_setup` only accepts them in the last 150 ms (the flat I-spin fits far more easily and would take most later spins). In testing, about 1 spin in 12 is an I-spin and the same piece twice in a row is rare. Not in the daily. If a spin can't be added, the whole chain starts again (up to 10 times), then with one spin fewer.
 
 ### 3.7 Reachability: `can_reach`
 
@@ -247,7 +247,6 @@ A single uses the same flat slot as a double (2 rows; the flat I is already a si
 - In `finish_setup`, one cell of the slot's **top row** is left empty: the **gap**, in a well column that isn't a slot column, with something under it, and nothing built above it. For the first spin it must be right beside the slot's top row (elsewhere it mostly cuts off a column of the build); later spins take any column that works. Cells cut off by the gap (under it, in a narrow well) become stack, like a T-spin single's hole (`fill_pockets` again), and no side build goes past a gap at the edge of the well.
 - The gap keeps the top row from clearing; its column stays open all the way up, so the well is clean at the end (checked by `chain_works` as for every map).
 - Columns that must stay open to the bottom (the first spin's garbage hole, a gap under a later spin's rows) are the gap's, or a slot column with no slot cell in the top row: after the single, the top row stays and would cover them otherwise.
-- `next_setup` tries the I-spin a quarter as often until near the end of its time: it fits far more easily and would take most later spins.
 
 In testing (2 spins, 5 pieces per spin), every generated map was solved by playing its solution. With *Singles*, about half the spins are T/S/Z/L/J singles and half I-spin singles (the later spins are the hard ones: the well is set by the first spin and the previous gap must stay open), in about 0.5 s per map (up to 1.5 s). *Mix* gives about half singles, mostly I-spins. In continuous mode, parts take longer to plan (2-5 s with a new board).
 

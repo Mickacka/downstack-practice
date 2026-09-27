@@ -976,14 +976,23 @@ function log_spins(){
 // The spin pieces to try, in order: shuffled, or with "Focus on my weak spins",
 // drawn with a weight that grows with the piece's miss rate (a piece never tried
 // counts as half missed), so the weak ones come first more often.
-function piece_order(){
+// Also, whatever the option: the flat I-spin (the easiest to fit) and the piece of
+// the spin just before (`avoid`) come up about 3 times less often. The daily keeps a
+// plain shuffle.
+function piece_order(avoid){
     var pieces = [...Config.spin_pieces]
-    if (!Config.focus_weak || Daily.seeding || is_daily_map()) return shuffle(pieces)
-    var stats = spin_stats(), order = []
+    if (Daily.seeding || is_daily_map()) return shuffle(pieces)
+    var stats = Config.focus_weak? spin_stats(): null, order = []
     var weight = piece => {
-        var done = 0, tries = 0
-        for (var name in stats) if (name[0] == piece){ done += stats[name][0]; tries += stats[name][1] }
-        return 1 + 6 * (tries - done + 1) / (tries + 2)
+        var w = 1
+        if (stats){
+            var done = 0, tries = 0
+            for (var name in stats) if (name[0] == piece){ done += stats[name][0]; tries += stats[name][1] }
+            w = 1 + 6 * (tries - done + 1) / (tries + 2)
+        }
+        if (piece == 'I') w *= 0.35
+        if (piece == avoid) w *= 0.35
+        return w
     }
     while (pieces.length){
         var weights = pieces.map(weight), total = weights.reduce((a, b) => a + b), r = Math.random() * total
@@ -1107,9 +1116,15 @@ function next_setup(chain, n_build){
             left = Math.max(0, Math.min(10 - width, prev.left + random_int(7) - 3))
             right = left + width - 1
         }
-        var piece = piece_order()[0]
-        // (the flat I-spin fits most easily: tried a quarter as often until near the end)
-        if (piece == 'I' && !Daily.seeding && Config.spin_pieces.length > 1 && budget_clock() < give_up - 150 && random_int(4)) continue
+        // the piece of the spin before (in continuous mode, before this part: the last
+        // spin of the part just done)
+        var avoid = prev.base? Record.last_piece: prev.piece
+        var piece = piece_order(avoid)[0]
+        // The flat I-spin fits far more easily than the others, so it would win most
+        // later spins: until near the end of the time, it (and a repeat of the piece
+        // before) is passed over. Not in the daily (it stays as it was).
+        if (!Daily.seeding && (piece == 'I' || piece == avoid) && Config.spin_pieces.length > 1 &&
+            budget_clock() < give_up - 150) continue
         Record.spin_piece = piece
         Record.spin_index = chain.filter(s => !s.base).length
         Record.deadline = budget_clock() + 100
@@ -1332,6 +1347,7 @@ function prepare_next_part(start){
             planner.worker.onerror = () => { planner.worker = null }
         }
         planner.worker.postMessage({id: planner.id, board: end, key: fill_key(end),
+            last_piece: Record.spins.length? Record.spins[Record.spins.length-1].piece: null,
             cleared: Record.spins.reduce((a, s) => a + s.lines, 0),
             config: {spins: Config.spins, no_of_piece: Config.no_of_piece, clears: Config.clears,
                 spin_pieces: Config.spin_pieces, unqiue_ind: Config.unqiue_ind, focus_weak: Config.focus_weak,
@@ -1343,6 +1359,7 @@ function prepare_next_part(start){
 
 function next_part(){
     var cleared = Record.spins.reduce((a, s) => a + s.lines, 0)
+    Record.last_piece = Record.spins.length? Record.spins[Record.spins.length-1].piece: null
     var garbage = add_garbage(clone(game.board), cleared)
     var ready = planner.ready && planner.ready.key == fill_key(game.board)? planner.ready: null
     var plan = null, fresh = null
