@@ -128,7 +128,9 @@ export function exercises_from(placements, source){
             board: placements[first].before.map(row => row.join('')),
             queue: placements.slice(first, chain[chain.length-1] + 1).map(q => q.piece),
             spins: spins,
-            source: Object.assign({placement: placements[i].index, frame: placements[i].frame}, source),
+            // first/last: where the exercise starts and ends in the round's timeline
+            source: Object.assign({placement: placements[i].index, frame: placements[i].frame,
+                first: first, last: chain[chain.length-1]}, source),
         })
         // the spins merged in aren't exercises of their own
         i = chain[chain.length - 1]
@@ -136,8 +138,20 @@ export function exercises_from(placements, source){
     return out
 }
 
-// Everything at once, for one replay file: [{username, round, exercises, placements,
-// diverged, error}] per player
+// The round in a compact form, to play the player's game between two exercises on
+// the practice page: [{p: piece, c: cells, k: the board before it}], with the board
+// only where it can't be worked out from the placement before (the first one, after
+// garbage, or after something above the visible board)
+export function timeline_of(placements){
+    return placements.map((q, i) => {
+        var item = {p: q.piece, c: q.cells}
+        if (i == 0 || q.garbage_before || placements[i-1].overflow || q.overflow) item.k = q.before.map(row => row.join(''))
+        return item
+    })
+}
+
+// Everything at once, for one replay file: [{username, round, exercises, timeline,
+// placements, diverged, error}] per player
 export function exercises_of_replay(text, file){
     var {replay, players} = players_of(text)
     return players.map(who => {
@@ -145,8 +159,9 @@ export function exercises_of_replay(text, file){
         try{
             var {placements, diverged} = placements_of(player)
             var source = {file: file, username: who.username, round: who.round}
+            var exercises = exercises_from(placements, source)
             return {username: who.username, round: who.round, placements: placements.length, diverged: diverged,
-                exercises: exercises_from(placements, source)}
+                exercises: exercises, timeline: exercises.length? timeline_of(placements): null}
         }
         catch(err){
             return {username: who.username, round: who.round, placements: 0, exercises: [], error: err.message}

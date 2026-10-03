@@ -6,11 +6,16 @@ const LINE_WORDS = ['', 'Single', 'Double', 'Triple', 'Quad']
 function load_library(){
     try{
         var data = JSON.parse(localStorage.getItem(LIBRARY_KEY))
-        if (data && Array.isArray(data.exercises)) return data
+        if (data && Array.isArray(data.exercises)){
+            data.timelines = data.timelines || {}
+            return data
+        }
     }
     catch(err){}
-    return {sources: [], exercises: []}
+    return {sources: [], exercises: [], timelines: {}}
 }
+// a round of one player: its timeline's key in the library
+const round_key = s => [s.file, s.round, s.username].join('|')
 function save_library(lib){
     try{ localStorage.setItem(LIBRARY_KEY, JSON.stringify(lib)); return true }
     catch(err){ status('Not enough room in this browser to keep all of them.'); return false }
@@ -96,6 +101,7 @@ document.getElementById('add').onclick = () => {
         for (var r of f.results){
             if (!keep.has(f.file + '\n' + r.username)) continue
             players.add(r.username)
+            if (r.timeline) lib.timelines[round_key({file: f.file, round: r.round, username: r.username})] = r.timeline
             for (var e of r.exercises){
                 if (have.has(exercise_id(e))) continue
                 have.add(exercise_id(e))
@@ -235,6 +241,7 @@ function show_library(){
             var lib = load_library()
             lib.exercises = lib.exercises.filter(e => e.source.file != file)
             lib.sources = lib.sources.filter(s => s.file != file)
+            for (var key of Object.keys(lib.timelines)) if (key.startsWith(file + '|')) delete lib.timelines[key]
             save_library(lib)
             show_library()
         })(s.file)
@@ -419,6 +426,14 @@ function play(list){
     var ids = list.map(exercise_id)
     try{ sessionStorage.setItem('allspin_pro_play', JSON.stringify(ids)) }catch(err){}
     location.href = 'allspin-practice.html#pro'
+}
+// in the order of the games: from one exercise to the next of the same round, the
+// All-Spin page plays the player's game in between
+document.getElementById('play-order').onclick = () => {
+    var list = filtered(load_library())
+    list.sort((a, b) => a.source.file.localeCompare(b.source.file) || a.source.round - b.source.round ||
+        String(a.source.username).localeCompare(String(b.source.username)) || (a.source.first ?? a.source.placement) - (b.source.first ?? b.source.placement))
+    if (list.length) play(list)
 }
 document.getElementById('play-all').onclick = () => {
     var list = filtered(load_library())

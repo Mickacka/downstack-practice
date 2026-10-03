@@ -172,6 +172,13 @@ const HINT_TEXT = ['', 'Hint 1/3: the spin is in these rows', 'Hint 2/3: the set
     'Hint 3/3: the slot']
 Controls.draw_overlay = (ctx, x, y) => {
     if (Record.finding) draw_finding(ctx, x, y)
+    if (Record.replay_cells && Record.showing){
+        ctx.save()
+        ctx.lineWidth = 3
+        ctx.strokeStyle = '#fff'
+        for (var [col, row] of Record.replay_cells) if (row < 20) ctx.strokeRect(col*30 + x + 2, (19-row)*30 + y + 2, 26, 26)
+        ctx.restore()
+    }
     if (Record.review) draw_review(ctx, x, y, Record.review.spin)
     if (Record.flash) draw_review(ctx, x, y, Record.flash.spin)
     var spin = Record.hint && Record.spins[Record.done_spins]
@@ -1215,7 +1222,7 @@ function start_pro(){
     var by_id = new Map((lib.exercises || []).map(e => [key(e), e]))
     var list = ids.map(id => by_id.get(id)).filter(Boolean)
     if (!list.length) return false
-    Record.pro = {list: list, pos: -1}
+    Record.pro = {list: list, pos: -1, timelines: lib.timelines || {}}
     // the player's spins, from their own board, not continuous mode
     Config.continuous = false
     next_pro()
@@ -1236,6 +1243,69 @@ function next_pro(){
     play()
     render()
     show_spin_message(e.source.username + ' · ' + (pro.pos + 1) + '/' + pro.list.length)
+}
+
+// After an exercise is solved, when the next one comes later in the same round: the
+// player's game plays on to it. Back to this exercise's start (the checkpoint: your
+// pieces may differ from theirs), their own placements for it, then everything they
+// did up to the next exercise, garbage included, faster the further it is; the next
+// exercise then starts on that board. Retry replays this one, New map skips ahead.
+function pro_continue(){
+    var pro = Record.pro, cur = pro.list[pro.pos], next = pro.list[(pro.pos + 1) % pro.list.length]
+    var round = s => [s.file, s.round, s.username].join('|')
+    var tl = pro.timelines[round(cur.source)]
+    if (!tl || next === cur || round(next.source) != round(cur.source) || cur.source.first == null ||
+        !(next.source.first > cur.source.last) || next.source.first > tl.length){
+        next_pro()
+        return
+    }
+    var board = cur.board.map(row => [...row]), steps = []
+    for (var i=cur.source.first; i<next.source.first; i++){
+        var item = tl[i]
+        if (item.k && i != cur.source.first) board = item.k.map(row => [...row])
+        for (var [c, r] of item.c) if (r < 20) board[r][c] = item.p
+        steps.push({board: board.map(row => [...row]), cells: item.c, own: i <= cur.source.last})
+        var rows = board.filter(row => row.some(c => c == 'N'))
+        while (rows.length < 20) rows.push(Array(10).fill('N'))
+        board = rows
+        steps.push({board: board.map(row => [...row])})
+    }
+    // no input while it plays (Retry and New map still work)
+    Record.showing = true
+    game.tetramino = 'G'
+    game.bag = game.bag.map(() => 'G')
+    game.holdmino = ''
+    var between = next.source.first - cur.source.last - 1
+    var own_delay = 260, far_delay = Math.max(40, Math.min(260, 3000 / Math.max(1, between)))
+    var t = 400
+    var later = (delay, action) => answer_timers.push(setTimeout(action, delay))
+    later(0, () => {
+        game.board = cur.board.map(row => [...row])
+        Record.replay_cells = null
+        render()
+        show_spin_message(cur.source.username + "'s way")
+    })
+    var told = false
+    for (var step of steps){
+        var own = step.own !== undefined? step.own: last_own
+        var last_own = own
+        if (!own && !told){
+            told = true
+            var text = between? between + ' piece' + (between > 1? 's': '') + ' to the next spin': 'Next spin'
+            later(t, () => show_spin_message(text))
+        }
+        t += step.cells? (own? own_delay: far_delay): (own? own_delay / 2: far_delay / 2)
+        later(t, (s => () => {
+            game.board = s.board
+            Record.replay_cells = s.cells || null
+            render()
+        })(step))
+    }
+    later(t + 500, () => {
+        Record.replay_cells = null
+        stop_answer()
+        next_pro()
+    })
 }
 
 function exit_pro(){
@@ -1581,7 +1651,8 @@ function detect_win(){
             return
         }
         report_result(true, 'Solved!')
-        if (Config.auto_next_ind) play_a_map()
+        if (Record.pro) pro_continue()
+        else if (Config.auto_next_ind) play_a_map()
         else{
             // nothing left to place
             game.bag = game.bag.map(() => 'G')
