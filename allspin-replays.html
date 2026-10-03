@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-QCQK6ZQ0DE"></script>
+    <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-QCQK6ZQ0DE');
+    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>All-Spin from Replays - Tetris Practice</title>
+    <link rel="icon" href="/downstack-practice/favicon.svg" type="image/svg+xml">
+    <link rel="manifest" href="/downstack-practice/manifest.webmanifest">
+    <link rel="apple-touch-icon" href="/downstack-practice/icons/apple-touch-icon.png">
+    <meta name="theme-color" content="#2a2c30">
+    <link rel="stylesheet" href="style.css">
+    <script src="style-scripts.js"></script>
+</head>
+<body class="home">
+    <div class="banner">
+        <h1 hidden>All-Spin from Replays</h1>
+        <a class="title" href="/downstack-practice/">Tetris Practice</a>
+        <div class="nav">
+            <ul class="dropdown">
+                <li><a href="/downstack-practice/">Home</a></li>
+                <li><a href="/downstack-practice/stats.html">Your Progress</a></li>
+                <li><a href="/downstack-practice/tspin-challenge.html">T-Spin Challenge</a></li>
+                <li><a href="/downstack-practice/downstack.html">Downstack Practice</a></li>
+                <li><a href="/downstack-practice/pc-practice.html">Mid-game PC Practice</a></li>
+                <li><a href="/downstack-practice/usermode.html">Usermode (Includes PC Practice)</a></li>
+                <li><a href="/downstack-practice/tspin-practice.html">T-Spin Practice</a></li>
+                <li><a href="/downstack-practice/advance-tspin-practice.html">Advanced T-Spin Practice</a></li>
+                <li><a href="/downstack-practice/allspin-practice.html">All-Spin Practice</a></li>
+                <li><a href="/downstack-practice/allspin-replays.html">All-Spin from Replays</a></li>
+                <li><a href="/downstack-practice/quad-practice.html">Quad Practice</a></li>
+                <li><a href="/downstack-practice/upstack-practice.html">Upstack Practice</a></li>
+                <li><a href="/downstack-practice/learnfromai.html">Learn from AI (ZZZTOJ)</a></li>
+                <li><a href="/downstack-practice/library.html">PC Setup Library</a></li>
+            </ul>
+        </div>
+        <button type="button" class="burger" onclick="toggleBurger()" aria-label="Menu" title="Menu" aria-expanded="false">
+            <span></span>
+        </button>
+    </div>
+
+    <main class="home-main stats-main">
+        <h2 class="stats-title">All-Spin from replays</h2>
+        <p class="home-intro">Load a TETR.IO replay of a player who uses all-spins: every spin they make becomes an exercise.
+            You start from their board a few pieces before the spin, with the pieces they placed, and do the same spin.
+            The replay is read on this device; nothing is uploaded.</p>
+
+        <section class="stats-section">
+            <h3>Add a replay</h3>
+            <div class="data-buttons">
+                <label class="install-button">Choose .ttr / .ttrm files<input type="file" id="files" accept=".ttr,.ttrm,application/json" multiple hidden></label>
+            </div>
+            <p class="stats-note">Tetra League matches (<code>.ttrm</code>) and 40 Lines games (<code>.ttr</code>), from TETR.IO's current version.
+                In TETR.IO, open a replay and download it, or export it from your recent games.</p>
+            <p class="stats-note" id="status" role="status"></p>
+            <div id="found" hidden>
+                <div class="table-wrap">
+                    <table class="stats-table">
+                        <thead><tr><th>Add</th><th>Player</th><th>Rounds</th><th>Spins found</th><th title="Rounds where the rebuilt game stopped matching the replay: the rest of that round is left out">Partly read</th></tr></thead>
+                        <tbody id="found-rows"></tbody>
+                    </table>
+                </div>
+                <div class="data-buttons"><button type="button" class="install-button" id="add">Add to my exercises</button></div>
+            </div>
+        </section>
+
+        <section class="stats-section" id="library-section" hidden>
+            <h3>My exercises</h3>
+            <div class="stat-cards" id="cards"></div>
+            <div class="pro-filters">
+                <label>Player <select id="filter-player"><option value="">All</option></select></label>
+                <label>Spin <select id="filter-piece"><option value="">All</option><option>T</option><option>S</option><option>Z</option><option>L</option><option>J</option><option>I</option></select></label>
+                <label>Lines <select id="filter-lines"><option value="">All</option><option value="1">Single</option><option value="2">Double</option><option value="3">Triple</option></select></label>
+                <label>Pieces <select id="filter-size"><option value="">All</option><option value="2-3">2-3</option><option value="4-5">4-5</option><option value="6-7">6-7</option></select></label>
+            </div>
+            <div class="data-buttons">
+                <button type="button" class="install-button" id="play-all">Play these (shuffled)</button>
+            </div>
+            <p class="stats-note" id="shown"></p>
+            <div class="pro-grid" id="grid"></div>
+        </section>
+
+        <section class="stats-section" id="reference-section" hidden>
+            <h3>What the players do</h3>
+            <p class="stats-note">Every spin in your exercises, by kind: how often, and how many pieces the setup took before it (from the last line clear or garbage, 6 at most).</p>
+            <div class="table-wrap">
+                <table class="stats-table">
+                    <thead><tr><th>Spin</th><th>Count</th><th>Setup pieces (average)</th></tr></thead>
+                    <tbody id="reference-rows"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="stats-section" id="sources-section" hidden>
+            <h3>Replays</h3>
+            <div class="table-wrap">
+                <table class="stats-table">
+                    <thead><tr><th>File</th><th>Players</th><th>Exercises</th><th></th></tr></thead>
+                    <tbody id="sources-rows"></tbody>
+                </table>
+            </div>
+            <p class="stats-note">Replays are read with <a href="https://github.com/jush0147/tetrp">tetrp</a> (MIT), a TETR.IO replay engine.
+                A round is only used up to where the rebuilt game stops matching the replay's own checkpoints.</p>
+        </section>
+    </main>
+
+    <script src="header.js"></script>
+    <script src="allspin-replays.js"></script>
+</body>
+</html>

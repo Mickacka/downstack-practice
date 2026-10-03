@@ -58,6 +58,17 @@ With **Continuous** on, the game goes on in parts:
 
 The goal shows *Part N: …*. In testing (5 pieces per spin, playing the planned solutions), about 1 checkpoint in 4 went on with a new board at first; with well moves, donations (3.6) and the relaxed rules, about 1 in 20 (when the stack reaches 12 rows), and each part starts exactly from your board plus the garbage, and the pause between parts was about 2 s before background planning (now about 10 ms when you finish as planned). Continuous mode is off in the daily puzzle.
 
+### 1.2 Exercises from replays (`allspin-replays.html`)
+
+A separate page turns a TETR.IO replay into exercises: every spin the player makes that clears lines becomes one.
+
+- **Reading the replay**: `allspin-replays-core.mjs` plays it back with [tetrp](https://github.com/jush0147/tetrp) (MIT, vendored in `vendor/tetrp/`, see `SOURCE.md`), placement by placement, in a worker (`allspin-replays-worker.mjs`). Tetra League matches (`.ttrm`, v19) and 40 Lines games (`.ttr`, v15). Each round is used only up to the first place where the rebuilt game disagrees with the replay's own checkpoints.
+- **An exercise** (`exercises_from`): a spin (`full` or `mini`) that clears lines, with 1 to 6 pieces placed before it since the last line clear or garbage. The board is the player's board before those pieces (garbage and all), the queue is the pieces in the order they placed them, and the goal is the same spin with the same lines. It must also be a spin by this page's rule (stuck left, right and up), and nothing above the visible 20 rows.
+- **Library**: kept in the browser (`allspin_pro`, part of the Progress page's export), with filters (player, spin piece, lines, number of pieces), previews, and a table of what the players do (spins by kind, average setup size).
+- **Playing**: a card, or *Play these (shuffled)*, opens the All-Spin page at `#pro` with the list (in this tab's session). One exercise at a time, from the player's board with their pieces; solved or *New map*: the next one. The goal always names the lines. Show Answer, hints, review and the drills work as usual. *Back to random maps* leaves the list.
+
+First test (a 13-round league match, 5han vs haenazzi): 202 exercises (140 T-spins: 94 doubles, 38 singles, 5 triples, 3 minis; 62 S/Z/L/J spins, 38 singles and 23 doubles, 1 triple), read in about 2.5 s in the browser. Played back in this page's engine with the player's own placements, 200 of 202 were solved (the other two need a rotation this page's search doesn't find, or a hold order the test didn't try). 27 of the 202 slots were upright (3 rows), which the generator doesn't make.
+
 ### Options (right panel, saved in the browser)
 
 | Option | Default | Effect |
@@ -379,6 +390,9 @@ The last result should be `won: 20` and no `failed` entries. The latest run (1-4
 ---
 
 ## 9. Code map (`allspin.js`)
+
+Exercises from replays: `allspin-replays.html` / `allspin-replays.js` (the page and library), `allspin-replays-core.mjs` (`placements_of`, `exercises_from`), `allspin-replays-worker.mjs`, and in `allspin.js` `start_pro`, `next_pro`, `exit_pro` (1.2).
+
 
 | Function | Role |
 | --- | --- |

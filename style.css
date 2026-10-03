@@ -1027,3 +1027,19 @@ html.portrait-zoom #scrollable { height: 18rem; }
     }
     html body.touch .mode-switch .game_button { padding-top: 0.2rem; padding-bottom: 0.2rem; }
 }
+
+/* All-Spin from replays */
+.pro-filters { display: flex; flex-wrap: wrap; gap: 0.6rem 1rem; margin: 0.4rem 0 0.8rem; font-size: 0.9rem; }
+.pro-filters select { margin-left: 0.3rem; }
+.pro-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(8.2rem, 1fr)); gap: 0.6rem; }
+.pro-card {
+    display: flex; flex-direction: column; align-items: center; gap: 0.25rem;
+    padding: 0.5rem; background: #2c2e33; border: 1px solid #44474f; border-radius: 6px;
+    color: inherit; font: inherit; cursor: pointer;
+}
+.pro-card:hover, .pro-card:focus-visible { border-color: #9a9ca1; outline: none; }
+.pro-card canvas { border: 1px solid #44474f; }
+.pro-label { font-size: 0.8rem; font-weight: bold; text-align: center; }
+.pro-who { font-size: 0.72rem; color: #9a9ca1; text-align: center; }
+.pro-exit { font-size: 0.75rem; }
+.pro-exit a { color: #8ab4f8; }

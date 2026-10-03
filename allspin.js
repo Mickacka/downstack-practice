@@ -1186,12 +1186,63 @@ function chain_setup(k, n_build){
 
 function play_a_map(){
     stop_answer()
+    // exercises from replays (allspin-replays.html): the next one instead
+    if (Record.pro){ next_pro(); return }
     draw_mix_plan()
     var result = new_map()
     Record.well = [result.chain[0].left, result.chain[0].right]
     Record.part = 1
     document.getElementById('spin_message').textContent = ''
     set_plan(result.chain, result.start, false)
+}
+
+/*
+Exercises from replays (allspin-replays.html, which opens this page at #pro with
+the list in sessionStorage): a player's board a few pieces before one of their
+spins, their pieces in the order they placed them, and that spin to do. Solved or
+New map: the next one; after the last, the list starts again.
+*/
+function start_pro(){
+    if (location.hash != '#pro') return false
+    history.replaceState(null, '', location.pathname)
+    var ids = [], lib = {}
+    try{
+        ids = JSON.parse(sessionStorage.getItem('allspin_pro_play')) || []
+        lib = JSON.parse(localStorage.getItem('allspin_pro')) || {}
+    }
+    catch(err){}
+    var key = e => [e.source.file, e.source.round, e.source.username, e.source.placement].join(':')
+    var by_id = new Map((lib.exercises || []).map(e => [key(e), e]))
+    var list = ids.map(id => by_id.get(id)).filter(Boolean)
+    if (!list.length) return false
+    Record.pro = {list: list, pos: -1}
+    // one spin at a time, from the player's own board
+    Config.continuous = false
+    next_pro()
+    return true
+}
+
+function next_pro(){
+    var pro = Record.pro
+    pro.pos = (pro.pos + 1) % pro.list.length
+    var e = pro.list[pro.pos]
+    Record.spins = [{piece: e.spin.piece, lines: e.spin.lines, cells: e.spin.cells, build: e.spin.build}]
+    Record.board = [e.board.map(row => [...row])]
+    Record.in_play = true
+    Record.shuffled_queue = [...e.queue]
+    Record.part = 1
+    Record.well = [0, 9]
+    document.getElementById('spin_message').textContent = ''
+    play()
+    render()
+    show_spin_message(e.source.username + ' · ' + (pro.pos + 1) + '/' + pro.list.length)
+}
+
+function exit_pro(){
+    Record.pro = null
+    load_gamemode()
+    play_a_map()
+    render()
 }
 
 // A new map: {chain, start}
@@ -1468,10 +1519,12 @@ function spin_name(spin){
 // continuous mode); otherwise I-spins are singles and the others as the option says.
 function update_goal(){
     var parts = Record.spins.map((spin, i) => (i < Record.done_spins? '✓ ': '') +
-        (spin.piece != 'I' && (Config.clears == 'mix' || spin.lines != (Config.clears == 'single'? 1: 2))?
+        (Record.pro || spin.piece != 'I' && (Config.clears == 'mix' || spin.lines != (Config.clears == 'single'? 1: 2))?
             spin_name(spin): spin.piece + '-Spin'))
     set_spin_text(document.getElementById('winning_requirement1'),
         (Config.continuous? 'Part ' + (Record.part || 1) + ': ': '') + parts.join(' → '))
+    var exit = document.getElementById('pro_exit')
+    if (exit) exit.hidden = !Record.pro
 }
 
 function play(){
@@ -1674,6 +1727,6 @@ if (typeof PLANNER == 'undefined'){
     load_gamemode()
     update_keybind()
     board.focus()
-    play_a_map()
+    if (!start_pro()) play_a_map()
     render()
 }

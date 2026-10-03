@@ -33,6 +33,10 @@ This is a fork of [himitsuconfidential/downstack-practice](https://github.com/hi
 - Every attempt ends with a ✓ / ✗ over the board, and your solved count, streak and best streak are kept per mode (also shown on the home page).
 - **Your Progress** (menu, or the link next to the daily streak) shows your solved count and success rate, a chart of the last 30 days, each mode's tries, success rate, median solve time and best streak, a calendar of daily puzzles and your recent attempts with their time and finesse faults. **Export** saves your progress and settings to a file and **Import** loads it on another device (e.g. from your computer to your phone).
 
+## All-Spin from Replays
+
+[allspin-replays.html](https://mickacka.github.io/downstack-practice/allspin-replays.html): load a TETR.IO replay (Tetra League `.ttrm` or 40 Lines `.ttr`) and every spin the player makes becomes an exercise: their board a few pieces before it, the pieces they placed, the same spin to do, on the All-Spin page. The replay is read in the browser with [tetrp](https://github.com/jush0147/tetrp) (MIT); the exercises stay in the browser. See [ALLSPIN.md](ALLSPIN.md) 1.2.
+
 ## All-Spin Practice
 
 The full guide, including how maps are generated and checked, is in [ALLSPIN.md](ALLSPIN.md).
