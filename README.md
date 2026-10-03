@@ -35,7 +35,7 @@ This is a fork of [himitsuconfidential/downstack-practice](https://github.com/hi
 
 ## All-Spin from Replays
 
-[allspin-replays.html](https://mickacka.github.io/downstack-practice/allspin-replays.html): load a TETR.IO replay (Tetra League `.ttrm` or 40 Lines `.ttr`) and every spin the player makes becomes an exercise: their board a few pieces before it, the pieces they placed, the same spin to do, on the All-Spin page. The replay is read in the browser with [tetrp](https://github.com/jush0147/tetrp) (MIT); the exercises stay in the browser. See [ALLSPIN.md](ALLSPIN.md) 1.2.
+[allspin-replays.html](https://mickacka.github.io/downstack-practice/allspin-replays.html): load a TETR.IO replay (Tetra League `.ttrm` or 40 Lines `.ttr`) and every spin the player makes becomes an exercise: their board a few pieces before it, the pieces they placed, the same spin to do, on the All-Spin page. Spins close behind each other become one exercise with all of them in a row. The replay is read in the browser with [tetrp](https://github.com/jush0147/tetrp) (MIT); the exercises stay in the browser. See [ALLSPIN.md](ALLSPIN.md) 1.2.
 
 ## All-Spin Practice
 

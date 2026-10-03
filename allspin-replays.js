@@ -15,8 +15,11 @@ function save_library(lib){
     try{ localStorage.setItem(LIBRARY_KEY, JSON.stringify(lib)); return true }
     catch(err){ status('Not enough room in this browser to keep all of them.'); return false }
 }
-const exercise_id = e => [e.source.file, e.source.round, e.source.username, e.source.placement].join(':')
-const spin_label = e => e.spin.piece + '-Spin' + (e.spin.kind == 'mini' && e.spin.piece == 'T'? ' Mini': '') + ' ' + LINE_WORDS[e.spin.lines]
+const exercise_id = e => [e.source.file, e.source.round, e.source.username, e.source.placement, (e.spins || [1]).length].join(':')
+// an exercise's spins (one or more in a row; older ones kept a single `spin`)
+const spins_of = e => e.spins || [e.spin]
+const one_label = s => s.piece + '-Spin' + (s.kind == 'mini' && s.piece == 'T'? ' Mini': '') + ' ' + LINE_WORDS[s.lines]
+const spin_label = e => spins_of(e).map(one_label).join(' → ')
 function status(text){ document.getElementById('status').textContent = text }
 
 /*
@@ -119,10 +122,12 @@ function filtered(lib){
     var piece = document.getElementById('filter-piece').value
     var lines = document.getElementById('filter-lines').value
     var size = document.getElementById('filter-size').value
+    var count = document.getElementById('filter-count').value
     return lib.exercises.filter(e => {
         if (player && e.source.username != player) return false
-        if (piece && e.spin.piece != piece) return false
-        if (lines && e.spin.lines != lines) return false
+        if (piece && !spins_of(e).some(s => s.piece == piece)) return false
+        if (lines && !spins_of(e).some(s => s.lines == lines)) return false
+        if (count && (count == '1') != (spins_of(e).length == 1)) return false
         if (size){
             var [lo, hi] = size.split('-').map(Number)
             if (e.queue.length < lo || e.queue.length > hi) return false
@@ -151,9 +156,11 @@ function show_library(){
     // summary
     var cards = document.getElementById('cards')
     cards.textContent = ''
-    var t = lib.exercises.filter(e => e.spin.piece == 'T').length
-    for (var [label, value] of [['Exercises', lib.exercises.length], ['T-spins', t], ['Other spins', lib.exercises.length - t],
-                                 ['Replays', lib.sources.length]]){
+    var all_spins = lib.exercises.flatMap(spins_of)
+    var t = all_spins.filter(s => s.piece == 'T').length
+    var chains = lib.exercises.filter(e => spins_of(e).length > 1).length
+    for (var [label, value] of [['Exercises', lib.exercises.length], ['Spins in a row', chains], ['T-spins', t],
+                                 ['Other spins', all_spins.length - t]]){
         var card = document.createElement('div')
         card.className = 'stat-card'
         card.innerHTML = '<span class="stat-label"></span><strong class="stat-value"></strong>'
@@ -193,11 +200,12 @@ function show_library(){
 
     // reference: by spin kind
     var kinds = {}
-    for (var e of lib.exercises){
-        var k = kinds[spin_label(e)] = kinds[spin_label(e)] || {count: 0, pieces: 0}
-        k.count += 1
-        k.pieces += e.queue.length - 1
-    }
+    for (var e of lib.exercises)
+        for (var s of spins_of(e)){
+            var k = kinds[one_label(s)] = kinds[one_label(s)] || {count: 0, pieces: 0}
+            k.count += 1
+            k.pieces += s.build.length
+        }
     var rows = document.getElementById('reference-rows')
     rows.textContent = ''
     for (var [name, k] of Object.entries(kinds).sort((a, b) => b[1].count - a[1].count)){
@@ -241,7 +249,9 @@ function draw_preview(canvas, e){
     var size = 9, dpr = Math.min(window.devicePixelRatio || 1, 3)
     var top = 0
     e.board.forEach((row, r) => { if (row != 'NNNNNNNNNN') top = r })
-    e.spin.cells.forEach(([c, r]) => top = Math.max(top, r))
+    // (the first spin: the later ones are on the board it leaves)
+    var first = spins_of(e)[0]
+    first.cells.forEach(([c, r]) => top = Math.max(top, r))
     var rows = Math.max(8, Math.min(20, top + 3))
     canvas.width = 10 * size * dpr
     canvas.height = rows * size * dpr
@@ -261,13 +271,13 @@ function draw_preview(canvas, e){
         })
     })
     ctx.lineWidth = 1
-    for (var p of e.spin.build){
+    for (var p of first.build){
         ctx.strokeStyle = color_table[p.piece]
         for (var [col, r] of p.cells) if (r < rows) ctx.strokeRect(col * size + 1.5, y(r) + 1.5, size - 4, size - 4)
     }
-    ctx.fillStyle = color_table[e.spin.piece]
+    ctx.fillStyle = color_table[first.piece]
     ctx.globalAlpha = 0.6
-    for (var [col, r] of e.spin.cells) if (r < rows) ctx.fillRect(col * size, y(r), size - 1, size - 1)
+    for (var [col, r] of first.cells) if (r < rows) ctx.fillRect(col * size, y(r), size - 1, size - 1)
     ctx.globalAlpha = 1
 }
 
@@ -282,7 +292,7 @@ document.getElementById('play-all').onclick = () => {
     for (var i=list.length-1; i>0; i--){ var j = Math.floor(Math.random() * (i + 1)); [list[i], list[j]] = [list[j], list[i]] }
     if (list.length) play(list)
 }
-for (var id of ['filter-player', 'filter-piece', 'filter-lines', 'filter-size'])
+for (var id of ['filter-player', 'filter-piece', 'filter-lines', 'filter-count', 'filter-size'])
     document.getElementById(id).onchange = show_library
 
 show_library()

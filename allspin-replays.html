@@ -51,6 +51,7 @@
         <h2 class="stats-title">All-Spin from replays</h2>
         <p class="home-intro">Load a TETR.IO replay of a player who uses all-spins: every spin they make becomes an exercise.
             You start from their board a few pieces before the spin, with the pieces they placed, and do the same spin.
+            Spins close behind each other (6 pieces at most, no other line clear or garbage between) make one exercise with all of them in a row.
             The replay is read on this device; nothing is uploaded.</p>
 
         <section class="stats-section">
@@ -79,7 +80,8 @@
                 <label>Player <select id="filter-player"><option value="">All</option></select></label>
                 <label>Spin <select id="filter-piece"><option value="">All</option><option>T</option><option>S</option><option>Z</option><option>L</option><option>J</option><option>I</option></select></label>
                 <label>Lines <select id="filter-lines"><option value="">All</option><option value="1">Single</option><option value="2">Double</option><option value="3">Triple</option></select></label>
-                <label>Pieces <select id="filter-size"><option value="">All</option><option value="2-3">2-3</option><option value="4-5">4-5</option><option value="6-7">6-7</option></select></label>
+                <label>Spins <select id="filter-count"><option value="">All</option><option value="1">One</option><option value="2">Several in a row</option></select></label>
+                <label>Pieces <select id="filter-size"><option value="">All</option><option value="2-3">2-3</option><option value="4-5">4-5</option><option value="6-7">6-7</option><option value="8-99">8+</option></select></label>
             </div>
             <div class="data-buttons">
                 <button type="button" class="install-button" id="play-all">Play these (shuffled)</button>
@@ -90,7 +92,7 @@
 
         <section class="stats-section" id="reference-section" hidden>
             <h3>What the players do</h3>
-            <p class="stats-note">Every spin in your exercises, by kind: how often, and how many pieces the setup took before it (from the last line clear or garbage, 6 at most).</p>
+            <p class="stats-note">Every spin in your exercises, by kind: how often, and how many pieces the setup took before it (since the last line clear or garbage, 6 at most).</p>
             <div class="table-wrap">
                 <table class="stats-table">
                     <thead><tr><th>Spin</th><th>Count</th><th>Setup pieces (average)</th></tr></thead>

@@ -81,34 +81,58 @@ function immobile(board, cells){
     return [[-1, 0], [1, 0], [0, 1]].every(([dx, dy]) => cells.some(([c, r]) => filled(c + dx, r + dy)))
 }
 
-// The exercises in a list of placements: each spin clearing lines with 1 to
-// MAX_SETUP pieces before it since the last line clear or garbage, nothing above the
-// visible board, and a spin by the practice page's rule too.
+// The exercises in a list of placements. One starts with a spin clearing lines that
+// has 1 to MAX_SETUP pieces before it since the last line clear or garbage. Spins
+// that follow close behind (at most MAX_SETUP pieces later, with no other line clear
+// and no garbage in between) are merged into it, up to MAX_SPINS: the pieces placed
+// after a spin are on the board that spin left, as in the practice page's chains.
+// Every spin must be one by the practice page's rule too, with nothing above the
+// visible board.
+const MAX_SPINS = 4
 export function exercises_from(placements, source){
     var out = []
-    placements.forEach((p, i) => {
-        if (p.spin == 'none' || p.lines == 0 || p.overflow) return
+    // a spin clearing lines that this page counts, on the board just before it
+    var spin_at = i => {
+        var p = placements[i]
+        return p.spin != 'none' && p.lines > 0 && !p.overflow && immobile(p.before, p.cells)
+    }
+    for (var i=0; i<placements.length; i++){
+        if (!spin_at(i)) continue
         var first = i
         while (first > 0 && i - first < MAX_SETUP){
             var q = placements[first - 1]
             if (q.lines > 0 || q.overflow || placements[first].garbage_before) break
             first -= 1
         }
-        if (first == i) return
-        // the board just before the spin: the start plus the setup
-        var board = placements[first].before.map(row => [...row])
-        for (var k=first; k<i; k++) for (var [c, r] of placements[k].cells) board[r][c] = placements[k].piece
-        if (!immobile(board, p.cells)) return
-        var setup = placements.slice(first, i)
+        if (first == i) continue
+        // the spins that follow close behind: the next placement that clears lines (or
+        // brings garbage, or goes too high) within MAX_SETUP pieces must be a spin,
+        // with no garbage before it
+        var chain = [i]
+        while (chain.length < MAX_SPINS){
+            var last = chain[chain.length - 1], next = -1
+            for (var k=last+1; k<placements.length && k<=last+1+MAX_SETUP; k++)
+                if (placements[k].lines > 0 || placements[k].garbage_before || placements[k].overflow){ next = k; break }
+            if (next < 0 || placements[next].garbage_before || !spin_at(next)) break
+            chain.push(next)
+        }
+        var start = first
+        var spins = chain.map(c => {
+            var setup = placements.slice(start, c), p = placements[c]
+            start = c + 1
+            return {piece: p.piece, lines: p.lines, cells: p.cells, kind: p.spin,
+                // placement order reversed, as the generator's builds are
+                build: setup.map(q => ({piece: q.piece, cells: q.cells})).reverse()}
+        })
         out.push({
             board: placements[first].before.map(row => row.join('')),
-            queue: setup.map(q => q.piece).concat([p.piece]),
-            spin: {piece: p.piece, lines: p.lines, cells: p.cells, kind: p.spin,
-                // placement order reversed, as the generator's builds are
-                build: setup.map(q => ({piece: q.piece, cells: q.cells})).reverse()},
-            source: Object.assign({placement: p.index, frame: p.frame}, source),
+            queue: placements.slice(first, chain[chain.length-1] + 1).map(q => q.piece),
+            spins: spins,
+            source: Object.assign({placement: placements[i].index, frame: placements[i].frame}, source),
         })
-    })
+        // the spins merged in aren't exercises of their own
+        i = chain[chain.length - 1]
+    }
     return out
 }
 

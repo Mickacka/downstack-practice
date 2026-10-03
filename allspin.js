@@ -1211,12 +1211,12 @@ function start_pro(){
         lib = JSON.parse(localStorage.getItem('allspin_pro')) || {}
     }
     catch(err){}
-    var key = e => [e.source.file, e.source.round, e.source.username, e.source.placement].join(':')
+    var key = e => [e.source.file, e.source.round, e.source.username, e.source.placement, (e.spins || [1]).length].join(':')
     var by_id = new Map((lib.exercises || []).map(e => [key(e), e]))
     var list = ids.map(id => by_id.get(id)).filter(Boolean)
     if (!list.length) return false
     Record.pro = {list: list, pos: -1}
-    // one spin at a time, from the player's own board
+    // the player's spins, from their own board, not continuous mode
     Config.continuous = false
     next_pro()
     return true
@@ -1226,7 +1226,7 @@ function next_pro(){
     var pro = Record.pro
     pro.pos = (pro.pos + 1) % pro.list.length
     var e = pro.list[pro.pos]
-    Record.spins = [{piece: e.spin.piece, lines: e.spin.lines, cells: e.spin.cells, build: e.spin.build}]
+    Record.spins = (e.spins || [e.spin]).map(s => ({piece: s.piece, lines: s.lines, cells: s.cells, build: s.build}))
     Record.board = [e.board.map(row => [...row])]
     Record.in_play = true
     Record.shuffled_queue = [...e.queue]
