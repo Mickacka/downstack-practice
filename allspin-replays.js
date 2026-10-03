@@ -178,7 +178,7 @@ function show_library(){
         var item = document.createElement('button')
         item.type = 'button'
         item.className = 'pro-card'
-        item.title = 'Play this one'
+        item.title = 'Watch how it was built, then play it'
         var canvas = document.createElement('canvas')
         draw_preview(canvas, e)
         var label = document.createElement('span')
@@ -188,7 +188,7 @@ function show_library(){
         who.className = 'pro-who'
         who.textContent = e.source.username + ' · round ' + (e.source.round + 1)
         item.append(canvas, label, who)
-        item.onclick = (ex => () => play([ex]))(e)
+        item.onclick = (ex => () => watch(ex))(e)
         grid.appendChild(item)
     }
     if (list.length > 300){
@@ -279,6 +279,139 @@ function draw_preview(canvas, e){
     ctx.globalAlpha = 0.6
     for (var [col, r] of first.cells) if (r < rows) ctx.fillRect(col * size, y(r), size - 1, size - 1)
     ctx.globalAlpha = 1
+}
+
+/*
+Watch: the exercise step by step as the player built it. Each setup piece in the
+order they placed it (the new one outlined), then the spin (its slot shown first),
+then the lines clearing, and the next setup. Arrows or the buttons step; Play runs it.
+*/
+function watch_steps(e){
+    var board = e.board.map(row => [...row])
+    var copy = () => board.map(row => [...row])
+    var steps = [{board: copy(), text: 'Start: the board ' + (e.queue.length) + ' pieces before'}]
+    spins_of(e).forEach((s, n) => {
+        var setup = [...s.build].reverse()
+        setup.forEach((p, i) => {
+            for (var [c, r] of p.cells) board[r][c] = p.piece
+            steps.push({board: copy(), outline: p.cells, color: p.piece,
+                text: 'Setup ' + (i + 1) + '/' + setup.length + ': ' + p.piece})
+        })
+        steps.push({board: copy(), slot: s.cells, color: s.piece, text: 'The slot: ' + one_label(s)})
+        for (var [c, r] of s.cells) board[r][c] = s.piece
+        steps.push({board: copy(), outline: s.cells, color: s.piece, text: one_label(s) + '!'})
+        var rows = board.filter(row => row.some(c => c == 'N'))
+        while (rows.length < 20) rows.push(Array(10).fill('N'))
+        board = rows
+        steps.push({board: copy(), text: (n + 1 < spins_of(e).length? 'Lines cleared, next setup': 'Done')})
+    })
+    return steps
+}
+
+var viewer = null
+function watch(e){
+    var steps = watch_steps(e)
+    // the same height for every step: the tallest board, plus room above
+    var top = 0
+    for (var st of steps) st.board.forEach((row, r) => { if (row.some(c => c != 'N')) top = Math.max(top, r) })
+    var rows = Math.min(20, Math.max(10, top + 3))
+    if (!viewer){
+        viewer = document.createElement('div')
+        viewer.className = 'pro-viewer'
+        viewer.innerHTML = '<div class="pro-viewer-box" role="dialog" aria-label="Watch the setup">' +
+            '<p class="pro-viewer-title"></p><canvas></canvas><p class="pro-viewer-text" role="status"></p>' +
+            '<div class="pro-viewer-buttons"><button type="button" data-do="prev" title="Back (←)">◀</button>' +
+            '<button type="button" data-do="auto" title="Play the steps">▶▶</button>' +
+            '<button type="button" data-do="next" title="Next (→)">▶</button></div>' +
+            '<div class="pro-viewer-buttons"><button type="button" class="install-button" data-do="play">Play this exercise</button>' +
+            '<button type="button" class="install-button" data-do="close">Close</button></div></div>'
+        document.body.appendChild(viewer)
+        viewer.addEventListener('click', ev => {
+            if (ev.target == viewer) return close_viewer()
+            var what = ev.target.dataset && ev.target.dataset.do
+            if (what == 'prev') viewer.go(-1)
+            if (what == 'next') viewer.go(1)
+            if (what == 'auto') viewer.auto()
+            if (what == 'play') play([viewer.exercise])
+            if (what == 'close') close_viewer()
+        })
+        document.addEventListener('keydown', ev => {
+            if (!viewer || viewer.hidden) return
+            if (ev.key == 'ArrowLeft') viewer.go(-1)
+            else if (ev.key == 'ArrowRight') viewer.go(1)
+            else if (ev.key == 'Escape') close_viewer()
+            else return
+            ev.preventDefault()
+        })
+    }
+    var at = 0, timer = null
+    viewer.exercise = e
+    viewer.querySelector('.pro-viewer-title').textContent = spin_label(e) + ' · ' + e.source.username + ', round ' + (e.source.round + 1)
+    var show = () => {
+        draw_step(viewer.querySelector('canvas'), steps[at], rows)
+        viewer.querySelector('.pro-viewer-text').textContent = (at + 1) + '/' + steps.length + ' · ' + steps[at].text
+    }
+    viewer.go = d => {
+        clearInterval(timer); timer = null
+        at = Math.max(0, Math.min(steps.length - 1, at + d))
+        show()
+    }
+    viewer.auto = () => {
+        clearInterval(timer)
+        if (at == steps.length - 1) at = 0
+        show()
+        timer = setInterval(() => {
+            if (at >= steps.length - 1){ clearInterval(timer); timer = null; return }
+            at += 1
+            show()
+        }, 700)
+    }
+    viewer.stop = () => { clearInterval(timer); timer = null }
+    viewer.hidden = false
+    show()
+}
+function close_viewer(){
+    if (!viewer) return
+    viewer.stop()
+    viewer.hidden = true
+}
+
+function draw_step(canvas, step, rows){
+    var size = Math.floor(Math.min(24, (window.innerHeight - 230) / rows, (window.innerWidth - 60) / 10))
+    var dpr = Math.min(window.devicePixelRatio || 1, 3)
+    canvas.width = 10 * size * dpr
+    canvas.height = rows * size * dpr
+    canvas.style.width = 10 * size + 'px'
+    canvas.style.height = rows * size + 'px'
+    var ctx = canvas.getContext('2d')
+    ctx.scale(dpr, dpr)
+    ctx.fillStyle = '#000'
+    ctx.fillRect(0, 0, 10 * size, rows * size)
+    var y = r => (rows - 1 - r) * size
+    ctx.strokeStyle = '#222'
+    for (var r=0; r<rows; r++) for (var c=0; c<10; c++) ctx.strokeRect(c * size + 0.5, y(r) + 0.5, size - 1, size - 1)
+    step.board.forEach((row, r) => {
+        if (r >= rows) return
+        row.forEach((cell, c) => {
+            if (cell == 'N') return
+            ctx.fillStyle = cell == 'G'? '#888': color_table[cell]
+            ctx.fillRect(c * size, y(r), size - 1, size - 1)
+        })
+    })
+    if (step.slot){
+        ctx.globalAlpha = 0.35
+        ctx.fillStyle = color_table[step.color]
+        for (var [c, r] of step.slot) ctx.fillRect(c * size, y(r), size - 1, size - 1)
+        ctx.globalAlpha = 1
+        ctx.setLineDash([4, 3])
+    }
+    var cells = step.slot || step.outline
+    if (cells){
+        ctx.lineWidth = 3
+        ctx.strokeStyle = '#fff'
+        for (var [c, r] of cells) ctx.strokeRect(c * size + 2, y(r) + 2, size - 5, size - 5)
+        ctx.setLineDash([])
+    }
 }
 
 // Play a list on the All-Spin page (it reads the list from this tab's session)

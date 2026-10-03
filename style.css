@@ -1043,3 +1043,11 @@ html.portrait-zoom #scrollable { height: 18rem; }
 .pro-who { font-size: 0.72rem; color: #9a9ca1; text-align: center; }
 .pro-exit { font-size: 0.75rem; }
 .pro-exit a { color: #8ab4f8; }
+
+.pro-viewer { position: fixed; inset: 0; z-index: 50; background: rgba(0, 0, 0, 0.7); display: flex; align-items: center; justify-content: center; padding: 16px; }
+.pro-viewer[hidden] { display: none; }
+.pro-viewer-box { background: #2c2e33; border: 1px solid #44474f; border-radius: 8px; padding: 0.8rem; display: flex; flex-direction: column; align-items: center; gap: 0.5rem; max-width: 100%; }
+.pro-viewer-title { margin: 0; font-weight: bold; text-align: center; font-size: 0.95rem; }
+.pro-viewer-text { margin: 0; font-size: 0.9rem; min-height: 1.2em; text-align: center; }
+.pro-viewer-buttons { display: flex; gap: 0.5rem; flex-wrap: wrap; justify-content: center; }
+.pro-viewer-buttons button:not(.install-button) { min-width: 3.2rem; min-height: 2.4rem; font-size: 1rem; background: #33363c; color: inherit; border: 1px solid #5a5d65; border-radius: 6px; cursor: pointer; }
