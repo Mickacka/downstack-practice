@@ -1242,7 +1242,13 @@ function next_pro(){
     document.getElementById('spin_message').textContent = ''
     play()
     render()
-    show_spin_message(e.source.username + ' · ' + (pro.pos + 1) + '/' + pro.list.length)
+    // a new game (another round or player, or the list again): say so, as the board
+    // isn't the one before
+    var before = pro.shown, same = before && before.file == e.source.file && before.round == e.source.round &&
+        before.username == e.source.username
+    pro.shown = e.source
+    show_spin_message((same? '': 'New game: ') + e.source.username + ', round ' + (e.source.round + 1) +
+        ' · ' + (pro.pos + 1) + '/' + pro.list.length)
 }
 
 // After an exercise is solved, when the next one comes later in the same round: the
