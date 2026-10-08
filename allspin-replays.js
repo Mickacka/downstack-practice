@@ -212,6 +212,12 @@ function show_library(){
         cards.appendChild(card)
     }
 
+    // a shortcut to the ones you miss
+    var missed = misses(lib).length
+    var button = document.getElementById('play-misses')
+    button.hidden = !missed
+    button.textContent = 'Practise my misses (' + missed + ')'
+
     // the grid
     var list = filtered(lib)
     document.getElementById('shown').textContent = list.length + ' shown'
@@ -514,6 +520,16 @@ function play_from(e){
     var i = list.findIndex(x => exercise_id(x) == exercise_id(e))
     if (i < 0){ list = in_order(load_library().exercises); i = list.findIndex(x => exercise_id(x) == exercise_id(e)) }
     play(list.slice(i).concat(list.slice(0, i)))
+}
+// the ones missed and not solved since (the last try was a miss: more misses than
+// solves), whatever the filters
+function misses(lib){
+    var results = load_results()
+    return lib.exercises.filter(e => { var [solved, tries] = results[exercise_id(e)] || [0, 0]; return tries > 0 && tries - solved > solved })
+}
+document.getElementById('play-misses').onclick = () => {
+    var list = in_order(misses(load_library()))
+    if (list.length) play(list)
 }
 document.getElementById('play-all').onclick = () => {
     var list = filtered(load_library())

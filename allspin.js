@@ -2,7 +2,7 @@ var game = new Game();
 var Config = {'das':100, 'arr':0, 'delay':0, 'pressing_left':false, 'pressing_right': false, 'pressing_down': false, 'pressing':{},
 'unqiue_ind':true, 'auto_next_ind':true,
 'spin_pieces':'SZLJIT',
-'mode':'allspin', 'no_of_piece':5, 'spins':2, 'continuous':false, 'answer_inputs':false, 'find_slot':false, 'review':true, 'focus_weak':false, 'preview':5, 'clears':'double', 'flash':0, 'pro_ghost':false,
+'mode':'allspin', 'no_of_piece':5, 'spins':2, 'continuous':false, 'answer_inputs':false, 'find_slot':false, 'review':true, 'focus_weak':false, 'preview':5, 'clears':'double', 'flash':0, 'pro_ghost':false, 'pro_speed':'1',
 'no_of_trial':0, 'no_of_success':0}
 
 
@@ -27,6 +27,8 @@ function load_gamemode(){
         Config.review = localStorage.getItem('allspin_review') != 'off'
         Config.focus_weak = localStorage.getItem('allspin_focus_weak') == 'on'
         Config.pro_ghost = localStorage.getItem('allspin_pro_ghost') == 'on'
+        var speed = localStorage.getItem('allspin_pro_speed')
+        if (['2', '1', '0.4', '0'].includes(speed)) Config.pro_speed = speed
         var flash = parseInt(localStorage.getItem('allspin_flash'))
         if ([1, 2, 4].includes(flash)) Config.flash = flash
         var clears = localStorage.getItem('allspin_clears')
@@ -46,6 +48,7 @@ function load_gamemode(){
     document.getElementById('clears').value = Config.clears
     document.getElementById('flash').value = Config.flash
     document.getElementById('pro_ghost').checked = Config.pro_ghost
+    document.getElementById('pro_speed').value = Config.pro_speed
     Controls.preview = Config.preview
     document.getElementById('input16').checked = Config.unqiue_ind
     for (var piece of 'SZLJIT'){
@@ -72,6 +75,7 @@ function save_gamemode(){
     Config.clears = document.getElementById('clears').value
     Config.flash = parseInt(document.getElementById('flash').value) || 0
     Config.pro_ghost = document.getElementById('pro_ghost').checked
+    Config.pro_speed = document.getElementById('pro_speed').value
     render()
     Controls.preview = Config.preview
     render()
@@ -96,6 +100,7 @@ function save_gamemode(){
         localStorage.setItem('allspin_clears', Config.clears)
         localStorage.setItem('allspin_flash', Config.flash)
         localStorage.setItem('allspin_pro_ghost', Config.pro_ghost? 'on': 'off')
+        localStorage.setItem('allspin_pro_speed', Config.pro_speed)
     }
     catch(err){}
 }
@@ -443,7 +448,7 @@ document.getElementById('board').addEventListener('pointerdown', e => {
 })
 Controls.bind_options = () => {
     document.getElementById('input13').oninput = e=>{save_gamemode()}
-    for (var id of ['spins', 'continuous', 'answer_inputs', 'find_slot', 'review', 'focus_weak', 'preview', 'clears', 'flash', 'pro_ghost', 'input16', 'spin_S', 'spin_Z', 'spin_L', 'spin_J', 'spin_I', 'spin_T']){
+    for (var id of ['spins', 'continuous', 'answer_inputs', 'find_slot', 'review', 'focus_weak', 'preview', 'clears', 'flash', 'pro_ghost', 'pro_speed', 'input16', 'spin_S', 'spin_Z', 'spin_L', 'spin_J', 'spin_I', 'spin_T']){
         document.getElementById(id).onchange = e=>{save_gamemode()}
     }
 }
@@ -1327,7 +1332,9 @@ function pro_continue(){
     var pro = Record.pro, cur = pro.list[pro.pos], next = pro.list[(pro.pos + 1) % pro.list.length]
     var round = s => [s.file, s.round, s.username].join('|')
     var tl = pro.timelines[round(cur.source)]
-    if (!tl || next === cur || round(next.source) != round(cur.source) || cur.source.first == null ||
+    // "The player's game between exercises": slower, faster, or off (straight on)
+    var speed = parseFloat(Config.pro_speed)
+    if (!tl || !(speed > 0) || next === cur || round(next.source) != round(cur.source) || cur.source.first == null ||
         !(next.source.first > cur.source.last) || next.source.first > tl.length){
         next_pro()
         return
@@ -1355,7 +1362,7 @@ function pro_continue(){
     game.bag = game.bag.map(() => 'G')
     game.holdmino = ''
     var between = next.source.first - cur.source.last - 1
-    var own_delay = 260, far_delay = Math.max(40, Math.min(260, 3000 / Math.max(1, between)))
+    var own_delay = 260 * speed, far_delay = Math.max(40, Math.min(260, 3000 / Math.max(1, between))) * speed
     var t = 400
     var later = (delay, action) => answer_timers.push(setTimeout(action, delay))
     later(0, () => {
