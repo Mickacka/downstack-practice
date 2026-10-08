@@ -78,6 +78,7 @@ A separate page turns a TETR.IO replay into exercises: every spin the player mak
 - **Level** (replays page): each exercise is Easy, Medium or Hard (`difficulty`: pieces, spins in a row, board height, triples and non-T spins); a Level filter, and an Order (games, easiest first, hardest first) that *Play these* follows.
 - **Export my exercises / Import exercises** (replays page): the exercises, their rounds and your results in a file, to move them to another device.
 - **Session score** (replay mode): the message over the board shows ✓ solved and ✗ misses so far; at the end of the list, a summary (solved, at the first try, misses) before it starts again.
+- **Quick 10** (replays page): 10 of the exercises shown for a short session: the ones you miss most first, then ones not tried, then solved ones (slowest first).
 - **Practise my misses** (on the replays page, when there are some): the exercises you've missed more often than solved, in order.
 - **The player's game between exercises** (option, replay mode): Slow, Normal, Fast, or Off (straight on to the next exercise).
 - **Your results** per exercise (`allspin_pro_results`: solved / tries, each miss counts): a ✓ or ✗ on each card, the number solved, and a *Results* filter (not tried, not solved yet, missed at least once) to practise the ones you miss.

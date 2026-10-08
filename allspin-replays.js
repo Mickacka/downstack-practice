@@ -659,6 +659,17 @@ function misses(lib){
     var results = load_results()
     return lib.exercises.filter(e => { var [solved, tries] = results[exercise_id(e)] || [0, 0]; return tries > 0 && tries - solved > solved })
 }
+// Quick 10: missed ones first, then not tried, then solved ones (the slowest first),
+// shuffled within each group, from the exercises shown
+document.getElementById('play-quick').onclick = () => {
+    var results = load_results(), list = filtered(load_library())
+    var rank = e => {
+        var [solved, tries, best] = results[exercise_id(e)] || [0, 0]
+        return tries - solved > solved? 0: !tries? 1: 2 + 1 / (best || 1)
+    }
+    list = list.map(e => ({e: e, r: rank(e) + Math.random() * 0.5})).sort((a, b) => a.r - b.r).slice(0, 10).map(x => x.e)
+    if (list.length) play(list)
+}
 document.getElementById('play-misses').onclick = () => {
     var list = in_order(misses(load_library()))
     if (list.length) play(list)
