@@ -1075,3 +1075,6 @@ body:not(.pro-mode) .pro-option { display: none !important; }
     .pro-main .stat-value { font-size: 1.1rem; }
     .pro-main .stat-label { font-size: 0.6rem; }
 }
+.pro-compare { display: flex; flex-direction: column; align-items: center; gap: 0.2rem; margin: 0.3rem 0; font-size: 0.75rem; }
+.pro-compare[hidden] { display: none; }
+.pro-compare canvas { border: 1px solid #44474f; }

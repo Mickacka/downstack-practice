@@ -129,11 +129,31 @@ function load_results(){
     catch(err){ return {} }
 }
 
+// The spin piece you miss most in these exercises (misses per try, 3 tries at
+// least), or null
+function weakest_piece(lib, results){
+    var by = {}
+    for (var e of lib.exercises){
+        var [solved, tries] = results[exercise_id(e)] || [0, 0]
+        if (!tries) continue
+        for (var p of new Set(spins_of(e).map(s => s.piece))){
+            var b = by[p] = by[p] || {miss: 0, tries: 0}
+            b.miss += tries - solved
+            b.tries += tries
+        }
+    }
+    var best = null
+    for (var [p, b] of Object.entries(by))
+        if (b.tries >= 3 && b.miss > 0 && (!best || b.miss / b.tries > by[best].miss / by[best].tries)) best = p
+    return best
+}
+
 function filtered(lib){
     var results = load_results()
     var how = document.getElementById('filter-results').value
     var player = document.getElementById('filter-player').value
     var piece = document.getElementById('filter-piece').value
+    if (piece == 'weak') piece = weakest_piece(lib, results) || ''
     var lines = document.getElementById('filter-lines').value
     var size = document.getElementById('filter-size').value
     var count = document.getElementById('filter-count').value
@@ -217,6 +237,12 @@ function show_library(){
         card.querySelector('.stat-value').textContent = value
         cards.appendChild(card)
     }
+
+    // "My weakest": which piece it is now
+    var weak = weakest_piece(lib, load_results())
+    var option = document.querySelector('#filter-piece option[value="weak"]')
+    option.textContent = weak? 'My weakest (' + weak + ')': 'My weakest (play some first)'
+    option.disabled = !weak
 
     // a shortcut to the ones you miss
     var missed = misses(lib).length
@@ -393,7 +419,8 @@ function watch(e){
             '<button type="button" data-do="next" title="Next (→)">▶</button></div>' +
             '<div class="pro-viewer-buttons"><button type="button" class="install-button" data-do="play">Play this exercise</button>' +
             '<button type="button" class="install-button" data-do="from" title="Play in order from this exercise: the game goes on to the next ones">Play from here</button>' +
-            '<button type="button" class="install-button" data-do="close">Close</button></div></div>'
+            '<button type="button" class="install-button" data-do="close">Close</button>' +
+            '<button type="button" class="install-button danger" data-do="remove" title="Remove this exercise from your list">Remove</button></div></div>'
         document.body.appendChild(viewer)
         viewer.addEventListener('click', ev => {
             if (ev.target == viewer) return close_viewer()
@@ -404,6 +431,13 @@ function watch(e){
             if (what == 'play') play([viewer.exercise])
             if (what == 'from') play_from(viewer.exercise)
             if (what == 'close') close_viewer()
+            if (what == 'remove' && confirm('Remove this exercise?')){
+                var lib = load_library(), id = exercise_id(viewer.exercise)
+                lib.exercises = lib.exercises.filter(x => exercise_id(x) != id)
+                save_library(lib)
+                close_viewer()
+                show_library()
+            }
         })
         // on a phone: swipe the board left or right to step
         var canvas = viewer.querySelector('canvas'), swipe = null

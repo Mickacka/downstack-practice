@@ -270,12 +270,57 @@ function start_review(){
     game.tetramino = 'G'   // no falling piece over the review
     render()
     show_spin_message('Dashed: the planned setup. Tap to retry')
+    if (Record.pro) show_compare(Record.done_spins)
+}
+
+// Replay exercises, after a miss: the player's board just before the spin you
+// missed (their setup built, the slot shaded), beside yours
+function show_compare(n){
+    var canvas = document.getElementById('pro_compare')
+    if (!canvas) return
+    var board = clone(Record.board[0])
+    Record.spins.forEach((s, i) => {
+        if (i > n) return
+        for (var p of [...s.build].reverse()) for (var [c, r] of p.cells) if (r < 20) board[r][c] = p.piece
+        if (i == n) return
+        for (var [c, r] of s.cells) if (r < 20) board[r][c] = s.piece
+        var rows = board.filter(row => row.some(x => x == 'N'))
+        while (rows.length < 20) rows.push(Array(10).fill('N'))
+        board = rows
+    })
+    var spin = Record.spins[n], size = 9, top = 0
+    board.forEach((row, r) => { if (row.some(x => x != 'N')) top = r })
+    spin.cells.forEach(([c, r]) => top = Math.max(top, r))
+    var rows = Math.min(20, Math.max(8, top + 2)), dpr = Math.min(window.devicePixelRatio || 1, 3)
+    canvas.width = 10 * size * dpr
+    canvas.height = rows * size * dpr
+    canvas.style.width = 10 * size + 'px'
+    canvas.style.height = rows * size + 'px'
+    var ctx = canvas.getContext('2d')
+    ctx.scale(dpr, dpr)
+    ctx.fillStyle = '#000'
+    ctx.fillRect(0, 0, 10 * size, rows * size)
+    var y = r => (rows - 1 - r) * size
+    board.forEach((row, r) => row.forEach((c, col) => {
+        if (c == 'N' || r >= rows) return
+        ctx.fillStyle = c == 'G'? '#888': color_table[c]
+        ctx.fillRect(col * size, y(r), size - 1, size - 1)
+    }))
+    ctx.globalAlpha = 0.5
+    ctx.fillStyle = color_table[spin.piece]
+    for (var [c, r] of spin.cells) if (r < rows) ctx.fillRect(c * size, y(r), size - 1, size - 1)
+    ctx.globalAlpha = 1
+    ctx.strokeStyle = '#fff'
+    for (var [c, r] of spin.cells) if (r < rows) ctx.strokeRect(c * size + 0.5, y(r) + 0.5, size - 2, size - 2)
+    document.getElementById('pro_compare_box').hidden = false
 }
 
 var review_ended = 0
 function end_review(){
     if (!Record.review) return
     Record.review = null
+    var compare = document.getElementById('pro_compare_box')
+    if (compare) compare.hidden = true
     review_ended = performance.now()
     document.getElementById('spin_message').textContent = ''
     retry()
@@ -1732,6 +1777,8 @@ function play(){
     game.hold()
     Record.finding = null
     Record.review = null
+    var compare = document.getElementById('pro_compare_box')
+    if (compare) compare.hidden = true
     Record.flash = null
     clearTimeout(flash_timer)
     // a one-piece queue would otherwise start with the piece stuck in hold
