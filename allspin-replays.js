@@ -196,7 +196,7 @@ function filtered(lib){
 function show_library(){
     var lib = load_library()
     var any = lib.exercises.length > 0
-    for (var id of ['library-section', 'reference-section', 'sources-section']) document.getElementById(id).hidden = !any
+    for (var id of ['library-section', 'players-section', 'reference-section', 'sources-section']) document.getElementById(id).hidden = !any
     // with exercises, they come first: the introduction folds away and adding a
     // replay moves to the end
     document.getElementById('intro').hidden = any
@@ -302,6 +302,25 @@ function show_library(){
         more.className = 'stats-note'
         more.textContent = 'Showing 300 of ' + list.length + ': narrow the filters to see the others (Play these takes them all).'
         grid.appendChild(more)
+    }
+
+    // your results by player
+    var players = {}
+    for (var e of lib.exercises){
+        var p = players[e.source.username] = players[e.source.username] || {n: 0, tried: 0, solved: 0}
+        var [solved, tries] = results[exercise_id(e)] || [0, 0]
+        p.n += 1
+        if (tries) p.tried += 1
+        if (solved) p.solved += 1
+    }
+    var prow = document.getElementById('player-rows')
+    prow.textContent = ''
+    for (var [name, p] of Object.entries(players)){
+        var tr = document.createElement('tr')
+        for (var text of [name, p.n, p.tried, p.solved, p.tried? Math.round(100 * p.solved / p.tried) + '%': '–']){
+            var td = document.createElement('td'); td.textContent = text; tr.appendChild(td)
+        }
+        prow.appendChild(tr)
     }
 
     // reference: by spin kind
@@ -438,6 +457,7 @@ function watch(e){
             '<button type="button" data-do="next-ex" title="The next exercise (in the list shown)">⏭</button></div>' +
             '<div class="pro-viewer-buttons"><button type="button" class="install-button" data-do="play">Play this exercise</button>' +
             '<button type="button" class="install-button" data-do="from" title="Play in order from this exercise: the game goes on to the next ones">Play from here</button>' +
+            '<button type="button" class="install-button" data-do="like" title="All the exercises whose first spin is the same kind, shuffled">More like this</button>' +
             '<button type="button" class="install-button" data-do="close">Close</button>' +
             '<button type="button" class="install-button danger" data-do="remove" title="Remove this exercise from your list">Remove</button></div></div>'
         document.body.appendChild(viewer)
@@ -449,6 +469,12 @@ function watch(e){
             if (what == 'auto') viewer.auto()
             if (what == 'play') play([viewer.exercise])
             if (what == 'from') play_from(viewer.exercise)
+            if (what == 'like'){
+                var kind = one_label(spins_of(viewer.exercise)[0])
+                var list = load_library().exercises.filter(x => one_label(spins_of(x)[0]) == kind)
+                for (var i=list.length-1; i>0; i--){ var j = Math.floor(Math.random() * (i + 1)); [list[i], list[j]] = [list[j], list[i]] }
+                play(list)
+            }
             if (what == 'close') close_viewer()
             if (what == 'prev-ex' || what == 'next-ex'){
                 // the list as shown on the page
