@@ -202,11 +202,21 @@ Controls.draw_overlay = (ctx, x, y) => {
         // only where nothing is placed yet
         ctx.lineWidth = 3
         ctx.setLineDash([5, 4])
-        for (var p of spin.build){
+        // each piece numbered in the order it goes in (the build is kept in reverse
+        // order; in replay exercises, the player's order)
+        spin.build.forEach((p, i) => {
+            var empty = p.cells.filter(([col, row]) => game.board[row][col] == 'N')
             ctx.strokeStyle = color_table[p.piece]
-            for (var [col, row] of p.cells)
-                if (game.board[row][col] == 'N') ctx.strokeRect(col*30 + x + 3, (19-row)*30 + y + 3, 24, 24)
-        }
+            for (var [col, row] of empty) ctx.strokeRect(col*30 + x + 3, (19-row)*30 + y + 3, 24, 24)
+            if (!empty.length) return
+            var [col, row] = empty[0]
+            ctx.setLineDash([])
+            ctx.fillStyle = color_table[p.piece]
+            ctx.font = 'bold 16px Arial'
+            ctx.textAlign = 'center'
+            ctx.fillText(spin.build.length - i, col*30 + x + 15, (19-row)*30 + y + 21)
+            ctx.setLineDash([5, 4])
+        })
         ctx.restore()
         return
     }

@@ -93,7 +93,7 @@ First test (a 13-round league match, 5han vs haenazzi): with spins in a row merg
 - **Find the slot first** (option, a vision drill): before each new map (and each new part in continuous mode), tap the 4 cells where the first spin piece will end, before any piece is placed, so you have to picture the finished setup. After the 4th cell the slot is shown: your right cells in green, wrong ones crossed in red. Then you play. Tapping a picked cell again unpicks it; Show Hint gives up (not counted). Your score ("found 7/10") is kept in the browser. A retry of the same map doesn't ask again.
 - **Show Hint** gives hints for the next spin, one more each press, so you take only as much help as you need:
   1. the rows the spin piece ends in (a dashed band);
-  2. the setup to build: the pieces still to place, outlined in their colours (only where nothing is placed yet);
+  2. the setup to build: the pieces still to place, outlined in their colours (only where nothing is placed yet) and numbered in the order they go in (in replay exercises, the player's order);
   3. the slot itself (where the spin piece has to end up), in the spin piece's colour.
 
   The 4th press hides it (the button reads *Show Hint*, *More Hint*, *Hide Hint*); it turns off when the map restarts.
