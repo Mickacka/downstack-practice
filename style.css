@@ -1064,3 +1064,5 @@ body.pro-mode .gen-option { display: none !important; }
 .pro-chip.done { opacity: 0.3; }
 .pro-chip.now, .pro-chip.next { border-color: #fff; }
 .pro-chip.next { border-style: dashed; }
+/* options only for replay exercises */
+body:not(.pro-mode) .pro-option { display: none !important; }

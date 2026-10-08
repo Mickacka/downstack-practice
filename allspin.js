@@ -2,7 +2,7 @@ var game = new Game();
 var Config = {'das':100, 'arr':0, 'delay':0, 'pressing_left':false, 'pressing_right': false, 'pressing_down': false, 'pressing':{},
 'unqiue_ind':true, 'auto_next_ind':true,
 'spin_pieces':'SZLJIT',
-'mode':'allspin', 'no_of_piece':5, 'spins':2, 'continuous':false, 'answer_inputs':false, 'find_slot':false, 'review':true, 'focus_weak':false, 'preview':5, 'clears':'double', 'flash':0,
+'mode':'allspin', 'no_of_piece':5, 'spins':2, 'continuous':false, 'answer_inputs':false, 'find_slot':false, 'review':true, 'focus_weak':false, 'preview':5, 'clears':'double', 'flash':0, 'pro_ghost':false,
 'no_of_trial':0, 'no_of_success':0}
 
 
@@ -26,6 +26,7 @@ function load_gamemode(){
         Config.find_slot = localStorage.getItem('allspin_find_slot') == 'on'
         Config.review = localStorage.getItem('allspin_review') != 'off'
         Config.focus_weak = localStorage.getItem('allspin_focus_weak') == 'on'
+        Config.pro_ghost = localStorage.getItem('allspin_pro_ghost') == 'on'
         var flash = parseInt(localStorage.getItem('allspin_flash'))
         if ([1, 2, 4].includes(flash)) Config.flash = flash
         var clears = localStorage.getItem('allspin_clears')
@@ -44,6 +45,7 @@ function load_gamemode(){
     document.getElementById('preview').value = Config.preview
     document.getElementById('clears').value = Config.clears
     document.getElementById('flash').value = Config.flash
+    document.getElementById('pro_ghost').checked = Config.pro_ghost
     Controls.preview = Config.preview
     document.getElementById('input16').checked = Config.unqiue_ind
     for (var piece of 'SZLJIT'){
@@ -69,6 +71,8 @@ function save_gamemode(){
     Config.preview = parseInt(document.getElementById('preview').value) || 5
     Config.clears = document.getElementById('clears').value
     Config.flash = parseInt(document.getElementById('flash').value) || 0
+    Config.pro_ghost = document.getElementById('pro_ghost').checked
+    render()
     Controls.preview = Config.preview
     render()
     if (Record.spins.length) update_goal()
@@ -91,6 +95,7 @@ function save_gamemode(){
         localStorage.setItem('allspin_preview', Config.preview)
         localStorage.setItem('allspin_clears', Config.clears)
         localStorage.setItem('allspin_flash', Config.flash)
+        localStorage.setItem('allspin_pro_ghost', Config.pro_ghost? 'on': 'off')
     }
     catch(err){}
 }
@@ -174,6 +179,7 @@ const HINT_TEXT = ['', 'Hint 1/3: the spin is in these rows', 'Hint 2/3: the set
     'Hint 3/3: the slot']
 Controls.draw_overlay = (ctx, x, y) => {
     if (Record.finding) draw_finding(ctx, x, y)
+    if (Record.pro && Config.pro_ghost && !Record.showing) draw_pro_ghost(ctx, x, y)
     if (Record.replay_cells && Record.showing){
         ctx.save()
         ctx.lineWidth = 3
@@ -437,7 +443,7 @@ document.getElementById('board').addEventListener('pointerdown', e => {
 })
 Controls.bind_options = () => {
     document.getElementById('input13').oninput = e=>{save_gamemode()}
-    for (var id of ['spins', 'continuous', 'answer_inputs', 'find_slot', 'review', 'focus_weak', 'preview', 'clears', 'flash', 'input16', 'spin_S', 'spin_Z', 'spin_L', 'spin_J', 'spin_I', 'spin_T']){
+    for (var id of ['spins', 'continuous', 'answer_inputs', 'find_slot', 'review', 'focus_weak', 'preview', 'clears', 'flash', 'pro_ghost', 'input16', 'spin_S', 'spin_Z', 'spin_L', 'spin_J', 'spin_I', 'spin_T']){
         document.getElementById(id).onchange = e=>{save_gamemode()}
     }
 }
@@ -1221,6 +1227,28 @@ the list in sessionStorage): a player's board a few pieces before one of their
 spins, their pieces in the order they placed them, and that spin to do. Solved or
 New map: the next one; after the last, the list starts again.
 */
+// "Show where the player put each piece" (replay exercises): where the player put
+// the piece you have now, shaded in its colour. The first piece of that kind, in their
+// order, whose cells are still empty (the spin piece once the setup is built).
+function draw_pro_ghost(ctx, x, y){
+    var spin = Record.spins[Record.done_spins]
+    if (!spin || !game.tetramino || game.tetramino == 'G') return
+    var empty = cells => cells.every(([col, row]) => row > 19 || game.board[row][col] == 'N')
+    var order = [...spin.build].reverse()
+    var target = order.find(p => p.piece == game.tetramino && empty(p.cells))
+    if (!target && spin.piece == game.tetramino && order.every(p => !empty(p.cells))) target = spin
+    if (!target) return
+    ctx.save()
+    ctx.globalAlpha = 0.35
+    ctx.fillStyle = color_table[target.piece]
+    for (var [col, row] of target.cells) if (row < 20) ctx.fillRect(col*30 + x, (19-row)*30 + y, 30, 30)
+    ctx.globalAlpha = 1
+    ctx.strokeStyle = '#fff'
+    ctx.lineWidth = 2
+    for (var [col, row] of target.cells) if (row < 20) ctx.strokeRect(col*30 + x + 2, (19-row)*30 + y + 2, 26, 26)
+    ctx.restore()
+}
+
 // an exercise's id (as allspin-replays.js makes it)
 const pro_id = e => [e.source.file, e.source.round, e.source.username, e.source.placement, (e.spins || [1]).length].join(':')
 
