@@ -405,6 +405,15 @@ function watch(e){
             if (what == 'from') play_from(viewer.exercise)
             if (what == 'close') close_viewer()
         })
+        // on a phone: swipe the board left or right to step
+        var canvas = viewer.querySelector('canvas'), swipe = null
+        canvas.addEventListener('touchstart', ev => { swipe = ev.touches[0].clientX }, {passive: true})
+        canvas.addEventListener('touchend', ev => {
+            if (swipe === null) return
+            var dx = ev.changedTouches[0].clientX - swipe
+            swipe = null
+            if (Math.abs(dx) > 30) viewer.go(dx < 0? 1: -1)
+        })
         document.addEventListener('keydown', ev => {
             if (!viewer || viewer.hidden) return
             if (ev.key == 'ArrowLeft') viewer.go(-1)
