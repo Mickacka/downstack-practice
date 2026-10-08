@@ -431,9 +431,11 @@ function watch(e){
         viewer.className = 'pro-viewer'
         viewer.innerHTML = '<div class="pro-viewer-box" role="dialog" aria-label="Watch the setup">' +
             '<p class="pro-viewer-title"></p><canvas></canvas><div class="pro-queue" aria-label="The pieces, in the order placed"></div><p class="pro-viewer-text" role="status"></p>' +
-            '<div class="pro-viewer-buttons"><button type="button" data-do="prev" title="Back (←)">◀</button>' +
+            '<div class="pro-viewer-buttons"><button type="button" data-do="prev-ex" title="The exercise before (in the list shown)">⏮</button>' +
+            '<button type="button" data-do="prev" title="Back (←)">◀</button>' +
             '<button type="button" data-do="auto" title="Play the steps">▶▶</button>' +
-            '<button type="button" data-do="next" title="Next (→)">▶</button></div>' +
+            '<button type="button" data-do="next" title="Next (→)">▶</button>' +
+            '<button type="button" data-do="next-ex" title="The next exercise (in the list shown)">⏭</button></div>' +
             '<div class="pro-viewer-buttons"><button type="button" class="install-button" data-do="play">Play this exercise</button>' +
             '<button type="button" class="install-button" data-do="from" title="Play in order from this exercise: the game goes on to the next ones">Play from here</button>' +
             '<button type="button" class="install-button" data-do="close">Close</button>' +
@@ -448,6 +450,15 @@ function watch(e){
             if (what == 'play') play([viewer.exercise])
             if (what == 'from') play_from(viewer.exercise)
             if (what == 'close') close_viewer()
+            if (what == 'prev-ex' || what == 'next-ex'){
+                // the list as shown on the page
+                var list = sorted(filtered(load_library())), id = exercise_id(viewer.exercise)
+                var i = list.findIndex(x => exercise_id(x) == id)
+                if (list.length){
+                    viewer.stop()
+                    watch(list[(i + (what == 'next-ex'? 1: -1) + list.length) % list.length])
+                }
+            }
             if (what == 'remove' && confirm('Remove this exercise?')){
                 var lib = load_library(), id = exercise_id(viewer.exercise)
                 lib.exercises = lib.exercises.filter(x => exercise_id(x) != id)

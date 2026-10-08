@@ -1388,6 +1388,9 @@ function next_pro(){
     var before = pro.shown, same = before && before.file == e.source.file && before.round == e.source.round &&
         before.username == e.source.username
     pro.shown = e.source
+    var where = document.getElementById('pro_source')
+    if (where) where.textContent = e.source.username + ' · round ' + (e.source.round + 1) +
+        (e.queue.length? ' · ' + e.queue.length + ' pieces': '')
     show_spin_message((same? '': 'New game: ') + e.source.username + ', round ' + (e.source.round + 1) +
         ' · ' + (pro.pos + 1) + '/' + pro.list.length + (s.solved + s.missed? ' · ✓' + s.solved + ' ✗' + s.missed: ''))
 }
