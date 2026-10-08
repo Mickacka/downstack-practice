@@ -1260,6 +1260,16 @@ const pro_id = e => [e.source.file, e.source.round, e.source.username, e.source.
 // Your results per exercise, for the replays page: {id: [solved, tries]}
 function log_pro(won){
     if (!Record.pro || Record.showing) return
+    // this session: solved (and how many at the first try), misses
+    var session = Record.pro.session
+    if (won){
+        session.solved += 1
+        if (!Record.pro.missed_now) session.first += 1
+    }
+    else{
+        session.missed += 1
+        Record.pro.missed_now = true
+    }
     var id = pro_id(Record.pro.list[Record.pro.pos])
     try{
         var results = JSON.parse(localStorage.getItem('allspin_pro_results')) || {}
@@ -1291,7 +1301,7 @@ function start_pro(){
     var by_id = new Map((lib.exercises || []).map(e => [pro_id(e), e]))
     var list = ids.map(id => by_id.get(id)).filter(Boolean)
     if (!list.length) return false
-    Record.pro = {list: list, pos: -1, timelines: lib.timelines || {}}
+    Record.pro = {list: list, pos: -1, timelines: lib.timelines || {}, session: {solved: 0, first: 0, missed: 0}}
     if (!fresh) try{ Record.pro.pos = (parseInt(sessionStorage.getItem('allspin_pro_pos')) || 0) - 1 }catch(err){}
     try{ sessionStorage.setItem('allspin_pro_active', 'on') }catch(err){}
     // the player's spins, from their own board, not continuous mode
@@ -1302,6 +1312,12 @@ function start_pro(){
 
 function next_pro(){
     var pro = Record.pro
+    // the end of the list: how it went, then it starts again
+    var s = pro.session
+    if (pro.pos == pro.list.length - 1 && pro.list.length > 1 && s.solved + s.missed)
+        flash_result(true, 'All ' + pro.list.length + ' done: ' + s.solved + ' solved (' + s.first + ' at the first try), ' +
+            s.missed + ' miss' + (s.missed == 1? '': 'es'))
+    pro.missed_now = false
     pro.pos = (pro.pos + 1) % pro.list.length
     try{ sessionStorage.setItem('allspin_pro_pos', pro.pos) }catch(err){}
     var e = pro.list[pro.pos]
@@ -1320,7 +1336,7 @@ function next_pro(){
         before.username == e.source.username
     pro.shown = e.source
     show_spin_message((same? '': 'New game: ') + e.source.username + ', round ' + (e.source.round + 1) +
-        ' · ' + (pro.pos + 1) + '/' + pro.list.length)
+        ' · ' + (pro.pos + 1) + '/' + pro.list.length + (s.solved + s.missed? ' · ✓' + s.solved + ' ✗' + s.missed: ''))
 }
 
 // After an exercise is solved, when the next one comes later in the same round: the

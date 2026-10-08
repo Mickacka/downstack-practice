@@ -1066,3 +1066,12 @@ body.pro-mode .gen-option { display: none !important; }
 .pro-chip.next { border-style: dashed; }
 /* options only for replay exercises */
 body:not(.pro-mode) .pro-option { display: none !important; }
+@media (max-width: 520px) {
+    .pro-grid { grid-template-columns: repeat(auto-fill, minmax(6.4rem, 1fr)); gap: 0.4rem; }
+    .pro-card { padding: 0.35rem; }
+    .pro-label { font-size: 0.72rem; }
+    .pro-main .stat-cards { grid-template-columns: repeat(3, 1fr); gap: 0.4rem; }
+    .pro-main .stat-card { padding: 0.5rem; }
+    .pro-main .stat-value { font-size: 1.1rem; }
+    .pro-main .stat-label { font-size: 0.6rem; }
+}
