@@ -129,7 +129,11 @@ function filtered(lib){
     var lines = document.getElementById('filter-lines').value
     var size = document.getElementById('filter-size').value
     var count = document.getElementById('filter-count').value
+    // from a round on (of that replay): "file|round"
+    var from = document.getElementById('filter-round').value
+    var from_file = from && from.slice(0, from.lastIndexOf('|')), from_round = from && Number(from.slice(from.lastIndexOf('|') + 1))
     return lib.exercises.filter(e => {
+        if (from && (e.source.file != from_file || e.source.round < from_round)) return false
         if (player && e.source.username != player) return false
         if (piece && !spins_of(e).some(s => s.piece == piece)) return false
         if (lines && !spins_of(e).some(s => s.lines == lines)) return false
@@ -158,6 +162,23 @@ function show_library(){
         select.appendChild(option)
     }
     select.value = chosen
+
+    // rounds in the "from round" filter
+    var rounds = document.getElementById('filter-round')
+    var picked = rounds.value
+    rounds.length = 1
+    var files = [...new Set(lib.exercises.map(e => e.source.file))]
+    var seen = new Set()
+    for (var e of [...lib.exercises].sort((a, b) => a.source.file.localeCompare(b.source.file) || a.source.round - b.source.round)){
+        var value = e.source.file + '|' + e.source.round
+        if (seen.has(value)) continue
+        seen.add(value)
+        var option = document.createElement('option')
+        option.value = value
+        option.textContent = 'Round ' + (e.source.round + 1) + (files.length > 1? ' (' + e.source.file + ')': '')
+        rounds.appendChild(option)
+    }
+    rounds.value = picked
 
     // summary
     var cards = document.getElementById('cards')
@@ -331,6 +352,7 @@ function watch(e){
             '<button type="button" data-do="auto" title="Play the steps">▶▶</button>' +
             '<button type="button" data-do="next" title="Next (→)">▶</button></div>' +
             '<div class="pro-viewer-buttons"><button type="button" class="install-button" data-do="play">Play this exercise</button>' +
+            '<button type="button" class="install-button" data-do="from" title="Play in order from this exercise: the game goes on to the next ones">Play from here</button>' +
             '<button type="button" class="install-button" data-do="close">Close</button></div></div>'
         document.body.appendChild(viewer)
         viewer.addEventListener('click', ev => {
@@ -340,6 +362,7 @@ function watch(e){
             if (what == 'next') viewer.go(1)
             if (what == 'auto') viewer.auto()
             if (what == 'play') play([viewer.exercise])
+            if (what == 'from') play_from(viewer.exercise)
             if (what == 'close') close_viewer()
         })
         document.addEventListener('keydown', ev => {
@@ -429,18 +452,28 @@ function play(list){
 }
 // in the order of the games: from one exercise to the next of the same round, the
 // All-Spin page plays the player's game in between
-document.getElementById('play-order').onclick = () => {
-    var list = filtered(load_library())
-    list.sort((a, b) => a.source.file.localeCompare(b.source.file) || a.source.round - b.source.round ||
+function in_order(list){
+    return list.sort((a, b) => a.source.file.localeCompare(b.source.file) || a.source.round - b.source.round ||
         String(a.source.username).localeCompare(String(b.source.username)) || (a.source.first ?? a.source.placement) - (b.source.first ?? b.source.placement))
+}
+document.getElementById('play-order').onclick = () => {
+    var list = in_order(filtered(load_library()))
     if (list.length) play(list)
+}
+// Play in order from one exercise (Watch): it, then the ones after it, then the
+// ones before
+function play_from(e){
+    var list = in_order(filtered(load_library()))
+    var i = list.findIndex(x => exercise_id(x) == exercise_id(e))
+    if (i < 0){ list = in_order(load_library().exercises); i = list.findIndex(x => exercise_id(x) == exercise_id(e)) }
+    play(list.slice(i).concat(list.slice(0, i)))
 }
 document.getElementById('play-all').onclick = () => {
     var list = filtered(load_library())
     for (var i=list.length-1; i>0; i--){ var j = Math.floor(Math.random() * (i + 1)); [list[i], list[j]] = [list[j], list[i]] }
     if (list.length) play(list)
 }
-for (var id of ['filter-player', 'filter-piece', 'filter-lines', 'filter-count', 'filter-size'])
+for (var id of ['filter-round', 'filter-player', 'filter-piece', 'filter-lines', 'filter-count', 'filter-size'])
     document.getElementById(id).onchange = show_library
 
 show_library()
