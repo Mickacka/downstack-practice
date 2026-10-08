@@ -1051,3 +1051,6 @@ html.portrait-zoom #scrollable { height: 18rem; }
 .pro-viewer-text { margin: 0; font-size: 0.9rem; min-height: 1.2em; text-align: center; }
 .pro-viewer-buttons { display: flex; gap: 0.5rem; flex-wrap: wrap; justify-content: center; }
 .pro-viewer-buttons button:not(.install-button) { min-width: 3.2rem; min-height: 2.4rem; font-size: 1rem; background: #33363c; color: inherit; border: 1px solid #5a5d65; border-radius: 6px; cursor: pointer; }
+
+/* All-Spin, replay exercises: the options for generated maps don't apply */
+body.pro-mode .gen-option { display: none !important; }

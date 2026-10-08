@@ -1346,6 +1346,8 @@ function pro_button_label(){
     var button = document.getElementById('new_map_button')
     if (!button) return
     button.textContent = Record.pro? 'Next exercise': 'New All-Spin Map'
+    // options that only shape generated maps are hidden in replay mode (style.css)
+    document.body.classList.toggle('pro-mode', !!Record.pro)
     if (typeof set_short_label == 'function') set_short_label(button)
 }
 
