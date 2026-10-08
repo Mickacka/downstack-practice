@@ -60,6 +60,8 @@ function save_gamemode(){
     Config.unqiue_ind = document.getElementById('input16').checked
     Config.spins = Math.max(1, Math.min(4, parseInt(document.getElementById('spins').value) || 2))
     Config.continuous = document.getElementById('continuous').checked
+    // (replay exercises: never continuous mode, which plans generated parts)
+    if (Record.pro) Config.continuous = false
     Config.answer_inputs = document.getElementById('answer_inputs').checked
     Config.find_slot = document.getElementById('find_slot').checked
     Config.review = document.getElementById('review').checked
@@ -1209,8 +1211,15 @@ the list in sessionStorage): a player's board a few pieces before one of their
 spins, their pieces in the order they placed them, and that spin to do. Solved or
 New map: the next one; after the last, the list starts again.
 */
+// (also after a reload of the page, or coming back to it: the same list, at the same
+// exercise; opening the page from the menu gives generated maps again)
 function start_pro(){
-    if (location.hash != '#pro') return false
+    var nav = performance.getEntriesByType && performance.getEntriesByType('navigation')[0]
+    var resume = nav && ['reload', 'back_forward'].includes(nav.type)
+    var active = false
+    try{ active = sessionStorage.getItem('allspin_pro_active') == 'on' }catch(err){}
+    if (location.hash != '#pro' && !(resume && active)) return false
+    var fresh = location.hash == '#pro'
     history.replaceState(null, '', location.pathname)
     var ids = [], lib = {}
     try{
@@ -1223,6 +1232,8 @@ function start_pro(){
     var list = ids.map(id => by_id.get(id)).filter(Boolean)
     if (!list.length) return false
     Record.pro = {list: list, pos: -1, timelines: lib.timelines || {}}
+    if (!fresh) try{ Record.pro.pos = (parseInt(sessionStorage.getItem('allspin_pro_pos')) || 0) - 1 }catch(err){}
+    try{ sessionStorage.setItem('allspin_pro_active', 'on') }catch(err){}
     // the player's spins, from their own board, not continuous mode
     Config.continuous = false
     next_pro()
@@ -1232,6 +1243,7 @@ function start_pro(){
 function next_pro(){
     var pro = Record.pro
     pro.pos = (pro.pos + 1) % pro.list.length
+    try{ sessionStorage.setItem('allspin_pro_pos', pro.pos) }catch(err){}
     var e = pro.list[pro.pos]
     Record.spins = (e.spins || [e.spin]).map(s => ({piece: s.piece, lines: s.lines, cells: s.cells, build: s.build}))
     Record.board = [e.board.map(row => [...row])]
@@ -1322,9 +1334,19 @@ function pro_continue(){
 
 function exit_pro(){
     Record.pro = null
+    try{ sessionStorage.removeItem('allspin_pro_active') }catch(err){}
+    pro_button_label()
     load_gamemode()
     play_a_map()
     render()
+}
+
+// the New map button goes to the next exercise in replay mode: say so
+function pro_button_label(){
+    var button = document.getElementById('new_map_button')
+    if (!button) return
+    button.textContent = Record.pro? 'Next exercise': 'New All-Spin Map'
+    if (typeof set_short_label == 'function') set_short_label(button)
 }
 
 // A new map: {chain, start}
@@ -1525,6 +1547,7 @@ function prepare_next_part(start){
 }
 
 function next_part(){
+    if (Record.pro){ next_pro(); return }
     var cleared = Record.spins.reduce((a, s) => a + s.lines, 0)
     Record.last_piece = Record.spins.length? Record.spins[Record.spins.length-1].piece: null
     var garbage = add_garbage(clone(game.board), cleared)
@@ -1607,6 +1630,7 @@ function update_goal(){
         (Config.continuous? 'Part ' + (Record.part || 1) + ': ': '') + parts.join(' → '))
     var exit = document.getElementById('pro_exit')
     if (exit) exit.hidden = !Record.pro
+    pro_button_label()
 }
 
 function play(){
@@ -1657,7 +1681,7 @@ function detect_win(){
         Record.solved = true
         log_spins()
         Config.no_of_success += 1
-        if (Config.continuous){
+        if (Config.continuous && !Record.pro){
             report_result(true, 'Part ' + Record.part + ' done')
             next_part()
             return

@@ -104,7 +104,7 @@ document.addEventListener('touchstart', e => {
 // data-short instead of the text there)
 const SHORT_LABELS = {
     'Copy link': 'Link', 'Show Answer': 'Answer', 'Show Hint': 'Hint', 'More Hint': 'Hint+', 'Hide Hint': 'Hide',
-    'Rush (3 min)': 'Rush', 'Stop rush': 'Stop',
+    'Rush (3 min)': 'Rush', 'Stop rush': 'Stop', 'Next exercise': 'Next',
     'Get help from PC finder (At most 4 lines)': 'PC finder', 'Get help from S finder (Any number of line)': 'S finder',
     // modes
     'Combo into PC': 'Combo+PC', 'Combo into Quad': 'Combo+Quad', 'Combo into TSD': 'Combo+TSD',
