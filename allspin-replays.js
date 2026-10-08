@@ -148,6 +148,17 @@ function weakest_piece(lib, results){
     return best
 }
 
+// How hard an exercise is, 1 (easy) to 3 (hard): more pieces, spins in a row, a
+// tall board, triples and non-T spins make it harder
+const LEVELS = ['', 'Easy', 'Medium', 'Hard']
+function difficulty(e){
+    var spins = spins_of(e), height = 0
+    e.board.forEach((row, r) => { if (row != 'NNNNNNNNNN') height = r + 1 })
+    var score = e.queue.length + 2 * (spins.length - 1) + (height >= 12? 2: height >= 8? 1: 0) +
+        spins.filter(s => s.lines == 3 || s.piece != 'T').length
+    return score <= 5? 1: score <= 10? 2: 3
+}
+
 function filtered(lib){
     var results = load_results()
     var how = document.getElementById('filter-results').value
@@ -157,6 +168,7 @@ function filtered(lib){
     var lines = document.getElementById('filter-lines').value
     var size = document.getElementById('filter-size').value
     var count = document.getElementById('filter-count').value
+    var level = document.getElementById('filter-level').value
     // from a round on (of that replay): "file|round"
     var from = document.getElementById('filter-round').value
     var from_file = from && from.slice(0, from.lastIndexOf('|')), from_round = from && Number(from.slice(from.lastIndexOf('|') + 1))
@@ -172,6 +184,7 @@ function filtered(lib){
         if (piece && !spins_of(e).some(s => s.piece == piece)) return false
         if (lines && !spins_of(e).some(s => s.lines == lines)) return false
         if (count && (count == '1') != (spins_of(e).length == 1)) return false
+        if (level && difficulty(e) != level) return false
         if (size){
             var [lo, hi] = size.split('-').map(Number)
             if (e.queue.length < lo || e.queue.length > hi) return false
@@ -251,7 +264,7 @@ function show_library(){
     button.textContent = 'Practise my misses (' + missed + ')'
 
     // the grid
-    var list = filtered(lib)
+    var list = sorted(filtered(lib))
     document.getElementById('shown').textContent = list.length + ' shown'
     var grid = document.getElementById('grid')
     grid.textContent = ''
@@ -265,6 +278,10 @@ function show_library(){
         var label = document.createElement('span')
         label.className = 'pro-label'
         label.textContent = spin_label(e) + ' · ' + e.queue.length + ' pieces'
+        var lv = document.createElement('span')
+        lv.className = 'pro-level level' + difficulty(e)
+        lv.textContent = LEVELS[difficulty(e)]
+        item.appendChild(lv)
         var [solved, tries] = load_results()[exercise_id(e)] || [0, 0]
         if (tries){
             var mark = document.createElement('span')
@@ -580,12 +597,64 @@ document.getElementById('play-misses').onclick = () => {
     var list = in_order(misses(load_library()))
     if (list.length) play(list)
 }
+// the order chosen: the games' (the order they were added), easiest or hardest first
+function sorted(list){
+    var order = document.getElementById('sort').value
+    if (!order) return list
+    var sign = order == 'easy'? 1: -1
+    return [...list].sort((a, b) => sign * (difficulty(a) - difficulty(b) || a.queue.length - b.queue.length))
+}
+// Play these: shuffled, or in the order chosen
 document.getElementById('play-all').onclick = () => {
     var list = filtered(load_library())
-    for (var i=list.length-1; i>0; i--){ var j = Math.floor(Math.random() * (i + 1)); [list[i], list[j]] = [list[j], list[i]] }
+    if (document.getElementById('sort').value) list = sorted(list)
+    else for (var i=list.length-1; i>0; i--){ var j = Math.floor(Math.random() * (i + 1)); [list[i], list[j]] = [list[j], list[i]] }
     if (list.length) play(list)
 }
-for (var id of ['filter-results', 'filter-round', 'filter-player', 'filter-piece', 'filter-lines', 'filter-count', 'filter-size'])
+function play_all_label(){
+    var order = document.getElementById('sort').value
+    document.getElementById('play-all').textContent = 'Play these (' + (order == 'easy'? 'easiest first': order == 'hard'? 'hardest first': 'shuffled') + ')'
+}
+
+/*
+Export / import of the replay exercises (with their rounds and your results), to
+move them to another device
+*/
+document.getElementById('export').onclick = () => {
+    var data = {kind: 'tetris-practice-allspin-replays', version: 1, library: load_library(), results: load_results()}
+    var blob = new Blob([JSON.stringify(data)], {type: 'application/json'})
+    var a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = 'allspin-replay-exercises.json'
+    a.click()
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000)
+}
+document.getElementById('import').onchange = async e => {
+    var file = e.target.files[0]
+    e.target.value = ''
+    if (!file) return
+    try{
+        var data = JSON.parse(await file.text())
+        if (data.kind != 'tetris-practice-allspin-replays') throw new Error('not an export')
+        var lib = load_library(), have = new Set(lib.exercises.map(exercise_id)), added = 0
+        for (var x of data.library.exercises || []) if (!have.has(exercise_id(x))){ lib.exercises.push(x); have.add(exercise_id(x)); added++ }
+        for (var s of data.library.sources || []) if (!lib.sources.some(t => t.file == s.file)) lib.sources.push(s)
+        Object.assign(lib.timelines, data.library.timelines || {})
+        save_library(lib)
+        // results: keep the larger counts
+        var results = load_results()
+        for (var [id, r] of Object.entries(data.results || {})){
+            var mine = results[id] || [0, 0]
+            results[id] = r[1] > mine[1]? r: mine
+        }
+        try{ localStorage.setItem('allspin_pro_results', JSON.stringify(results)) }catch(err){}
+        status(added + ' exercises imported.')
+        show_library()
+    }
+    catch(err){ status('That file is not an export of replay exercises.') }
+}
+document.getElementById('sort').onchange = () => { play_all_label(); show_library() }
+for (var id of ['filter-level', 'filter-results', 'filter-round', 'filter-player', 'filter-piece', 'filter-lines', 'filter-count', 'filter-size'])
     document.getElementById(id).onchange = show_library
 
 show_library()

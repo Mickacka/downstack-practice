@@ -58,7 +58,10 @@
             <h3>Add a replay</h3>
             <div class="data-buttons">
                 <label class="install-button">Choose .ttr / .ttrm files<input type="file" id="files" accept=".ttr,.ttrm,application/json" multiple hidden></label>
+                <button type="button" class="install-button" id="export" title="Your replay exercises, their rounds and your results, in a file">Export my exercises</button>
+                <label class="install-button" title="Exercises exported on another device">Import exercises<input type="file" id="import" accept="application/json,.json" hidden></label>
             </div>
+            <p class="stats-note">To move your exercises to another device (your phone): Export here, Import there.</p>
             <p class="stats-note">Tetra League matches (<code>.ttrm</code>) and 40 Lines games (<code>.ttr</code>), from TETR.IO's current version.
                 In TETR.IO, open a replay and download it, or export it from your recent games.</p>
             <p class="stats-note" id="status" role="status"></p>
@@ -77,6 +80,8 @@
             <h3>My exercises</h3>
             <div class="stat-cards" id="cards"></div>
             <div class="pro-filters">
+                <label>Level <select id="filter-level"><option value="">All</option><option value="1">Easy</option><option value="2">Medium</option><option value="3">Hard</option></select></label>
+                <label>Order <select id="sort"><option value="">Games</option><option value="easy">Easiest first</option><option value="hard">Hardest first</option></select></label>
                 <label>Results <select id="filter-results"><option value="">All</option><option value="new">Not tried</option><option value="unsolved">Not solved yet</option><option value="missed">Missed at least once</option></select></label>
                 <label>From <select id="filter-round"><option value="">All rounds</option></select></label>
                 <label>Player <select id="filter-player"><option value="">All</option></select></label>

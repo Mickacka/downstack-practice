@@ -100,7 +100,7 @@
             <button class="game_button" onclick="share_link()" title="Copy a link to this exact puzzle">Copy link</button>
             <button class="game_button gen-option" onclick="play_daily()" title="Today's puzzle: the same map for everyone">Daily</button>
             <button class="game_button" id="rush_button" onclick="start_rush()" title="As many puzzles as you can in 3 minutes">Rush (3 min)</button>
-            <button class="game_button red" onclick="show_ans(); board.focus()">Show Answer</button>
+            <button id="answer_button" class="game_button red" onclick="show_ans(); board.focus()" title="The solution, piece by piece (in replay exercises, the player's own)">Show Answer</button>
             <button id="hint_button" class="game_button green" onclick="toggle_hint(); board.focus()" title="Hints for the next spin, one more each press: its rows, then the setup to build, then the slot">Show Hint</button>
             <p id="spin_message"></p>
 
@@ -125,6 +125,7 @@
                         <tr><td><input id="review" type="checkbox"></td><td title="After a miss, your board stays with the planned setup over it (dashed) and the slot marked, until you tap or press a key.">Review my board after a miss</td></tr>
                         <tr class="gen-option"><td><select id="clears"><option value="double">Doubles</option><option value="single">Singles</option><option value="mix">Mix</option></select></td><td title="Spin Doubles, spin Singles (one row of the setup stays, with a gap), or a mix. The I-spin is always a single; the daily always has doubles.">Line clears</td></tr>
                         <tr class="pro-option"><td><select id="pro_speed"><option value="2">Slow</option><option value="1">Normal</option><option value="0.4">Fast</option><option value="0">Off</option></select></td><td title="After you solve an exercise: the player's way, then their game up to the next exercise. Slower to study it, faster, or off to go straight on.">The player's game between exercises</td></tr>
+                        <tr class="pro-option"><td><input id="pro_repeat" type="checkbox"></td><td title="An exercise you miss comes back once at the end of the list">Repeat the ones I miss</td></tr>
                         <tr class="pro-option"><td><input id="pro_ghost" type="checkbox"></td><td title="Replay exercises: the cells where the player put the piece you have now, shaded. To learn their setup, then turn it off.">Show where the player put each piece</td></tr>
                         <tr><td><select id="flash"><option value="0">Off</option><option value="1">1 s</option><option value="2">2 s</option><option value="4">4 s</option></select></td><td title="At the start of each new map or part, the setup for the first spin shows for a moment, then you build it from memory. A key or tap hides it early.">Flash the setup</td></tr>
                         <tr><td><select id="preview"><option>5</option><option>4</option><option>3</option><option>2</option><option>1</option></select></td><td title="Fewer next pieces shown: you plan the build with less of the queue in sight, like reading a longer queue mid-game.">Next pieces shown</td></tr>

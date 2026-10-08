@@ -68,6 +68,10 @@ A separate page turns a TETR.IO replay into exercises: every spin the player mak
 - **Show where the player put each piece** (option, replay exercises only, off by default): the cells where the player put the piece you have now, shaded (the first of that kind in their order whose cells are still empty; the spin piece once the setup is built). To learn their setup, then turn it off.
 - **Their setup** (replay mode, with *Review my board after a miss*): beside your board, a small board with the player's setup just before the spin you missed, the slot marked.
 - **My weakest** (Spin filter on the replays page): the spin piece you miss most in these exercises (3 tries at least). **Remove** in Watch takes an exercise out of your list.
+- **Their way**: in replay mode Show Answer is called that (it plays the player's own placements).
+- **Repeat the ones I miss** (option, replay mode, on by default): an exercise you miss comes back once at the end of the list.
+- **Level** (replays page): each exercise is Easy, Medium or Hard (: pieces, spins in a row, board height, triples and non-T spins); a Level filter, and an Order (games, easiest first, hardest first) that *Play these* follows.
+- **Export my exercises / Import exercises** (replays page): the exercises, their rounds and your results in a file, to move them to another device.
 - **Session score** (replay mode): the message over the board shows ✓ solved and ✗ misses so far; at the end of the list, a summary (solved, at the first try, misses) before it starts again.
 - **Practise my misses** (on the replays page, when there are some): the exercises you've missed more often than solved, in order.
 - **The player's game between exercises** (option, replay mode): Slow, Normal, Fast, or Off (straight on to the next exercise).

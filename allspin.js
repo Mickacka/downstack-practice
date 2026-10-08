@@ -2,7 +2,7 @@ var game = new Game();
 var Config = {'das':100, 'arr':0, 'delay':0, 'pressing_left':false, 'pressing_right': false, 'pressing_down': false, 'pressing':{},
 'unqiue_ind':true, 'auto_next_ind':true,
 'spin_pieces':'SZLJIT',
-'mode':'allspin', 'no_of_piece':5, 'spins':2, 'continuous':false, 'answer_inputs':false, 'find_slot':false, 'review':true, 'focus_weak':false, 'preview':5, 'clears':'double', 'flash':0, 'pro_ghost':false, 'pro_speed':'1',
+'mode':'allspin', 'no_of_piece':5, 'spins':2, 'continuous':false, 'answer_inputs':false, 'find_slot':false, 'review':true, 'focus_weak':false, 'preview':5, 'clears':'double', 'flash':0, 'pro_ghost':false, 'pro_speed':'1', 'pro_repeat':true,
 'no_of_trial':0, 'no_of_success':0}
 
 
@@ -27,6 +27,7 @@ function load_gamemode(){
         Config.review = localStorage.getItem('allspin_review') != 'off'
         Config.focus_weak = localStorage.getItem('allspin_focus_weak') == 'on'
         Config.pro_ghost = localStorage.getItem('allspin_pro_ghost') == 'on'
+        Config.pro_repeat = localStorage.getItem('allspin_pro_repeat') != 'off'
         var speed = localStorage.getItem('allspin_pro_speed')
         if (['2', '1', '0.4', '0'].includes(speed)) Config.pro_speed = speed
         var flash = parseInt(localStorage.getItem('allspin_flash'))
@@ -49,6 +50,7 @@ function load_gamemode(){
     document.getElementById('flash').value = Config.flash
     document.getElementById('pro_ghost').checked = Config.pro_ghost
     document.getElementById('pro_speed').value = Config.pro_speed
+    document.getElementById('pro_repeat').checked = Config.pro_repeat
     Controls.preview = Config.preview
     document.getElementById('input16').checked = Config.unqiue_ind
     for (var piece of 'SZLJIT'){
@@ -76,6 +78,7 @@ function save_gamemode(){
     Config.flash = parseInt(document.getElementById('flash').value) || 0
     Config.pro_ghost = document.getElementById('pro_ghost').checked
     Config.pro_speed = document.getElementById('pro_speed').value
+    Config.pro_repeat = document.getElementById('pro_repeat').checked
     render()
     Controls.preview = Config.preview
     render()
@@ -101,6 +104,7 @@ function save_gamemode(){
         localStorage.setItem('allspin_flash', Config.flash)
         localStorage.setItem('allspin_pro_ghost', Config.pro_ghost? 'on': 'off')
         localStorage.setItem('allspin_pro_speed', Config.pro_speed)
+        localStorage.setItem('allspin_pro_repeat', Config.pro_repeat? 'on': 'off')
     }
     catch(err){}
 }
@@ -493,7 +497,7 @@ document.getElementById('board').addEventListener('pointerdown', e => {
 })
 Controls.bind_options = () => {
     document.getElementById('input13').oninput = e=>{save_gamemode()}
-    for (var id of ['spins', 'continuous', 'answer_inputs', 'find_slot', 'review', 'focus_weak', 'preview', 'clears', 'flash', 'pro_ghost', 'pro_speed', 'input16', 'spin_S', 'spin_Z', 'spin_L', 'spin_J', 'spin_I', 'spin_T']){
+    for (var id of ['spins', 'continuous', 'answer_inputs', 'find_slot', 'review', 'focus_weak', 'preview', 'clears', 'flash', 'pro_ghost', 'pro_speed', 'pro_repeat', 'input16', 'spin_S', 'spin_Z', 'spin_L', 'spin_J', 'spin_I', 'spin_T']){
         document.getElementById(id).onchange = e=>{save_gamemode()}
     }
 }
@@ -1357,6 +1361,10 @@ function start_pro(){
 
 function next_pro(){
     var pro = Record.pro
+    // "Repeat the ones I miss": an exercise missed this time comes back once, at the
+    // end of the list
+    if (Config.pro_repeat && pro.missed_now && pro.pos >= 0 && !pro.list[pro.pos].repeat)
+        pro.list.push(Object.assign({}, pro.list[pro.pos], {repeat: true}))
     // the end of the list: how it went, then it starts again
     var s = pro.session
     if (pro.pos == pro.list.length - 1 && pro.list.length > 1 && s.solved + s.missed)
@@ -1469,6 +1477,12 @@ function pro_button_label(){
     var button = document.getElementById('new_map_button')
     if (!button) return
     button.textContent = Record.pro? 'Next exercise': 'New All-Spin Map'
+    // (in replay exercises, Show Answer plays the player's own placements)
+    var answer = document.getElementById('answer_button')
+    if (answer){
+        answer.textContent = Record.pro? 'Their way': 'Show Answer'
+        if (typeof set_short_label == 'function') set_short_label(answer)
+    }
     // options that only shape generated maps are hidden in replay mode (style.css)
     document.body.classList.toggle('pro-mode', !!Record.pro)
     if (typeof set_short_label == 'function') set_short_label(button)
