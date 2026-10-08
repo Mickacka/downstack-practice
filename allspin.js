@@ -1338,9 +1338,19 @@ function log_pro(won){
         }
         results[id] = r
         localStorage.setItem('allspin_pro_results', JSON.stringify(results))
+        // by day (local date), for Today and the streak on the replays page
+        var d = new Date(), day = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0')
+        var days = JSON.parse(localStorage.getItem('allspin_pro_days')) || {}
+        var today = days[day] || [0, 0]
+        today[1] += 1
+        if (won) today[0] += 1
+        days[day] = today
+        localStorage.setItem('allspin_pro_days', JSON.stringify(days))
     }
     catch(err){}
-    if (won) return 'Solved in ' + seconds.toFixed(1) + ' s' + (best && best < seconds? ' (best ' + best + ' s)': best? ' (new best)': '')
+    var theirs = Record.pro.list[Record.pro.pos].source.seconds
+    if (won) return 'Solved in ' + seconds.toFixed(1) + ' s' + (best && best < seconds? ' (best ' + best + ' s)': best? ' (new best)': '') +
+        (theirs? ' · ' + Record.pro.list[Record.pro.pos].source.username + ': ' + theirs + ' s': '')
 }
 
 // (also after a reload of the page, or coming back to it: the same list, at the same

@@ -129,8 +129,11 @@ export function exercises_from(placements, source){
             queue: placements.slice(first, chain[chain.length-1] + 1).map(q => q.piece),
             spins: spins,
             // first/last: where the exercise starts and ends in the round's timeline
+            // seconds: how long the player took, from the placement before the first
+            // setup piece (when it spawned, about) to the last spin (60 frames a second)
             source: Object.assign({placement: placements[i].index, frame: placements[i].frame,
-                first: first, last: chain[chain.length-1]}, source),
+                first: first, last: chain[chain.length-1],
+                seconds: Math.round((placements[chain[chain.length-1]].frame - (first > 0? placements[first-1].frame: 0)) / 6) / 10}, source),
         })
         // the spins merged in aren't exercises of their own
         i = chain[chain.length - 1]

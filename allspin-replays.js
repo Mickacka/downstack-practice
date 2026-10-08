@@ -95,7 +95,7 @@ document.getElementById('add').onclick = () => {
     var keep = new Set([...document.querySelectorAll('#found-rows input:checked')].map(b => b.dataset.key))
     var lib = load_library()
     var have = new Set(lib.exercises.map(exercise_id))
-    var added = 0
+    var added = 0, updated = 0
     for (var f of found){
         var players = new Set()
         for (var r of f.results){
@@ -103,7 +103,13 @@ document.getElementById('add').onclick = () => {
             players.add(r.username)
             if (r.timeline) lib.timelines[round_key({file: f.file, round: r.round, username: r.username})] = r.timeline
             for (var e of r.exercises){
-                if (have.has(exercise_id(e))) continue
+                // (already there: replaced, so it gets what newer versions of this page
+                // read from replays; your results are kept, by id)
+                if (have.has(exercise_id(e))){
+                    var at = lib.exercises.findIndex(x => exercise_id(x) == exercise_id(e))
+                    if (at >= 0){ lib.exercises[at] = e; updated += 1 }
+                    continue
+                }
                 have.add(exercise_id(e))
                 lib.exercises.push(e)
                 added += 1
@@ -113,7 +119,7 @@ document.getElementById('add').onclick = () => {
             lib.sources.push({file: f.file, players: [...players], added: Date.now()})
     }
     if (save_library(lib)){
-        status(added + ' exercises added.')
+        status(added + ' exercises added' + (updated? ', ' + updated + ' updated': '') + '.')
         document.getElementById('found').hidden = true
         found = []
         show_library()
@@ -252,7 +258,14 @@ function show_library(){
     var chains = lib.exercises.filter(e => spins_of(e).length > 1).length
     var results = load_results()
     var done = lib.exercises.filter(e => (results[exercise_id(e)] || [0])[0] > 0).length
-    for (var [label, value] of [['Exercises', lib.exercises.length], ['Solved', done + ' of ' + lib.exercises.length],
+    // today, and the days in a row with something solved (today or up to yesterday)
+    var days = {}
+    try{ days = JSON.parse(localStorage.getItem('allspin_pro_days')) || {} }catch(err){}
+    var day_of = t => { var d = new Date(t); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0') }
+    var today = days[day_of(Date.now())] || [0, 0], streak = 0
+    for (var k = (today[0]? 0: 1); (days[day_of(Date.now() - k * 864e5)] || [0])[0] > 0; k++) streak += 1
+    for (var [label, value] of [['Today', today[0] + ' solved'], ['Streak', streak + (streak == 1? ' day': ' days')],
+                                 ['Exercises', lib.exercises.length], ['Solved', done + ' of ' + lib.exercises.length],
                                  ['Spins in a row', chains], ['T-spins', t], ['Other spins', all_spins.length - t]]){
         var card = document.createElement('div')
         card.className = 'stat-card'
@@ -536,7 +549,8 @@ function watch(e){
     }
     var at = 0, timer = null
     viewer.exercise = e
-    viewer.querySelector('.pro-viewer-title').textContent = spin_label(e) + ' · ' + e.source.username + ', round ' + (e.source.round + 1)
+    viewer.querySelector('.pro-viewer-title').textContent = spin_label(e) + ' · ' + e.source.username + ', round ' + (e.source.round + 1) +
+        (e.source.seconds? ' · ' + e.source.seconds + ' s': '')
     fav_label()
     // the queue: placed pieces dimmed, the last one placed outlined, spin pieces marked
     var spin_at = new Set(), k = -1
