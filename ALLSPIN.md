@@ -70,6 +70,9 @@ A separate page turns a TETR.IO replay into exercises: every spin the player mak
 - **My weakest** (Spin filter on the replays page): the spin piece you miss most in these exercises (3 tries at least). **Remove** in Watch takes an exercise out of your list.
 - **Where it comes from**: in replay mode, under the goal, the player, the round and the number of pieces.
 - **By player** (replays page): for each player, exercises, tried, solved and the rate.
+- **Mirror** (option, replay mode: off, on, random): the exercise flipped left to right (S and Z, L and J swap) to learn the setup on both sides, only when every spin can still be done that way here (`mirror_exercise` checks each with `input_path`; all 131 of the test match can). A mirrored exercise doesn't play the player's game on to the next one.
+- **Solve time**: "Solved in 6.3 s (best 5.1 s)"; the best time (without a miss first) shows on the card.
+- **Favourites**: ☆ in Watch stars an exercise; ★ on its card, and *Favourites* in the Results filter. Space in Watch plays or pauses the steps.
 - **Their way**: in replay mode Show Answer is called that (it plays the player's own placements).
 - **Repeat the ones I miss** (option, replay mode, on by default): an exercise you miss comes back once at the end of the list.
 - **Level** (replays page): each exercise is Easy, Medium or Hard (`difficulty`: pieces, spins in a row, board height, triples and non-T spins); a Level filter, and an Order (games, easiest first, hardest first) that *Play these* follows.

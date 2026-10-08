@@ -159,6 +159,15 @@ function difficulty(e){
     return score <= 5? 1: score <= 10? 2: 3
 }
 
+// favourites: the ids starred in Watch
+function load_favs(){
+    try{ return new Set(JSON.parse(localStorage.getItem('allspin_pro_favs')) || []) }
+    catch(err){ return new Set() }
+}
+function save_favs(favs){
+    try{ localStorage.setItem('allspin_pro_favs', JSON.stringify([...favs])) }catch(err){}
+}
+
 function filtered(lib){
     var results = load_results()
     var how = document.getElementById('filter-results').value
@@ -172,8 +181,10 @@ function filtered(lib){
     // from a round on (of that replay): "file|round"
     var from = document.getElementById('filter-round').value
     var from_file = from && from.slice(0, from.lastIndexOf('|')), from_round = from && Number(from.slice(from.lastIndexOf('|') + 1))
+    var favs = load_favs()
     return lib.exercises.filter(e => {
         if (from && (e.source.file != from_file || e.source.round < from_round)) return false
+        if (how == 'fav' && !favs.has(exercise_id(e))) return false
         if (how){
             var [solved, tries] = results[exercise_id(e)] || [0, 0]
             if (how == 'new' && tries) return false
@@ -264,6 +275,7 @@ function show_library(){
     button.textContent = 'Practise my misses (' + missed + ')'
 
     // the grid
+    var favs = load_favs()
     var list = sorted(filtered(lib))
     document.getElementById('shown').textContent = list.length + ' shown'
     var grid = document.getElementById('grid')
@@ -282,12 +294,13 @@ function show_library(){
         lv.className = 'pro-level level' + difficulty(e)
         lv.textContent = LEVELS[difficulty(e)]
         item.appendChild(lv)
-        var [solved, tries] = load_results()[exercise_id(e)] || [0, 0]
-        if (tries){
+        var [solved, tries, best] = load_results()[exercise_id(e)] || [0, 0]
+        if (tries || favs.has(exercise_id(e))){
             var mark = document.createElement('span')
             mark.className = 'pro-result ' + (solved? 'won': 'lost')
-            mark.textContent = (solved? '✓ ': '✗ ') + solved + '/' + tries
-            mark.title = 'Solved ' + solved + ' of ' + tries + ' tries'
+            mark.textContent = (favs.has(exercise_id(e))? '★ ': '') + (tries? (solved? '✓ ': '✗ ') + solved + '/' + tries: '') +
+                (best? ' · ' + best + ' s': '')
+            mark.title = (tries? 'Solved ' + solved + ' of ' + tries + ' tries': '') + (best? ', best ' + best + ' s': '')
             item.appendChild(mark)
         }
         var who = document.createElement('span')
@@ -458,6 +471,7 @@ function watch(e){
             '<div class="pro-viewer-buttons"><button type="button" class="install-button" data-do="play">Play this exercise</button>' +
             '<button type="button" class="install-button" data-do="from" title="Play in order from this exercise: the game goes on to the next ones">Play from here</button>' +
             '<button type="button" class="install-button" data-do="like" title="All the exercises whose first spin is the same kind, shuffled">More like this</button>' +
+            '<button type="button" class="install-button" data-do="fav" title="Keep it in your favourites (Results filter)">☆ Favourite</button>' +
             '<button type="button" class="install-button" data-do="close">Close</button>' +
             '<button type="button" class="install-button danger" data-do="remove" title="Remove this exercise from your list">Remove</button></div></div>'
         document.body.appendChild(viewer)
@@ -476,6 +490,14 @@ function watch(e){
                 play(list)
             }
             if (what == 'close') close_viewer()
+            if (what == 'fav'){
+                var favs = load_favs(), id = exercise_id(viewer.exercise)
+                if (favs.has(id)) favs.delete(id)
+                else favs.add(id)
+                save_favs(favs)
+                fav_label()
+                show_library()
+            }
             if (what == 'prev-ex' || what == 'next-ex'){
                 // the list as shown on the page
                 var list = sorted(filtered(load_library())), id = exercise_id(viewer.exercise)
@@ -507,6 +529,7 @@ function watch(e){
             if (ev.key == 'ArrowLeft') viewer.go(-1)
             else if (ev.key == 'ArrowRight') viewer.go(1)
             else if (ev.key == 'Escape') close_viewer()
+            else if (ev.key == ' ') viewer.auto()
             else return
             ev.preventDefault()
         })
@@ -514,6 +537,7 @@ function watch(e){
     var at = 0, timer = null
     viewer.exercise = e
     viewer.querySelector('.pro-viewer-title').textContent = spin_label(e) + ' · ' + e.source.username + ', round ' + (e.source.round + 1)
+    fav_label()
     // the queue: placed pieces dimmed, the last one placed outlined, spin pieces marked
     var spin_at = new Set(), k = -1
     spins_of(e).forEach(s => { k += s.build.length + 1; spin_at.add(k) })
@@ -556,6 +580,11 @@ function watch(e){
     viewer.hidden = false
     show()
 }
+function fav_label(){
+    var button = viewer && viewer.querySelector('[data-do="fav"]')
+    if (button) button.textContent = load_favs().has(exercise_id(viewer.exercise))? '★ Favourite': '☆ Favourite'
+}
+
 function close_viewer(){
     if (!viewer) return
     viewer.stop()

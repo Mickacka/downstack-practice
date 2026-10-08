@@ -2,7 +2,7 @@ var game = new Game();
 var Config = {'das':100, 'arr':0, 'delay':0, 'pressing_left':false, 'pressing_right': false, 'pressing_down': false, 'pressing':{},
 'unqiue_ind':true, 'auto_next_ind':true,
 'spin_pieces':'SZLJIT',
-'mode':'allspin', 'no_of_piece':5, 'spins':2, 'continuous':false, 'answer_inputs':false, 'find_slot':false, 'review':true, 'focus_weak':false, 'preview':5, 'clears':'double', 'flash':0, 'pro_ghost':false, 'pro_speed':'1', 'pro_repeat':true,
+'mode':'allspin', 'no_of_piece':5, 'spins':2, 'continuous':false, 'answer_inputs':false, 'find_slot':false, 'review':true, 'focus_weak':false, 'preview':5, 'clears':'double', 'flash':0, 'pro_ghost':false, 'pro_speed':'1', 'pro_repeat':true, 'pro_mirror':'off',
 'no_of_trial':0, 'no_of_success':0}
 
 
@@ -28,6 +28,8 @@ function load_gamemode(){
         Config.focus_weak = localStorage.getItem('allspin_focus_weak') == 'on'
         Config.pro_ghost = localStorage.getItem('allspin_pro_ghost') == 'on'
         Config.pro_repeat = localStorage.getItem('allspin_pro_repeat') != 'off'
+        var mirror = localStorage.getItem('allspin_pro_mirror')
+        if (['off', 'on', 'random'].includes(mirror)) Config.pro_mirror = mirror
         var speed = localStorage.getItem('allspin_pro_speed')
         if (['2', '1', '0.4', '0'].includes(speed)) Config.pro_speed = speed
         var flash = parseInt(localStorage.getItem('allspin_flash'))
@@ -51,6 +53,7 @@ function load_gamemode(){
     document.getElementById('pro_ghost').checked = Config.pro_ghost
     document.getElementById('pro_speed').value = Config.pro_speed
     document.getElementById('pro_repeat').checked = Config.pro_repeat
+    document.getElementById('pro_mirror').value = Config.pro_mirror
     Controls.preview = Config.preview
     document.getElementById('input16').checked = Config.unqiue_ind
     for (var piece of 'SZLJIT'){
@@ -79,6 +82,7 @@ function save_gamemode(){
     Config.pro_ghost = document.getElementById('pro_ghost').checked
     Config.pro_speed = document.getElementById('pro_speed').value
     Config.pro_repeat = document.getElementById('pro_repeat').checked
+    Config.pro_mirror = document.getElementById('pro_mirror').value
     render()
     Controls.preview = Config.preview
     render()
@@ -105,6 +109,7 @@ function save_gamemode(){
         localStorage.setItem('allspin_pro_ghost', Config.pro_ghost? 'on': 'off')
         localStorage.setItem('allspin_pro_speed', Config.pro_speed)
         localStorage.setItem('allspin_pro_repeat', Config.pro_repeat? 'on': 'off')
+        localStorage.setItem('allspin_pro_mirror', Config.pro_mirror)
     }
     catch(err){}
 }
@@ -497,7 +502,7 @@ document.getElementById('board').addEventListener('pointerdown', e => {
 })
 Controls.bind_options = () => {
     document.getElementById('input13').oninput = e=>{save_gamemode()}
-    for (var id of ['spins', 'continuous', 'answer_inputs', 'find_slot', 'review', 'focus_weak', 'preview', 'clears', 'flash', 'pro_ghost', 'pro_speed', 'pro_repeat', 'input16', 'spin_S', 'spin_Z', 'spin_L', 'spin_J', 'spin_I', 'spin_T']){
+    for (var id of ['spins', 'continuous', 'answer_inputs', 'find_slot', 'review', 'focus_weak', 'preview', 'clears', 'flash', 'pro_ghost', 'pro_speed', 'pro_repeat', 'pro_mirror', 'input16', 'spin_S', 'spin_Z', 'spin_L', 'spin_J', 'spin_I', 'spin_T']){
         document.getElementById(id).onchange = e=>{save_gamemode()}
     }
 }
@@ -1320,15 +1325,22 @@ function log_pro(won){
         Record.pro.missed_now = true
     }
     var id = pro_id(Record.pro.list[Record.pro.pos])
+    var seconds = (performance.now() - Record.pro.t0) / 1000
     try{
         var results = JSON.parse(localStorage.getItem('allspin_pro_results')) || {}
         var r = results[id] || [0, 0]
         r[1] += 1
-        if (won) r[0] += 1
+        var best = r[2]
+        if (won){
+            r[0] += 1
+            // the best time solving it (from its start; not when it was missed first)
+            if (!Record.pro.missed_now && (!best || seconds < best)) r[2] = Math.round(seconds * 10) / 10
+        }
         results[id] = r
         localStorage.setItem('allspin_pro_results', JSON.stringify(results))
     }
     catch(err){}
+    if (won) return 'Solved in ' + seconds.toFixed(1) + ' s' + (best && best < seconds? ' (best ' + best + ' s)': best? ' (new best)': '')
 }
 
 // (also after a reload of the page, or coming back to it: the same list, at the same
@@ -1374,6 +1386,13 @@ function next_pro(){
     pro.pos = (pro.pos + 1) % pro.list.length
     try{ sessionStorage.setItem('allspin_pro_pos', pro.pos) }catch(err){}
     var e = pro.list[pro.pos]
+    // "Mirror": the exercise flipped left to right, to learn the setup on both sides
+    pro.mirrored = false
+    if (Config.pro_mirror == 'on' || (Config.pro_mirror == 'random' && Math.random() < 0.5)){
+        var flipped = mirror_exercise(e)
+        if (flipped){ e = flipped; pro.mirrored = true }
+    }
+    pro.t0 = performance.now()
     Record.spins = (e.spins || [e.spin]).map(s => ({piece: s.piece, lines: s.lines, cells: s.cells, build: s.build}))
     Record.board = [e.board.map(row => [...row])]
     Record.in_play = true
@@ -1391,8 +1410,30 @@ function next_pro(){
     var where = document.getElementById('pro_source')
     if (where) where.textContent = e.source.username + ' · round ' + (e.source.round + 1) +
         (e.queue.length? ' · ' + e.queue.length + ' pieces': '')
-    show_spin_message((same? '': 'New game: ') + e.source.username + ', round ' + (e.source.round + 1) +
+    show_spin_message((pro.mirrored? 'Mirrored · ': '') + (same? '': 'New game: ') + e.source.username + ', round ' + (e.source.round + 1) +
         ' · ' + (pro.pos + 1) + '/' + pro.list.length + (s.solved + s.missed? ' · ✓' + s.solved + ' ✗' + s.missed: ''))
+}
+
+// An exercise flipped left to right (S and Z, L and J swap), or null when a spin
+// can't be done that way in this game (the rotation system isn't symmetric)
+const MIRRORED = {S: 'Z', Z: 'S', L: 'J', J: 'L', T: 'T', I: 'I', O: 'O', G: 'G', N: 'N'}
+function mirror_exercise(e){
+    var flip = cells => cells.map(([c, r]) => [9 - c, r])
+    var spins = (e.spins || [e.spin]).map(s => ({piece: MIRRORED[s.piece], lines: s.lines, kind: s.kind, cells: flip(s.cells),
+        build: s.build.map(p => ({piece: MIRRORED[p.piece], cells: flip(p.cells)}))}))
+    var out = {board: e.board.map(row => [...row].reverse().map(c => MIRRORED[c] || c).join('')),
+        queue: e.queue.map(p => MIRRORED[p]), spins: spins, source: e.source}
+    // every spin must still be one the piece can get into
+    var board = out.board.map(row => [...row])
+    for (var s of spins){
+        for (var p of [...s.build].reverse()) for (var [c, r] of p.cells) if (r < 20) board[r][c] = p.piece
+        if (!input_path(board, s.piece, s.cells)) return null
+        for (var [c, r] of s.cells) if (r < 20) board[r][c] = s.piece
+        var rows = board.filter(row => row.some(x => x == 'N'))
+        while (rows.length < 20) rows.push(Array(10).fill('N'))
+        board = rows
+    }
+    return out
 }
 
 // After an exercise is solved, when the next one comes later in the same round: the
@@ -1406,7 +1447,7 @@ function pro_continue(){
     var tl = pro.timelines[round(cur.source)]
     // "The player's game between exercises": slower, faster, or off (straight on)
     var speed = parseFloat(Config.pro_speed)
-    if (!tl || !(speed > 0) || next === cur || round(next.source) != round(cur.source) || cur.source.first == null ||
+    if (!tl || !(speed > 0) || pro.mirrored || next === cur || round(next.source) != round(cur.source) || cur.source.first == null ||
         !(next.source.first > cur.source.last) || next.source.first > tl.length){
         next_pro()
         return
@@ -1824,14 +1865,14 @@ function detect_win(){
     if (Record.done_spins == Record.spins.length){
         Record.solved = true
         log_spins()
-        log_pro(true)
+        var solved_text = log_pro(true)
         Config.no_of_success += 1
         if (Config.continuous && !Record.pro){
             report_result(true, 'Part ' + Record.part + ' done')
             next_part()
             return
         }
-        report_result(true, 'Solved!')
+        report_result(true, solved_text || 'Solved!')
         if (Record.pro) pro_continue()
         else if (Config.auto_next_ind) play_a_map()
         else{
