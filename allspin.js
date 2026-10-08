@@ -1211,6 +1211,24 @@ the list in sessionStorage): a player's board a few pieces before one of their
 spins, their pieces in the order they placed them, and that spin to do. Solved or
 New map: the next one; after the last, the list starts again.
 */
+// an exercise's id (as allspin-replays.js makes it)
+const pro_id = e => [e.source.file, e.source.round, e.source.username, e.source.placement, (e.spins || [1]).length].join(':')
+
+// Your results per exercise, for the replays page: {id: [solved, tries]}
+function log_pro(won){
+    if (!Record.pro || Record.showing) return
+    var id = pro_id(Record.pro.list[Record.pro.pos])
+    try{
+        var results = JSON.parse(localStorage.getItem('allspin_pro_results')) || {}
+        var r = results[id] || [0, 0]
+        r[1] += 1
+        if (won) r[0] += 1
+        results[id] = r
+        localStorage.setItem('allspin_pro_results', JSON.stringify(results))
+    }
+    catch(err){}
+}
+
 // (also after a reload of the page, or coming back to it: the same list, at the same
 // exercise; opening the page from the menu gives generated maps again)
 function start_pro(){
@@ -1227,8 +1245,7 @@ function start_pro(){
         lib = JSON.parse(localStorage.getItem('allspin_pro')) || {}
     }
     catch(err){}
-    var key = e => [e.source.file, e.source.round, e.source.username, e.source.placement, (e.spins || [1]).length].join(':')
-    var by_id = new Map((lib.exercises || []).map(e => [key(e), e]))
+    var by_id = new Map((lib.exercises || []).map(e => [pro_id(e), e]))
     var list = ids.map(id => by_id.get(id)).filter(Boolean)
     if (!list.length) return false
     Record.pro = {list: list, pos: -1, timelines: lib.timelines || {}}
@@ -1682,6 +1699,7 @@ function detect_win(){
     if (Record.done_spins == Record.spins.length){
         Record.solved = true
         log_spins()
+        log_pro(true)
         Config.no_of_success += 1
         if (Config.continuous && !Record.pro){
             report_result(true, 'Part ' + Record.part + ' done')
@@ -1703,6 +1721,7 @@ function detect_win(){
     if (game.total_piece == Record.shuffled_queue.length){
         var why = Record.miss || `No ${spin_name(Record.spins[Record.done_spins])}`
         log_spins()
+        log_pro(false)
         report_result(false, why)
         // (not in a rush: a miss moves on to the next puzzle)
         if (Config.review && !rush.on && Record.spins[Record.done_spins]) start_review()

@@ -123,7 +123,15 @@ document.getElementById('add').onclick = () => {
 /*
 The library
 */
+// your results on the All-Spin page: {id: [solved, tries]}
+function load_results(){
+    try{ return JSON.parse(localStorage.getItem('allspin_pro_results')) || {} }
+    catch(err){ return {} }
+}
+
 function filtered(lib){
+    var results = load_results()
+    var how = document.getElementById('filter-results').value
     var player = document.getElementById('filter-player').value
     var piece = document.getElementById('filter-piece').value
     var lines = document.getElementById('filter-lines').value
@@ -134,6 +142,12 @@ function filtered(lib){
     var from_file = from && from.slice(0, from.lastIndexOf('|')), from_round = from && Number(from.slice(from.lastIndexOf('|') + 1))
     return lib.exercises.filter(e => {
         if (from && (e.source.file != from_file || e.source.round < from_round)) return false
+        if (how){
+            var [solved, tries] = results[exercise_id(e)] || [0, 0]
+            if (how == 'new' && tries) return false
+            if (how == 'unsolved' && solved) return false
+            if (how == 'missed' && solved == tries) return false
+        }
         if (player && e.source.username != player) return false
         if (piece && !spins_of(e).some(s => s.piece == piece)) return false
         if (lines && !spins_of(e).some(s => s.lines == lines)) return false
@@ -186,8 +200,10 @@ function show_library(){
     var all_spins = lib.exercises.flatMap(spins_of)
     var t = all_spins.filter(s => s.piece == 'T').length
     var chains = lib.exercises.filter(e => spins_of(e).length > 1).length
-    for (var [label, value] of [['Exercises', lib.exercises.length], ['Spins in a row', chains], ['T-spins', t],
-                                 ['Other spins', all_spins.length - t]]){
+    var results = load_results()
+    var done = lib.exercises.filter(e => (results[exercise_id(e)] || [0])[0] > 0).length
+    for (var [label, value] of [['Exercises', lib.exercises.length], ['Solved', done + ' of ' + lib.exercises.length],
+                                 ['Spins in a row', chains], ['T-spins', t], ['Other spins', all_spins.length - t]]){
         var card = document.createElement('div')
         card.className = 'stat-card'
         card.innerHTML = '<span class="stat-label"></span><strong class="stat-value"></strong>'
@@ -211,6 +227,14 @@ function show_library(){
         var label = document.createElement('span')
         label.className = 'pro-label'
         label.textContent = spin_label(e) + ' · ' + e.queue.length + ' pieces'
+        var [solved, tries] = load_results()[exercise_id(e)] || [0, 0]
+        if (tries){
+            var mark = document.createElement('span')
+            mark.className = 'pro-result ' + (solved? 'won': 'lost')
+            mark.textContent = (solved? '✓ ': '✗ ') + solved + '/' + tries
+            mark.title = 'Solved ' + solved + ' of ' + tries + ' tries'
+            item.appendChild(mark)
+        }
         var who = document.createElement('span')
         who.className = 'pro-who'
         who.textContent = e.source.username + ' · round ' + (e.source.round + 1)
@@ -473,7 +497,7 @@ document.getElementById('play-all').onclick = () => {
     for (var i=list.length-1; i>0; i--){ var j = Math.floor(Math.random() * (i + 1)); [list[i], list[j]] = [list[j], list[i]] }
     if (list.length) play(list)
 }
-for (var id of ['filter-round', 'filter-player', 'filter-piece', 'filter-lines', 'filter-count', 'filter-size'])
+for (var id of ['filter-results', 'filter-round', 'filter-player', 'filter-piece', 'filter-lines', 'filter-count', 'filter-size'])
     document.getElementById(id).onchange = show_library
 
 show_library()

@@ -1054,3 +1054,6 @@ html.portrait-zoom #scrollable { height: 18rem; }
 
 /* All-Spin, replay exercises: the options for generated maps don't apply */
 body.pro-mode .gen-option { display: none !important; }
+.pro-result { font-size: 0.75rem; font-weight: bold; }
+.pro-result.won { color: rgb(81, 184, 77); }
+.pro-result.lost { color: rgb(235, 79, 101); }
