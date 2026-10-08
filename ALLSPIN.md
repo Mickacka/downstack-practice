@@ -72,6 +72,7 @@ A separate page turns a TETR.IO replay into exercises: every spin the player mak
 - **By player** (replays page): for each player, exercises, tried, solved and the rate.
 - **Mirror** (option, replay mode: off, on, random): the exercise flipped left to right (S and Z, L and J swap) to learn the setup on both sides, only when every spin can still be done that way here (`mirror_exercise` checks each with `input_path`; all 131 of the test match can). A mirrored exercise doesn't play the player's game on to the next one.
 - **Solve time**: "Solved in 6.3 s (best 5.1 s) · 5han: 2.1 s"; the best time (without a miss first) shows on the card. The player's time (`source.seconds`, from the placement before the first setup piece to the last spin; median 1.9 s in the test match, about 0.32 s a piece) shows there and in Watch.
+- **Race the player** (option, replay mode): a bar over the board fills up during the player's time for the exercise, green, then red once you're past it.
 - **Today and Streak** (replays page): exercises solved today, and the days in a row with one solved (`allspin_pro_days`).
 - Adding a replay again updates its exercises (to what newer versions of the page read), keeping your results.
 - **Favourites**: ☆ in Watch stars an exercise; ★ on its card, and *Favourites* in the Results filter. Space in Watch plays or pauses the steps.

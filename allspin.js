@@ -2,7 +2,7 @@ var game = new Game();
 var Config = {'das':100, 'arr':0, 'delay':0, 'pressing_left':false, 'pressing_right': false, 'pressing_down': false, 'pressing':{},
 'unqiue_ind':true, 'auto_next_ind':true,
 'spin_pieces':'SZLJIT',
-'mode':'allspin', 'no_of_piece':5, 'spins':2, 'continuous':false, 'answer_inputs':false, 'find_slot':false, 'review':true, 'focus_weak':false, 'preview':5, 'clears':'double', 'flash':0, 'pro_ghost':false, 'pro_speed':'1', 'pro_repeat':true, 'pro_mirror':'off',
+'mode':'allspin', 'no_of_piece':5, 'spins':2, 'continuous':false, 'answer_inputs':false, 'find_slot':false, 'review':true, 'focus_weak':false, 'preview':5, 'clears':'double', 'flash':0, 'pro_ghost':false, 'pro_speed':'1', 'pro_repeat':true, 'pro_mirror':'off', 'pro_race':false,
 'no_of_trial':0, 'no_of_success':0}
 
 
@@ -28,6 +28,7 @@ function load_gamemode(){
         Config.focus_weak = localStorage.getItem('allspin_focus_weak') == 'on'
         Config.pro_ghost = localStorage.getItem('allspin_pro_ghost') == 'on'
         Config.pro_repeat = localStorage.getItem('allspin_pro_repeat') != 'off'
+        Config.pro_race = localStorage.getItem('allspin_pro_race') == 'on'
         var mirror = localStorage.getItem('allspin_pro_mirror')
         if (['off', 'on', 'random'].includes(mirror)) Config.pro_mirror = mirror
         var speed = localStorage.getItem('allspin_pro_speed')
@@ -54,6 +55,7 @@ function load_gamemode(){
     document.getElementById('pro_speed').value = Config.pro_speed
     document.getElementById('pro_repeat').checked = Config.pro_repeat
     document.getElementById('pro_mirror').value = Config.pro_mirror
+    document.getElementById('pro_race').checked = Config.pro_race
     Controls.preview = Config.preview
     document.getElementById('input16').checked = Config.unqiue_ind
     for (var piece of 'SZLJIT'){
@@ -83,6 +85,7 @@ function save_gamemode(){
     Config.pro_speed = document.getElementById('pro_speed').value
     Config.pro_repeat = document.getElementById('pro_repeat').checked
     Config.pro_mirror = document.getElementById('pro_mirror').value
+    Config.pro_race = document.getElementById('pro_race').checked
     render()
     Controls.preview = Config.preview
     render()
@@ -110,6 +113,7 @@ function save_gamemode(){
         localStorage.setItem('allspin_pro_speed', Config.pro_speed)
         localStorage.setItem('allspin_pro_repeat', Config.pro_repeat? 'on': 'off')
         localStorage.setItem('allspin_pro_mirror', Config.pro_mirror)
+        localStorage.setItem('allspin_pro_race', Config.pro_race? 'on': 'off')
     }
     catch(err){}
 }
@@ -194,6 +198,7 @@ const HINT_TEXT = ['', 'Hint 1/3: the spin is in these rows', 'Hint 2/3: the set
 Controls.draw_overlay = (ctx, x, y) => {
     if (Record.finding) draw_finding(ctx, x, y)
     if (Record.pro && Config.pro_ghost && !Record.showing) draw_pro_ghost(ctx, x, y)
+    if (Record.pro && Config.pro_race && !Record.showing) draw_race(ctx, x, y)
     if (Record.replay_cells && Record.showing){
         ctx.save()
         ctx.lineWidth = 3
@@ -502,7 +507,7 @@ document.getElementById('board').addEventListener('pointerdown', e => {
 })
 Controls.bind_options = () => {
     document.getElementById('input13').oninput = e=>{save_gamemode()}
-    for (var id of ['spins', 'continuous', 'answer_inputs', 'find_slot', 'review', 'focus_weak', 'preview', 'clears', 'flash', 'pro_ghost', 'pro_speed', 'pro_repeat', 'pro_mirror', 'input16', 'spin_S', 'spin_Z', 'spin_L', 'spin_J', 'spin_I', 'spin_T']){
+    for (var id of ['spins', 'continuous', 'answer_inputs', 'find_slot', 'review', 'focus_weak', 'preview', 'clears', 'flash', 'pro_ghost', 'pro_speed', 'pro_repeat', 'pro_mirror', 'pro_race', 'input16', 'spin_S', 'spin_Z', 'spin_L', 'spin_J', 'spin_I', 'spin_T']){
         document.getElementById(id).onchange = e=>{save_gamemode()}
     }
 }
@@ -1307,6 +1312,24 @@ function draw_pro_ghost(ctx, x, y){
     for (var [col, row] of target.cells) if (row < 20) ctx.strokeRect(col*30 + x + 2, (19-row)*30 + y + 2, 26, 26)
     ctx.restore()
 }
+
+// "Race the player": a bar over the board fills up during the player's time for this
+// exercise; past it, it turns red. (The page is drawn again 10 times a second for it.)
+function draw_race(ctx, x, y){
+    var e = Record.pro.list[Record.pro.pos], theirs = e && e.source.seconds
+    if (!theirs || Record.solved) return
+    var elapsed = (performance.now() - Record.pro.t0) / 1000
+    var part = Math.min(1, elapsed / theirs)
+    ctx.save()
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.15)'
+    ctx.fillRect(x, y, 300, 6)
+    ctx.fillStyle = elapsed <= theirs? 'rgb(81, 184, 77)': 'rgb(235, 79, 101)'
+    ctx.fillRect(x, y, 300 * part, 6)
+    ctx.restore()
+}
+setInterval(() => {
+    if (typeof PLANNER == 'undefined' && Record.pro && Config.pro_race && !Record.solved && !Record.showing && !document.hidden) render()
+}, 100)
 
 // an exercise's id (as allspin-replays.js makes it)
 const pro_id = e => [e.source.file, e.source.round, e.source.username, e.source.placement, (e.spins || [1]).length].join(':')
