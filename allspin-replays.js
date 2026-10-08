@@ -341,21 +341,25 @@ then the lines clearing, and the next setup. Arrows or the buttons step; Play ru
 function watch_steps(e){
     var board = e.board.map(row => [...row])
     var copy = () => board.map(row => [...row])
-    var steps = [{board: copy(), text: 'Start: the board ' + (e.queue.length) + ' pieces before'}]
+    // (placed: how many pieces of the queue are on the board)
+    var placed = 0
+    var steps = [{board: copy(), placed: 0, text: 'Start: the board ' + (e.queue.length) + ' pieces before'}]
     spins_of(e).forEach((s, n) => {
         var setup = [...s.build].reverse()
         setup.forEach((p, i) => {
             for (var [c, r] of p.cells) board[r][c] = p.piece
-            steps.push({board: copy(), outline: p.cells, color: p.piece,
+            placed += 1
+            steps.push({board: copy(), outline: p.cells, color: p.piece, placed: placed,
                 text: 'Setup ' + (i + 1) + '/' + setup.length + ': ' + p.piece})
         })
-        steps.push({board: copy(), slot: s.cells, color: s.piece, text: 'The slot: ' + one_label(s)})
+        steps.push({board: copy(), slot: s.cells, color: s.piece, placed: placed, text: 'The slot: ' + one_label(s)})
         for (var [c, r] of s.cells) board[r][c] = s.piece
-        steps.push({board: copy(), outline: s.cells, color: s.piece, text: one_label(s) + '!'})
+        placed += 1
+        steps.push({board: copy(), outline: s.cells, color: s.piece, placed: placed, text: one_label(s) + '!'})
         var rows = board.filter(row => row.some(c => c == 'N'))
         while (rows.length < 20) rows.push(Array(10).fill('N'))
         board = rows
-        steps.push({board: copy(), text: (n + 1 < spins_of(e).length? 'Lines cleared, next setup': 'Done')})
+        steps.push({board: copy(), placed: placed, text: (n + 1 < spins_of(e).length? 'Lines cleared, next setup': 'Done')})
     })
     return steps
 }
@@ -371,7 +375,7 @@ function watch(e){
         viewer = document.createElement('div')
         viewer.className = 'pro-viewer'
         viewer.innerHTML = '<div class="pro-viewer-box" role="dialog" aria-label="Watch the setup">' +
-            '<p class="pro-viewer-title"></p><canvas></canvas><p class="pro-viewer-text" role="status"></p>' +
+            '<p class="pro-viewer-title"></p><canvas></canvas><div class="pro-queue" aria-label="The pieces, in the order placed"></div><p class="pro-viewer-text" role="status"></p>' +
             '<div class="pro-viewer-buttons"><button type="button" data-do="prev" title="Back (←)">◀</button>' +
             '<button type="button" data-do="auto" title="Play the steps">▶▶</button>' +
             '<button type="button" data-do="next" title="Next (→)">▶</button></div>' +
@@ -401,8 +405,27 @@ function watch(e){
     var at = 0, timer = null
     viewer.exercise = e
     viewer.querySelector('.pro-viewer-title').textContent = spin_label(e) + ' · ' + e.source.username + ', round ' + (e.source.round + 1)
+    // the queue: placed pieces dimmed, the last one placed outlined, spin pieces marked
+    var spin_at = new Set(), k = -1
+    spins_of(e).forEach(s => { k += s.build.length + 1; spin_at.add(k) })
+    var strip = viewer.querySelector('.pro-queue')
+    strip.textContent = ''
+    var chips = e.queue.map((piece, i) => {
+        var chip = document.createElement('span')
+        chip.className = 'pro-chip' + (spin_at.has(i)? ' spin': '')
+        chip.style.background = color_table[piece]
+        chip.textContent = piece
+        chip.title = spin_at.has(i)? 'Spin piece': 'Setup piece'
+        strip.appendChild(chip)
+        return chip
+    })
     var show = () => {
         draw_step(viewer.querySelector('canvas'), steps[at], rows)
+        chips.forEach((chip, i) => {
+            chip.classList.toggle('done', i < steps[at].placed - 1 || (i == steps[at].placed - 1 && !steps[at].outline))
+            chip.classList.toggle('now', i == steps[at].placed - 1 && !!steps[at].outline)
+            chip.classList.toggle('next', i == steps[at].placed && !steps[at].outline)
+        })
         viewer.querySelector('.pro-viewer-text').textContent = (at + 1) + '/' + steps.length + ' · ' + steps[at].text
     }
     viewer.go = d => {
