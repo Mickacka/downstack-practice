@@ -164,6 +164,12 @@ function show_library(){
     var lib = load_library()
     var any = lib.exercises.length > 0
     for (var id of ['library-section', 'reference-section', 'sources-section']) document.getElementById(id).hidden = !any
+    // with exercises, they come first: the introduction folds away and adding a
+    // replay moves to the end
+    document.getElementById('intro').hidden = any
+    var main = document.querySelector('main'), add = document.getElementById('add-section')
+    if (any) main.appendChild(add)
+    else main.insertBefore(add, document.getElementById('library-section'))
     if (!any) return
 
     // players in the filter
