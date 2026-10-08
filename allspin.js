@@ -1270,12 +1270,18 @@ function pro_continue(){
         var item = tl[i]
         if (item.k && i != cur.source.first) board = item.k.map(row => [...row])
         for (var [c, r] of item.c) if (r < 20) board[r][c] = item.p
-        steps.push({board: board.map(row => [...row]), cells: item.c, own: i <= cur.source.last})
+        var own = i <= cur.source.last
+        steps.push({board: board.map(row => [...row]), cells: item.c, own: own})
         var rows = board.filter(row => row.some(c => c == 'N'))
         while (rows.length < 20) rows.push(Array(10).fill('N'))
         board = rows
-        steps.push({board: board.map(row => [...row])})
+        steps.push({board: board.map(row => [...row]), own: own})
     }
+    // solved with the same cells filled as the player: no need to show their way
+    var filled = b => b.map(row => row.map(c => c == 'N'? '.': '#').join('')).join('/')
+    var own_end = steps.filter(s => s.own).pop()
+    var same = own_end && filled(game.board) == filled(own_end.board)
+    if (same) steps = steps.filter(s => !s.own)
     // no input while it plays (Retry and New map still work)
     Record.showing = true
     game.tetramino = 'G'
@@ -1286,15 +1292,15 @@ function pro_continue(){
     var t = 400
     var later = (delay, action) => answer_timers.push(setTimeout(action, delay))
     later(0, () => {
-        game.board = cur.board.map(row => [...row])
+        if (!same) game.board = cur.board.map(row => [...row])
         Record.replay_cells = null
         render()
-        show_spin_message(cur.source.username + "'s way")
+        show_spin_message(same? 'Same as ' + cur.source.username + '!': cur.source.username + "'s way")
     })
+    if (same) t = 900
     var told = false
     for (var step of steps){
-        var own = step.own !== undefined? step.own: last_own
-        var last_own = own
+        var own = step.own
         if (!own && !told){
             told = true
             var text = between? between + ' piece' + (between > 1? 's': '') + ' to the next spin': 'Next spin'
