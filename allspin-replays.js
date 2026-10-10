@@ -44,7 +44,10 @@ document.getElementById('files').onchange = async e => {
         status('Reading ' + file.name + (files.length > 1? ' (' + (i + 1) + '/' + files.length + ')': '') + '… a match takes a few seconds')
         var text = await file.text()
         var answer = await new Promise(resolve => {
-            worker.onmessage = m => resolve(m.data)
+            worker.onmessage = m => {
+                if (m.data.progress) status(file.name + ': ' + m.data.progress)
+                else resolve(m.data)
+            }
             worker.onerror = err => resolve({file: file.name, error: err.message || 'could not read it'})
             worker.postMessage({text: text, file: file.name})
         })

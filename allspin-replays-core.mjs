@@ -37,16 +37,52 @@ export function placements_of(player){
     return placements_of_timeline(prepareReplay(player))
 }
 
-// Quick Play (TETR.IO's "zenith" mode), which tetrp doesn't cover: the player's
-// inputs on the Tetra League engine (same version, 7-bag pieces from the seed), with
-// no gravity (this level of play is hard drops and instant soft drops) and no
-// garbage. That plays the game right for a long stretch (in the first test, a
-// 72-spin B2B chain, as in the replay); the garbage the player gets is missing, so
-// once they dig into it the boards drift and the stack grows: reading stops when it
-// starts to pile up holes (`stop_holes`). There are no checkpoints in these replays;
-// tried and dropped: Zenith garbage on the Tetra League attack rules (it tanks far
-// more than the player really took), switching to a 7+1 bag, and gravity (no change).
-function zenith_timeline(data){
+/*
+Quick Play (TETR.IO's "zenith" mode), which tetrp doesn't cover. The replay has the
+player's inputs and notices of garbage sent to them, but no boards, and not how much
+garbage reached the board or where its holes were (Quick Play's garbage rules depend
+on altitudes, cancel streaks and its own random generator). So:
+- the inputs are played on the Tetra League engine (same version 19, 7-bag pieces
+  from the seed) with no gravity (this level of play is hard drops and instant soft
+  drops): that plays the game right for a long stretch;
+- the garbage is found from the game itself: when the board drifts (covered empty
+  cells stay above 12 for 10 placements, not counting garbage rows: good players keep
+  very few, all-spin overhangs only for a moment), the 50 placements before are tried
+  with 1 to 8 garbage rows inserted, each hole column, and the one that keeps the game
+  clean longest is kept. Then on to the next drift, until nothing helps.
+In the first test (2187 placements) that found 4 rows (hole in column 5) around
+placement 342 and 5 rows (column 6) around 535, and the game stays right until about
+655, against 313 without garbage. Tried and dropped: garbage from the Tetra League
+attack rules (it tanks far more than the player took), a 7+1 bag, gravity by floor.
+*/
+const ZENITH_SUSTAINED = 10, ZENITH_HOLES = 12, ZENITH_WINDOW = 50, ZENITH_STEP = 3
+const ZENITH_ROWS = [1, 2, 3, 4, 5, 6, 8]
+
+class ZenithSim {
+    constructor(engine, events, frames, cursor, n){
+        this.engine = engine; this.events = events; this.frames = frames
+        this.cursor = cursor || 0; this.n = n || 0
+    }
+    clone(){ return new ZenithSim(Engine.restore(this.engine.serialize()), this.events, this.frames, this.cursor, this.n) }
+    // on to the next placement: its lock event and lines cleared, or null at the end
+    step(){
+        var e = this.engine
+        while (true){
+            var s = e.state
+            if (!s.playing || s.frame >= this.frames) return null
+            if (s.phase === 'ready') e.beginFrame([])
+            var ev = this.events[this.cursor]
+            if (ev && ev.frame === s.frame){ e.input(ev); this.cursor++ }
+            else e.finishFrame()
+            if (!e.trace.length) continue
+            var lock = e.trace.find(t => t.type == 'lock'), removed = e.trace.find(t => t.type == 'remove-lines')
+            e.trace.length = 0
+            if (lock){ this.n++; return {lock: lock, lines: removed? removed.rows.length: 0} }
+        }
+    }
+}
+
+function zenith_start(data){
     var replay = data.replay, options = replay.options
     var engine = new Engine({mode: 'tl', seed: options.seed, handling: options.handling, rules: {g: 0, gincrease: 0}})
     engine.state.bag = createBag(options.seed)
@@ -54,9 +90,106 @@ function zenith_timeline(data){
     engine.trace = []
     var events = replay.events.filter(e => e.type == 'keydown' || e.type == 'keyup')
         .map(e => ({frame: e.frame, type: e.type, key: e.data.key, subframe: e.data.subframe}))
-    events.push({frame: replay.frames, type: 'terminal', reason: 'end'})
-    return {schema: 'tetrp-timeline/1', id: 'zenith-' + (data.id || options.seed), frames: replay.frames,
-        profile: 'zenith-no-garbage', options: options, initial: engine.serialize(), events: events}
+    return new ZenithSim(engine, events, replay.frames)
+}
+
+// covered empty cells, not in garbage rows (their hole is there by design)
+function covered(rows){
+    var n = 0
+    for (var c=0; c<10; c++){
+        var seen = false
+        for (var y=0; y<rows.length; y++){
+            if (rows[y][c] !== null) seen = true
+            else if (seen && !rows[y].includes('gb')) n++
+        }
+    }
+    return n
+}
+
+// play on (inserting garbage as planned) until the board drifts: {at, end}
+function zenith_drift(sim, inserts, max){
+    var run = 0, start = null, next = inserts.findIndex(x => x.at >= sim.n)
+    if (next < 0) next = inserts.length
+    for (var i=0; i<max; i++){
+        while (next < inserts.length && inserts[next].at == sim.n){
+            for (var k=0; k<inserts[next].rows; k++) sim.engine.insertGarbage(inserts[next].hole)
+            next++
+        }
+        if (!sim.step()) return {at: sim.n, end: true}
+        if (covered(sim.engine.state.board.rows) > ZENITH_HOLES){
+            if (!run) start = sim.n
+            if (++run >= ZENITH_SUSTAINED) return {at: start, end: false}
+        }
+        else run = 0
+    }
+    return {at: sim.n, end: false}
+}
+
+// The garbage the player got, found from the game: [{at (placement), rows, hole}]
+function infer_garbage(data, progress){
+    var start = zenith_start(data), inserts = []
+    var drift = zenith_drift(start.clone(), inserts, 100000)
+    while (!drift.end){
+        if (progress) progress('Finding the garbage: the game is right up to piece ' + drift.at + '…')
+        var from = Math.max(0, drift.at - ZENITH_WINDOW)
+        // snapshots of the game (with the garbage found so far) from `from`
+        var sim = start.clone(), snaps = {}, next = 0
+        while (sim.n < drift.at){
+            while (next < inserts.length && inserts[next].at == sim.n){
+                for (var k=0; k<inserts[next].rows; k++) sim.engine.insertGarbage(inserts[next].hole)
+                next++
+            }
+            if (sim.n >= from) snaps[sim.n] = sim.clone()
+            if (!sim.step()) break
+        }
+        var best = null
+        for (var at = from; at < drift.at; at += ZENITH_STEP){
+            if (!snaps[at]) continue
+            for (var rows of ZENITH_ROWS) for (var hole=0; hole<10; hole++){
+                var trial = snaps[at].clone(), ok = true
+                for (var k=0; k<rows; k++) if (!trial.engine.insertGarbage(hole)) ok = false
+                if (!ok) continue
+                var later = inserts.filter(x => x.at > at)
+                var res = zenith_drift(trial, later, 400)
+                if (!best || res.at > best.res.at) best = {at: at, rows: rows, hole: hole, res: res}
+            }
+        }
+        // nothing helps enough: the game can't be followed further
+        if (!best || best.res.at < drift.at + 15) break
+        inserts.push({at: best.at, rows: best.rows, hole: best.hole})
+        inserts.sort((a, b) => a.at - b.at)
+        drift = zenith_drift(start.clone(), inserts, 100000)
+    }
+    return {inserts: inserts, drift: drift}
+}
+
+// The placements of a Quick Play game with the garbage found, up to `until`
+function zenith_placements(data, inserts, until){
+    var sim = zenith_start(data), out = [], next = 0, changed = true
+    while (sim.n < until){
+        while (next < inserts.length && inserts[next].at == sim.n){
+            for (var k=0; k<inserts[next].rows; k++) sim.engine.insertGarbage(inserts[next].hole)
+            next++
+            changed = true
+        }
+        var before = {rows: sim.engine.state.board.rows.map(row => [...row])}
+        var step = sim.step()
+        if (!step) break
+        var t = step.lock
+        out.push({
+            index: t.placementIndex,
+            piece: t.piece.toUpperCase(),
+            spin: t.spin,
+            cells: t.cells.map(([x, y]) => [x, our_row(y)]),
+            lines: step.lines,
+            before: our_board(before),
+            overflow: above_visible(before) || t.cells.some(([x, y]) => our_row(y) > 19),
+            garbage_before: changed,
+            frame: t.frame,
+        })
+        changed = false
+    }
+    return out
 }
 
 // `stop_holes`: stop when the board has more covered empty cells than that (a sign
@@ -195,16 +328,16 @@ export function timeline_of(placements){
 
 // Everything at once, for one replay file: [{username, round, exercises, timeline,
 // placements, diverged, error}] per player
-export function exercises_of_replay(text, file){
+export function exercises_of_replay(text, file, progress){
     var data = null
     try{ data = JSON.parse(text) }catch(err){}
     if (data && data.gamemode == 'zenith' && data.replay && data.replay.options){
         var username = (data.users && data.users[0] && data.users[0].username) || data.replay.options.username || 'player'
         try{
-            // (the board drifts once the missing garbage matters: stop when holes pile
-            // up, and leave out the last 15 placements before that, where it started)
-            var {placements, diverged} = placements_of_timeline(zenith_timeline(data), 10)
-            if (diverged) placements = placements.slice(0, Math.max(0, placements.length - 15))
+            // (up to where it drifts, less 15 placements, where it started)
+            var {inserts, drift} = infer_garbage(data, progress)
+            var placements = zenith_placements(data, inserts, drift.end? Infinity: Math.max(0, drift.at - 15))
+            var diverged = !drift.end
             var exercises = exercises_from(placements, {file: file, username: username, round: 0, mode: 'zenith'})
             return [{username: username, round: 0, placements: placements.length, diverged: diverged, mode: 'zenith',
                 exercises: exercises, timeline: exercises.length? timeline_of(placements): null}]
