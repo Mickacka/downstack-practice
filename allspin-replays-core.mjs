@@ -43,7 +43,9 @@ export function placements_of(player){
 // garbage. That plays the game right for a long stretch (in the first test, a
 // 72-spin B2B chain, as in the replay); the garbage the player gets is missing, so
 // once they dig into it the boards drift and the stack grows: reading stops when it
-// gets near the top (`stop_height`). There are no checkpoints in these replays.
+// starts to pile up holes (`stop_holes`). There are no checkpoints in these replays;
+// tried and dropped: Zenith garbage on the Tetra League attack rules (it tanks far
+// more than the player really took), switching to a 7+1 bag, and gravity (no change).
 function zenith_timeline(data){
     var replay = data.replay, options = replay.options
     var engine = new Engine({mode: 'tl', seed: options.seed, handling: options.handling, rules: {g: 0, gincrease: 0}})
@@ -57,7 +59,9 @@ function zenith_timeline(data){
         profile: 'zenith-no-garbage', options: options, initial: engine.serialize(), events: events}
 }
 
-function placements_of_timeline(timeline, stop_height){
+// `stop_holes`: stop when the board has more covered empty cells than that (a sign
+// that it has drifted from the real game: good players keep very few)
+function placements_of_timeline(timeline, stop_holes){
     var rec = new Reconstruction(timeline)
     var out = [], last = rec.engine.state.board, changed = false
     var snapshot = board => ({rows: board.rows.map(row => [...row])})
@@ -67,10 +71,14 @@ function placements_of_timeline(timeline, stop_height){
         var first_bad = rec.diagnostics.first
         if (first_bad) break
         if (!rec.engine.state.playing){ stopped = true; break }
-        if (stop_height){
-            var rows = rec.engine.state.board.rows, height = 0
-            for (var y=0; y<ROWS; y++) if (rows[y].some(c => c !== null)){ height = ROWS - y; break }
-            if (height >= stop_height){ stopped = true; break }
+        if (stop_holes){
+            // covered empty cells (an empty cell with a filled one somewhere above it)
+            var rows = rec.engine.state.board.rows, covered = 0
+            for (var c=0; c<10; c++){
+                var seen = false
+                for (var y=0; y<ROWS; y++){ if (rows[y][c] !== null) seen = true; else if (seen) covered++ }
+            }
+            if (covered > stop_holes){ stopped = true; break }
         }
         var locks = rec.transitions.filter(t => t.type == 'lock')
         var now = rec.engine.state.board
@@ -193,8 +201,10 @@ export function exercises_of_replay(text, file){
     if (data && data.gamemode == 'zenith' && data.replay && data.replay.options){
         var username = (data.users && data.users[0] && data.users[0].username) || data.replay.options.username || 'player'
         try{
-            // (the board drifts once the missing garbage matters: stop 4 rows from the top)
-            var {placements, diverged} = placements_of_timeline(zenith_timeline(data), 16)
+            // (the board drifts once the missing garbage matters: stop when holes pile
+            // up, and leave out the last 15 placements before that, where it started)
+            var {placements, diverged} = placements_of_timeline(zenith_timeline(data), 10)
+            if (diverged) placements = placements.slice(0, Math.max(0, placements.length - 15))
             var exercises = exercises_from(placements, {file: file, username: username, round: 0, mode: 'zenith'})
             return [{username: username, round: 0, placements: placements.length, diverged: diverged, mode: 'zenith',
                 exercises: exercises, timeline: exercises.length? timeline_of(placements): null}]
