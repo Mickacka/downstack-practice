@@ -1334,9 +1334,12 @@ setInterval(() => {
 // an exercise's id (as allspin-replays.js makes it)
 const pro_id = e => [e.source.file, e.source.round, e.source.username, e.source.placement, (e.spins || [1]).length].join(':')
 
-// Your results per exercise, for the replays page: {id: [solved, tries]}
+// Your results per exercise, for the replays page: {id: [solved, tries, best time,
+// next review, review interval in days]}
 function log_pro(won){
     if (!Record.pro || Record.showing) return
+    var first_try = !Record.pro.reviewed
+    Record.pro.reviewed = true
     // this session: solved (and how many at the first try), misses
     var session = Record.pro.session
     if (won){
@@ -1358,6 +1361,16 @@ function log_pro(won){
             r[0] += 1
             // the best time solving it (from its start; not when it was missed first)
             if (!Record.pro.missed_now && (!best || seconds < best)) r[2] = Math.round(seconds * 10) / 10
+        }
+        // spaced review (the first result of each go only): solved, it comes back later
+        // and later (in 1, 3, 8, 20… days); missed, tomorrow
+        if (first_try){
+            r[2] = r[2] || 0
+            r[4] = won? Math.max(1, Math.round((r[4] || 0.4) * 2.5)): 0.4
+            var due = new Date()
+            due.setHours(0, 0, 0, 0)
+            due.setDate(due.getDate() + Math.max(1, Math.round(r[4])))
+            r[3] = due.getTime()
         }
         results[id] = r
         localStorage.setItem('allspin_pro_results', JSON.stringify(results))
@@ -1416,6 +1429,7 @@ function next_pro(){
         flash_result(true, 'All ' + pro.list.length + ' done: ' + s.solved + ' solved (' + s.first + ' at the first try), ' +
             s.missed + ' miss' + (s.missed == 1? '': 'es'))
     pro.missed_now = false
+    pro.reviewed = false
     pro.pos = (pro.pos + 1) % pro.list.length
     try{ sessionStorage.setItem('allspin_pro_pos', pro.pos) }catch(err){}
     var e = pro.list[pro.pos]

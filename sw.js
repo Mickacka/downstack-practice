@@ -1,7 +1,7 @@
 // Offline support: every page and asset is cached on install. Requests go to the
 // network first so a new version shows up as soon as it's deployed; when the network
 // is down or too slow, the cached copy is used.
-const CACHE = 'tetris-practice-v4'
+const CACHE = 'tetris-practice-v5'
 const FILES = [
     './', 'index.html', 'downstack.html', 'pc-practice.html', 'usermode.html', 'tspin-practice.html',
     'advance-tspin-practice.html', 'allspin-practice.html', 'quad-practice.html', 'upstack-practice.html',

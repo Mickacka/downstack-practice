@@ -300,6 +300,11 @@ function show_library(){
     var button = document.getElementById('play-misses')
     button.hidden = !missed
     button.textContent = 'Practise my misses (' + missed + ')'
+    // and to the ones due for review
+    var due = due_now(lib).length
+    var review = document.getElementById('play-review')
+    review.hidden = !due
+    review.textContent = 'Review (' + due + ' due)'
 
     // the grid
     var favs = load_favs()
@@ -655,6 +660,130 @@ function draw_step(canvas, step, rows){
         for (var [c, r] of cells) ctx.strokeRect(c * size + 2, y(r) + 2, size - 5, size - 5)
         ctx.setLineDash([])
     }
+}
+
+/*
+Spot the spin: a vision drill. The board a few pieces before the spin and the pieces
+in the order the player placed them; tap a cell where the (first) spin piece goes.
+Then the answer: the setup dashed, the slot filled, your tap crossed.
+*/
+var quiz = null
+function quiz_score(){
+    try{ return JSON.parse(localStorage.getItem('allspin_pro_quiz')) || {right: 0, total: 0, best: 0} }
+    catch(err){ return {right: 0, total: 0, best: 0} }
+}
+function start_quiz(){
+    var list = filtered(load_library())
+    if (!list.length) return
+    for (var i=list.length-1; i>0; i--){ var j = Math.floor(Math.random() * (i + 1)); [list[i], list[j]] = [list[j], list[i]] }
+    if (!quiz){
+        quiz = document.createElement('div')
+        quiz.className = 'pro-viewer'
+        quiz.innerHTML = '<div class="pro-viewer-box" role="dialog" aria-label="Spot the spin">' +
+            '<p class="pro-viewer-title">Spot the spin</p><canvas class="pro-quiz-board"></canvas>' +
+            '<div class="pro-queue" aria-label="The pieces, in the order placed"></div><p class="pro-viewer-text" role="status"></p>' +
+            '<div class="pro-viewer-buttons"><button type="button" class="install-button" data-do="next">Next (→)</button>' +
+            '<button type="button" class="install-button" data-do="watch" title="How the player built it, step by step">Watch it</button>' +
+            '<button type="button" class="install-button" data-do="play">Play it</button>' +
+            '<button type="button" class="install-button" data-do="close">Close</button></div></div>'
+        document.body.appendChild(quiz)
+        quiz.addEventListener('click', ev => {
+            if (ev.target == quiz) return close_quiz()
+            var what = ev.target.dataset && ev.target.dataset.do
+            if (what == 'next') quiz_next()
+            if (what == 'close') close_quiz()
+            if (what == 'watch'){ close_quiz(); watch(quiz.e) }
+            if (what == 'play') play([quiz.e])
+        })
+        quiz.querySelector('canvas').addEventListener('click', ev => {
+            if (quiz.answered) return quiz_next()
+            var rect = ev.target.getBoundingClientRect()
+            var col = Math.floor((ev.clientX - rect.left) / rect.width * 10)
+            var row = quiz.rows - 1 - Math.floor((ev.clientY - rect.top) / rect.height * quiz.rows)
+            quiz_answer(col, row)
+        })
+        document.addEventListener('keydown', ev => {
+            if (!quiz || quiz.hidden) return
+            if (ev.key == 'ArrowRight' || ev.key == 'Enter') quiz_next()
+            else if (ev.key == 'Escape') close_quiz()
+            else return
+            ev.preventDefault()
+        })
+    }
+    quiz.list = list
+    quiz.at = -1
+    quiz.streak = 0
+    quiz.hidden = false
+    quiz_next()
+}
+function close_quiz(){ if (quiz) quiz.hidden = true }
+function quiz_next(){
+    quiz.at = (quiz.at + 1) % quiz.list.length
+    var e = quiz.e = quiz.list[quiz.at], first = spins_of(e)[0]
+    var top = 0
+    e.board.forEach((row, r) => { if (row != 'NNNNNNNNNN') top = r })
+    for (var p of first.build.concat([first])) for (var [c, r] of p.cells) top = Math.max(top, r)
+    quiz.rows = Math.min(20, Math.max(10, top + 3))
+    quiz.answered = false
+    draw_step(quiz.querySelector('canvas'), {board: e.board.map(row => [...row])}, quiz.rows)
+    var strip = quiz.querySelector('.pro-queue')
+    strip.textContent = ''
+    for (var piece of e.queue){
+        var chip = document.createElement('span')
+        chip.className = 'pro-chip'
+        chip.style.background = color_table[piece]
+        chip.textContent = piece
+        strip.appendChild(chip)
+    }
+    var s = quiz_score()
+    quiz.querySelector('.pro-viewer-text').textContent = 'Where will the ' + (spins_of(e).length > 1? 'first spin': 'spin') +
+        ' be? Tap a cell.' + (s.total? ' · ' + s.right + '/' + s.total + ' right': '')
+}
+function quiz_answer(col, row){
+    var e = quiz.e, first = spins_of(e)[0]
+    var right = first.cells.some(([c, r]) => c == col && r == row)
+    quiz.answered = true
+    quiz.streak = right? quiz.streak + 1: 0
+    var s = quiz_score()
+    s.total += 1
+    if (right) s.right += 1
+    s.best = Math.max(s.best || 0, quiz.streak)
+    try{ localStorage.setItem('allspin_pro_quiz', JSON.stringify(s)) }catch(err){}
+    // the answer: the setup dashed in its colours, the slot filled, the tap crossed
+    var canvas = quiz.querySelector('canvas'), rows = quiz.rows
+    draw_step(canvas, {board: e.board.map(row => [...row]), slot: first.cells, color: first.piece}, rows)
+    var ctx = canvas.getContext('2d'), size = parseFloat(canvas.style.width) / 10
+    var y = r => (rows - 1 - r) * size
+    ctx.lineWidth = 2
+    ctx.setLineDash([3, 2])
+    for (var p of first.build){
+        ctx.strokeStyle = color_table[p.piece]
+        for (var [c, r] of p.cells) if (r < rows) ctx.strokeRect(c * size + 3, y(r) + 3, size - 7, size - 7)
+    }
+    ctx.setLineDash([])
+    if (!right && row >= 0 && row < rows){
+        ctx.strokeStyle = 'rgb(235, 79, 101)'
+        ctx.lineWidth = 3
+        ctx.beginPath()
+        ctx.moveTo(col * size + 4, y(row) + 4); ctx.lineTo(col * size + size - 4, y(row) + size - 4)
+        ctx.moveTo(col * size + size - 4, y(row) + 4); ctx.lineTo(col * size + 4, y(row) + size - 4)
+        ctx.stroke()
+    }
+    quiz.querySelector('.pro-viewer-text').textContent = (right? '✓ Yes: ': '✗ Here: ') + one_label(first) +
+        (quiz.streak > 1? ' · ' + quiz.streak + ' in a row': '') + ' · ' + s.right + '/' + s.total + ' right (best run ' + s.best + ')'
+}
+document.getElementById('quiz').onclick = start_quiz
+
+// the ones due for review (spaced review, set on the All-Spin page), the longest due
+// first
+function due_now(lib){
+    var results = load_results(), now = Date.now()
+    var when = e => (results[exercise_id(e)] || [])[3]
+    return lib.exercises.filter(e => when(e) && when(e) <= now).sort((a, b) => when(a) - when(b))
+}
+document.getElementById('play-review').onclick = () => {
+    var list = due_now(load_library())
+    if (list.length) play(list)
 }
 
 // Play a list on the All-Spin page (it reads the list from this tab's session)
