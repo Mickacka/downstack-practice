@@ -3,6 +3,12 @@
 
 const Keybind = {'keydown':{}, 'keyup':{}}
 var Customized_key = ['ArrowLeft','ArrowRight','ArrowDown','Space','KeyZ','KeyX','KeyA','ShiftLeft','KeyR','KeyP','KeyU']
+
+var Gamepad_mapping = [14, 15, 13, 12, 0, 1, 3, 4, 8, 9, 3]
+var gamepad_prev_state = {};
+// Track which input slot is actively listening for a controller rebind
+var active_gamepad_listening_slot = null;
+
 // the settings input for each key above
 const key_input = i => document.getElementById(i == 10? 'input_undo': 'input'+(i+1))
 var board = document.getElementById('board')
@@ -247,6 +253,10 @@ function retry(){
 
 function load_setting(){
     try{
+        var gamepadStorage = localStorage.getItem('Gamepad_mapping');
+        if (gamepadStorage != null) {
+            Gamepad_mapping = JSON.parse(gamepadStorage);
+        }
         var storage = localStorage.getItem('Customized_key')
         if (storage!= null){
             Customized_key = JSON.parse(storage);
@@ -299,6 +309,7 @@ function save_setting(){
     localStorage.setItem('Customized_key',JSON.stringify(Customized_key))
     localStorage.setItem('das',Config.das)
     localStorage.setItem('arr',Config.arr)
+    localStorage.setItem('Gamepad_mapping', JSON.stringify(Gamepad_mapping));
 }
 
 // What the keys and touch buttons do. A page script can override any of these
@@ -438,6 +449,27 @@ function set_event_listener(){
     for (var button of document.querySelectorAll('#tcc span'))
         for (var type of ['touchend', 'touchcancel'])
             button.addEventListener(type, e => e.currentTarget.classList.remove('pressed'))
+    for (let i = 0; i < 11; i++) {
+        var inputEl = key_input(i);
+        if (inputEl) {
+            // Track mouse focus to engage gamepad capture engine cleanly
+            inputEl.addEventListener('focus', () => {
+                active_gamepad_listening_slot = i;
+                inputEl.value = "[Press Controller Button]";
+            });
+            
+            // Reset active hooks securely if focus transfers safely away
+            inputEl.addEventListener('blur', () => {
+                setTimeout(() => {
+                    if (active_gamepad_listening_slot === i) {
+                        active_gamepad_listening_slot = null;
+                        // Restore labels if cancelled out
+                        inputEl.value = "Button " + Gamepad_mapping[i]; 
+                    }
+                }, 150);
+            });
+        }
+    }            
 }
 
 /*
@@ -1042,8 +1074,77 @@ function is_grounded(){
     return grounded
 }
 
-function gravity_tick(now){
+/*
+Gamepad API polling loops and state event hooks
+*/
+function poll_gamepads() {
+    var gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+    var gp = null;
+    for (var i = 0; i < gamepads.length; i++) {
+        if (gamepads[i]) { gp = gamepads[i]; break; }
+    }
+    if (!gp) return;
+
+    // INTERCEPT ENGINE: Listen for dynamic rebinding inputs
+    if (active_gamepad_listening_slot !== null) {
+        for (var b = 0; b < gp.buttons.length; b++) {
+            if (gp.buttons[b] && gp.buttons[b].pressed) {
+                var slot = active_gamepad_listening_slot;
+                
+                // Map the new physical index to the selected action array slot
+                Gamepad_mapping[slot] = b;
+                
+                // Visual Indicator: Update field value display to show the bound button
+                var targetInput = key_input(slot);
+                if (targetInput) {
+                    targetInput.value = "Button " + b;
+                    targetInput.blur();
+                }
+                
+                // Reset listening hooks and persist configuration
+                active_gamepad_listening_slot = null;
+                save_setting();
+                return;
+            }
+        }
+        return; // Halt regular execution inputs during active configuration setup
+    }
+
+    if (is_typing() || !Controls.can_play() || answer_replay.running) return;
+
+    // Evaluate mapped controller indexes sequentially
+    for (var i = 0; i < Gamepad_mapping.length; i++) {
+        var btnIdx = Gamepad_mapping[i];
+        var isPressed = false;
+
+        // Process standard button values
+        if (gp.buttons[btnIdx]) {
+            isPressed = gp.buttons[btnIdx].pressed;
+        }
+
+        var prevPressed = !!gamepad_prev_state[i];
+
+        if (isPressed && !prevPressed) {
+            // Emulate down event action triggers safely
+            var keyCode = Customized_key[i];
+            var func = Keybind.keydown[keyCode];
+            if (func) {
+                if (typeof board !== 'undefined') board.focus();
+                func();
+            }
+        } else if (!isPressed && prevPressed) {
+            // Emulate key release routines cleanly
+            var keyCode = Customized_key[i];
+            var func = Keybind.keyup[keyCode];
+            if (func) func();
+        }
+        gamepad_prev_state[i] = isPressed;
+    }
+}
+
+function gravity_tick(now) {
     requestAnimationFrame(gravity_tick)
+    poll_gamepads()
     var dt = Math.min(now - (gravity.last || now), 100)
     gravity.last = now
     var speed = gravity_setting()
