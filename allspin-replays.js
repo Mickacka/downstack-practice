@@ -55,7 +55,7 @@ document.getElementById('files').onchange = async e => {
 }
 
 function friendly(error){
-    if (/UNSUPPORTED_MODE|Unsupported profile|gamemode/i.test(error)) return 'only Tetra League (.ttrm) and 40 Lines (.ttr) replays can be read'
+    if (/UNSUPPORTED_MODE|Unsupported profile|gamemode/i.test(error)) return 'only Tetra League (.ttrm), 40 Lines and Quick Play (.ttr) replays can be read'
     if (/version/i.test(error)) return 'this replay is from another TETR.IO version, which can\'t be read'
     if (/JSON|MALFORMED/i.test(error)) return 'this isn\'t a TETR.IO replay file'
     return error

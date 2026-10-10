@@ -4,6 +4,8 @@
 // placed (the setup, then the spin piece), and the spin to do.
 // No page access here: used by allspin-replays.html and by the tests.
 import { parseReplay, prepareReplay, Reconstruction } from './vendor/tetrp/replay/index.js'
+import { Engine } from './vendor/tetrp/engine.js'
+import { createBag } from './vendor/tetrp/random.js'
 
 const ROWS = 40          // tetrp's board: 20 rows of buffer on top of the 20 visible ones
 const MAX_SETUP = 6      // pieces before the spin, at most
@@ -32,14 +34,44 @@ export function players_of(text){
 // {piece, spin ('none', 'mini', 'full'), cells, lines, before (board), garbage_before
 // (the board changed by garbage since the last placement), overflow}
 export function placements_of(player){
-    var timeline = prepareReplay(player)
+    return placements_of_timeline(prepareReplay(player))
+}
+
+// Quick Play (TETR.IO's "zenith" mode), which tetrp doesn't cover: the player's
+// inputs on the Tetra League engine (same version, 7-bag pieces from the seed), with
+// no gravity (this level of play is hard drops and instant soft drops) and no
+// garbage. That plays the game right for a long stretch (in the first test, a
+// 72-spin B2B chain, as in the replay); the garbage the player gets is missing, so
+// once they dig into it the boards drift and the stack grows: reading stops when it
+// gets near the top (`stop_height`). There are no checkpoints in these replays.
+function zenith_timeline(data){
+    var replay = data.replay, options = replay.options
+    var engine = new Engine({mode: 'tl', seed: options.seed, handling: options.handling, rules: {g: 0, gincrease: 0}})
+    engine.state.bag = createBag(options.seed)
+    engine.spawn()
+    engine.trace = []
+    var events = replay.events.filter(e => e.type == 'keydown' || e.type == 'keyup')
+        .map(e => ({frame: e.frame, type: e.type, key: e.data.key, subframe: e.data.subframe}))
+    events.push({frame: replay.frames, type: 'terminal', reason: 'end'})
+    return {schema: 'tetrp-timeline/1', id: 'zenith-' + (data.id || options.seed), frames: replay.frames,
+        profile: 'zenith-no-garbage', options: options, initial: engine.serialize(), events: events}
+}
+
+function placements_of_timeline(timeline, stop_height){
     var rec = new Reconstruction(timeline)
     var out = [], last = rec.engine.state.board, changed = false
     var snapshot = board => ({rows: board.rows.map(row => [...row])})
     last = snapshot(last)
+    var stopped = false
     while (rec.advance()){
         var first_bad = rec.diagnostics.first
         if (first_bad) break
+        if (!rec.engine.state.playing){ stopped = true; break }
+        if (stop_height){
+            var rows = rec.engine.state.board.rows, height = 0
+            for (var y=0; y<ROWS; y++) if (rows[y].some(c => c !== null)){ height = ROWS - y; break }
+            if (height >= stop_height){ stopped = true; break }
+        }
         var locks = rec.transitions.filter(t => t.type == 'lock')
         var now = rec.engine.state.board
         if (locks.length == 0){
@@ -72,7 +104,7 @@ export function placements_of(player){
         if (JSON.stringify(expected.rows) != JSON.stringify(now.rows)) changed = true
         last = snapshot(now)
     }
-    return {placements: out, diverged: !!rec.diagnostics.first, frames: timeline.frames}
+    return {placements: out, diverged: !!rec.diagnostics.first || stopped, frames: timeline.frames}
 }
 
 // stuck left, right and up (the all-spin rule of the practice page)
@@ -156,6 +188,21 @@ export function timeline_of(placements){
 // Everything at once, for one replay file: [{username, round, exercises, timeline,
 // placements, diverged, error}] per player
 export function exercises_of_replay(text, file){
+    var data = null
+    try{ data = JSON.parse(text) }catch(err){}
+    if (data && data.gamemode == 'zenith' && data.replay && data.replay.options){
+        var username = (data.users && data.users[0] && data.users[0].username) || data.replay.options.username || 'player'
+        try{
+            // (the board drifts once the missing garbage matters: stop 4 rows from the top)
+            var {placements, diverged} = placements_of_timeline(zenith_timeline(data), 16)
+            var exercises = exercises_from(placements, {file: file, username: username, round: 0, mode: 'zenith'})
+            return [{username: username, round: 0, placements: placements.length, diverged: diverged, mode: 'zenith',
+                exercises: exercises, timeline: exercises.length? timeline_of(placements): null}]
+        }
+        catch(err){
+            return [{username: username, round: 0, placements: 0, exercises: [], error: err.message}]
+        }
+    }
     var {replay, players} = players_of(text)
     return players.map(who => {
         var player = replay.rounds[who.round].players[who.player]
