@@ -98,13 +98,24 @@ document.getElementById('add').onclick = () => {
     var keep = new Set([...document.querySelectorAll('#found-rows input:checked')].map(b => b.dataset.key))
     var lib = load_library()
     var have = new Set(lib.exercises.map(exercise_id))
-    var added = 0, updated = 0
+    var added = 0, updated = 0, removed = 0
     for (var f of found){
         var players = new Set()
         for (var r of f.results){
             if (!keep.has(f.file + '\n' + r.username)) continue
             players.add(r.username)
             if (r.timeline) lib.timelines[round_key({file: f.file, round: r.round, username: r.username})] = r.timeline
+            // (read again: this round's exercises are the new ones; any left from an
+            // older reading that this one doesn't have are dropped)
+            var fresh = new Set(r.exercises.map(exercise_id))
+            var dropped = lib.exercises.filter(x => x.source.file == f.file && x.source.round == r.round &&
+                x.source.username == r.username && !fresh.has(exercise_id(x)))
+            if (dropped.length){
+                var gone = new Set(dropped.map(exercise_id))
+                lib.exercises = lib.exercises.filter(x => !gone.has(exercise_id(x)))
+                have = new Set(lib.exercises.map(exercise_id))
+                removed += dropped.length
+            }
             for (var e of r.exercises){
                 // (already there: replaced, so it gets what newer versions of this page
                 // read from replays; your results are kept, by id)
@@ -122,7 +133,7 @@ document.getElementById('add').onclick = () => {
             lib.sources.push({file: f.file, players: [...players], added: Date.now()})
     }
     if (save_library(lib)){
-        status(added + ' exercises added' + (updated? ', ' + updated + ' updated': '') + '.')
+        status(added + ' exercises added' + (updated? ', ' + updated + ' updated': '') + (removed? ', ' + removed + ' outdated removed': '') + '.')
         document.getElementById('found').hidden = true
         found = []
         show_library()

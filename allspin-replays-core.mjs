@@ -50,27 +50,53 @@ on altitudes, cancel streaks and its own random generator). So:
   very few, all-spin overhangs only for a moment), the 50 placements before are tried
   with 1 to 8 garbage rows inserted, each hole column, and the one that keeps the game
   clean longest is kept. Then on to the next drift, until nothing helps.
-In the first test (2187 placements) that found 4 rows (hole in column 5) around
-placement 342 and 5 rows (column 6) around 535, and the game stays right until about
-655, against 313 without garbage. Tried and dropped: garbage from the Tetra League
+Garbage rises the way Quick Play lets it in: one row every 5 frames while the next
+pieces are played. In the first test (2187 placements) that found 4 rows (hole in
+column 5) after placement 342, 5 rows (column 6) after 535 and 8 rows (column 1)
+after 654, and the game stays right until about 700 (313 without garbage; 655 with
+the rows all put in at once between pieces). Tried and dropped: garbage from the Tetra League
 attack rules (it tanks far more than the player took), a 7+1 bag, gravity by floor.
 */
 const ZENITH_SUSTAINED = 10, ZENITH_HOLES = 12, ZENITH_WINDOW = 50, ZENITH_STEP = 3
 const ZENITH_ROWS = [1, 2, 3, 4, 5, 6, 8]
+// Quick Play lets garbage in one row at a time, every 5 frames ("continuous" entry),
+// while the next pieces are played: a rising row can push the falling piece up
+const ZENITH_GARBAGE_ARE = 5
 
 class ZenithSim {
-    constructor(engine, events, frames, cursor, n){
+    constructor(engine, events, frames, cursor, n, queue, locked){
         this.engine = engine; this.events = events; this.frames = frames
         this.cursor = cursor || 0; this.n = n || 0
+        this.queue = queue || []; this.locked = locked || 0
+        this.rose = 0          // garbage rows risen since the last placement
+        this.keep = false      // keep the board just before each lock (for exercises)
+        this.board = null
     }
-    clone(){ return new ZenithSim(Engine.restore(this.engine.serialize()), this.events, this.frames, this.cursor, this.n) }
+    clone(){
+        return new ZenithSim(Engine.restore(this.engine.serialize()), this.events, this.frames, this.cursor, this.n,
+            this.queue.slice(), this.locked)
+    }
+    // let `rows` garbage rows in, hole in column `hole`: they rise from now on
+    tank(rows, hole){
+        for (var i=0; i<rows; i++) this.queue.push(hole)
+        this.locked = Math.max(this.locked, this.engine.state.frame + ZENITH_GARBAGE_ARE)
+    }
     // on to the next placement: its lock event and lines cleared, or null at the end
+    // (of the replay, or of the rebuilt game: a top-out)
     step(){
         var e = this.engine
         while (true){
             var s = e.state
             if (!s.playing || s.frame >= this.frames) return null
-            if (s.phase === 'ready') e.beginFrame([])
+            if (s.phase === 'ready'){
+                e.beginFrame([])
+                if (this.queue.length && s.frame >= this.locked && !s.piece.sleeping){
+                    if (!e.insertGarbage(this.queue.shift())) return null
+                    this.locked = s.frame + ZENITH_GARBAGE_ARE
+                    this.rose += 1
+                }
+                if (this.keep) this.board = {rows: s.board.rows.map(row => [...row])}
+            }
             var ev = this.events[this.cursor]
             if (ev && ev.frame === s.frame){ e.input(ev); this.cursor++ }
             else e.finishFrame()
@@ -80,6 +106,7 @@ class ZenithSim {
             if (lock){ this.n++; return {lock: lock, lines: removed? removed.rows.length: 0} }
         }
     }
+    at_end(){ return this.engine.state.frame >= this.frames }
 }
 
 function zenith_start(data){
@@ -106,16 +133,14 @@ function covered(rows){
     return n
 }
 
-// play on (inserting garbage as planned) until the board drifts: {at, end}
+// play on (letting garbage in as planned) until the board drifts: {at, end}. A top-out
+// of the rebuilt game is drift too (the real game went on), from where holes piled up.
 function zenith_drift(sim, inserts, max){
     var run = 0, start = null, next = inserts.findIndex(x => x.at >= sim.n)
     if (next < 0) next = inserts.length
     for (var i=0; i<max; i++){
-        while (next < inserts.length && inserts[next].at == sim.n){
-            for (var k=0; k<inserts[next].rows; k++) sim.engine.insertGarbage(inserts[next].hole)
-            next++
-        }
-        if (!sim.step()) return {at: sim.n, end: true}
+        while (next < inserts.length && inserts[next].at == sim.n){ sim.tank(inserts[next].rows, inserts[next].hole); next++ }
+        if (!sim.step()) return {at: run? start: sim.n, end: sim.at_end()}
         if (covered(sim.engine.state.board.rows) > ZENITH_HOLES){
             if (!run) start = sim.n
             if (++run >= ZENITH_SUSTAINED) return {at: start, end: false}
@@ -125,7 +150,7 @@ function zenith_drift(sim, inserts, max){
     return {at: sim.n, end: false}
 }
 
-// The garbage the player got, found from the game: [{at (placement), rows, hole}]
+// The garbage the player got, found from the game: [{at (after that placement), rows, hole}]
 function infer_garbage(data, progress){
     var start = zenith_start(data), inserts = []
     var drift = zenith_drift(start.clone(), inserts, 100000)
@@ -135,21 +160,17 @@ function infer_garbage(data, progress){
         // snapshots of the game (with the garbage found so far) from `from`
         var sim = start.clone(), snaps = {}, next = 0
         while (sim.n < drift.at){
-            while (next < inserts.length && inserts[next].at == sim.n){
-                for (var k=0; k<inserts[next].rows; k++) sim.engine.insertGarbage(inserts[next].hole)
-                next++
-            }
+            while (next < inserts.length && inserts[next].at == sim.n){ sim.tank(inserts[next].rows, inserts[next].hole); next++ }
             if (sim.n >= from) snaps[sim.n] = sim.clone()
             if (!sim.step()) break
         }
         var best = null
         for (var at = from; at < drift.at; at += ZENITH_STEP){
             if (!snaps[at]) continue
+            var later = inserts.filter(x => x.at > at)
             for (var rows of ZENITH_ROWS) for (var hole=0; hole<10; hole++){
-                var trial = snaps[at].clone(), ok = true
-                for (var k=0; k<rows; k++) if (!trial.engine.insertGarbage(hole)) ok = false
-                if (!ok) continue
-                var later = inserts.filter(x => x.at > at)
+                var trial = snaps[at].clone()
+                trial.tank(rows, hole)
                 var res = zenith_drift(trial, later, 400)
                 if (!best || res.at > best.res.at) best = {at: at, rows: rows, hole: hole, res: res}
             }
@@ -163,19 +184,18 @@ function infer_garbage(data, progress){
     return {inserts: inserts, drift: drift}
 }
 
-// The placements of a Quick Play game with the garbage found, up to `until`
+// The placements of a Quick Play game with the garbage found, up to `until`. The
+// board before each placement is the one just before it locks (garbage may have risen
+// while it moved).
 function zenith_placements(data, inserts, until){
-    var sim = zenith_start(data), out = [], next = 0, changed = true
+    var sim = zenith_start(data), out = [], next = 0
+    sim.keep = true
+    sim.rose = 1   // (the first placement starts a stretch)
     while (sim.n < until){
-        while (next < inserts.length && inserts[next].at == sim.n){
-            for (var k=0; k<inserts[next].rows; k++) sim.engine.insertGarbage(inserts[next].hole)
-            next++
-            changed = true
-        }
-        var before = {rows: sim.engine.state.board.rows.map(row => [...row])}
+        while (next < inserts.length && inserts[next].at == sim.n){ sim.tank(inserts[next].rows, inserts[next].hole); next++ }
         var step = sim.step()
         if (!step) break
-        var t = step.lock
+        var t = step.lock, before = sim.board
         out.push({
             index: t.placementIndex,
             piece: t.piece.toUpperCase(),
@@ -184,10 +204,10 @@ function zenith_placements(data, inserts, until){
             lines: step.lines,
             before: our_board(before),
             overflow: above_visible(before) || t.cells.some(([x, y]) => our_row(y) > 19),
-            garbage_before: changed,
+            garbage_before: sim.rose > 0,
             frame: t.frame,
         })
-        changed = false
+        sim.rose = 0
     }
     return out
 }
