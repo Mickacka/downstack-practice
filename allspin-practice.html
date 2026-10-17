@@ -124,7 +124,9 @@
                         <tr><td><input id="answer_inputs" type="checkbox"></td><td title="Show Answer writes each input of the spin piece (← → ↓ ↻ ↺ 180) as it moves.">Show Answer: write the inputs</td></tr>
                         <tr><td><input id="find_slot" type="checkbox"></td><td title="Vision drill: before each new map or part, tap the 4 cells where the first spin piece will end. Your score is kept.">Find the slot first (vision drill)</td></tr>
                         <tr><td><input id="review" type="checkbox"></td><td title="After a miss, your board stays with the planned setup over it (dashed) and the slot marked, until you tap or press a key.">Review my board after a miss</td></tr>
-                        <tr class="gen-option"><td><select id="clears"><option value="double">Doubles</option><option value="single">Singles</option><option value="mix">Mix</option></select></td><td title="Spin Doubles, spin Singles (one row of the setup stays, with a gap), or a mix. The I-spin is always a single; the daily always has doubles.">Line clears</td></tr>
+                        <tr class="gen-option"><td><select id="clears"><option value="double">Doubles</option><option value="single">Singles</option><option value="mix">Mix</option><option value="real">Like real games</option></select></td><td title="Spin Doubles, spin Singles (one row of the setup stays, with a gap), or a mix. The I-spin is always a single; the daily always has doubles.">Line clears</td></tr>
+                        <tr class="gen-option"><td><select id="shapes"><option value="real">From real games</option><option value="classic">Classic</option></select></td><td title="From real games: slots shaped like the ones strong players use (from TETR.IO replays), upright or flat, T-spin singles from the side, minis, triples, mostly in the middle of the board. Classic: flat slots in a well.">Slot shapes</td></tr>
+                        <tr class="gen-option"><td><select id="mix"><option value="even">Even</option><option value="real">Like real games</option></select></td><td title="Even: every spin piece as often. Like real games: as often as strong players spin them (T about 6 in 10, S and Z 2 in 10, L and J 1.5 in 10); with 3 or more spins a map can take a couple of seconds to make.">Spin mix</td></tr>
                         <tr class="pro-option"><td><select id="pro_speed"><option value="2">Slow</option><option value="1">Normal</option><option value="0.4">Fast</option><option value="0">Off</option></select></td><td title="After you solve an exercise: the player's way, then their game up to the next exercise. Slower to study it, faster, or off to go straight on.">The player's game between exercises</td></tr>
                         <tr class="pro-option"><td><input id="pro_race" type="checkbox"></td><td title="A bar over the board fills up during the player's time for this exercise; past it, it turns red">Race the player</td></tr>
                         <tr class="pro-option"><td><select id="pro_mirror"><option value="off">Off</option><option value="on">On</option><option value="random">Random</option></select></td><td title="Exercises flipped left to right (S and Z, L and J swap), to learn each setup on both sides. Only when every spin still works that way.">Mirror</td></tr>
@@ -156,6 +158,7 @@
     <script src="header.js"></script>
     <script src="common.js"></script>
     <script src="mapgen.js"></script>
+    <script src="allspin-shapes.js"></script>
     <script src="allspin.js"></script>
 
 </body>

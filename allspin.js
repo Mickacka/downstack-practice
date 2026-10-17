@@ -2,7 +2,7 @@ var game = new Game();
 var Config = {'das':100, 'arr':0, 'delay':0, 'pressing_left':false, 'pressing_right': false, 'pressing_down': false, 'pressing':{},
 'unqiue_ind':true, 'auto_next_ind':true,
 'spin_pieces':'SZLJIT',
-'mode':'allspin', 'no_of_piece':5, 'spins':2, 'continuous':false, 'answer_inputs':false, 'find_slot':false, 'review':true, 'focus_weak':false, 'preview':5, 'clears':'double', 'flash':0, 'pro_ghost':false, 'pro_speed':'1', 'pro_repeat':true, 'pro_mirror':'off', 'pro_race':false,
+'mode':'allspin', 'no_of_piece':5, 'spins':2, 'continuous':false, 'answer_inputs':false, 'find_slot':false, 'review':true, 'focus_weak':false, 'preview':5, 'clears':'double', 'shapes':'real', 'mix':'even', 'flash':0, 'pro_ghost':false, 'pro_speed':'1', 'pro_repeat':true, 'pro_mirror':'off', 'pro_race':false,
 'no_of_trial':0, 'no_of_success':0}
 
 
@@ -36,7 +36,11 @@ function load_gamemode(){
         var flash = parseInt(localStorage.getItem('allspin_flash'))
         if ([1, 2, 4].includes(flash)) Config.flash = flash
         var clears = localStorage.getItem('allspin_clears')
-        if (['double', 'single', 'mix'].includes(clears)) Config.clears = clears
+        if (['double', 'single', 'mix', 'real'].includes(clears)) Config.clears = clears
+        var shapes = localStorage.getItem('allspin_shapes')
+        if (['real', 'classic'].includes(shapes)) Config.shapes = shapes
+        var mix = localStorage.getItem('allspin_mix')
+        if (['even', 'real'].includes(mix)) Config.mix = mix
         var preview = parseInt(localStorage.getItem('allspin_preview'))
         if (preview >= 1 && preview <= 5) Config.preview = preview
     }
@@ -50,6 +54,8 @@ function load_gamemode(){
     document.getElementById('focus_weak').checked = Config.focus_weak
     document.getElementById('preview').value = Config.preview
     document.getElementById('clears').value = Config.clears
+    document.getElementById('shapes').value = Config.shapes
+    document.getElementById('mix').value = Config.mix
     document.getElementById('flash').value = Config.flash
     document.getElementById('pro_ghost').checked = Config.pro_ghost
     document.getElementById('pro_speed').value = Config.pro_speed
@@ -80,6 +86,8 @@ function save_gamemode(){
     Config.focus_weak = document.getElementById('focus_weak').checked
     Config.preview = parseInt(document.getElementById('preview').value) || 5
     Config.clears = document.getElementById('clears').value
+    Config.shapes = document.getElementById('shapes').value
+    Config.mix = document.getElementById('mix').value
     Config.flash = parseInt(document.getElementById('flash').value) || 0
     Config.pro_ghost = document.getElementById('pro_ghost').checked
     Config.pro_speed = document.getElementById('pro_speed').value
@@ -108,6 +116,8 @@ function save_gamemode(){
         localStorage.setItem('allspin_focus_weak', Config.focus_weak? 'on': 'off')
         localStorage.setItem('allspin_preview', Config.preview)
         localStorage.setItem('allspin_clears', Config.clears)
+        localStorage.setItem('allspin_shapes', Config.shapes)
+        localStorage.setItem('allspin_mix', Config.mix)
         localStorage.setItem('allspin_flash', Config.flash)
         localStorage.setItem('allspin_pro_ghost', Config.pro_ghost? 'on': 'off')
         localStorage.setItem('allspin_pro_speed', Config.pro_speed)
@@ -507,7 +517,7 @@ document.getElementById('board').addEventListener('pointerdown', e => {
 })
 Controls.bind_options = () => {
     document.getElementById('input13').oninput = e=>{save_gamemode()}
-    for (var id of ['spins', 'continuous', 'answer_inputs', 'find_slot', 'review', 'focus_weak', 'preview', 'clears', 'flash', 'pro_ghost', 'pro_speed', 'pro_repeat', 'pro_mirror', 'pro_race', 'input16', 'spin_S', 'spin_Z', 'spin_L', 'spin_J', 'spin_I', 'spin_T']){
+    for (var id of ['spins', 'continuous', 'answer_inputs', 'find_slot', 'review', 'focus_weak', 'preview', 'clears', 'shapes', 'mix', 'flash', 'pro_ghost', 'pro_speed', 'pro_repeat', 'pro_mirror', 'pro_race', 'input16', 'spin_S', 'spin_Z', 'spin_L', 'spin_J', 'spin_I', 'spin_T']){
         document.getElementById(id).onchange = e=>{save_gamemode()}
     }
 }
@@ -645,11 +655,14 @@ function carve(b, cells, used){
 function wants_single(piece){
     if (piece == 'I' || Daily.seeding || is_daily_map()) return false
     if (Config.clears == 'mix') return (Record.mix_plan || [])[Record.spin_index || 0] || false
+    if (Config.clears == 'real') return ((Record.mix_plan || [])[Record.spin_index || 0] ?? 1) < REAL_SINGLE_RATE[piece]
     return Config.clears == 'single'
 }
 
 function draw_mix_plan(){
     if (Config.clears == 'mix' && !Daily.seeding) Record.mix_plan = [0, 1, 2, 3].map(() => random_int(2) == 0)
+    // (like real games: a draw per spin, compared with the piece's single rate)
+    if (Config.clears == 'real' && !Daily.seeding) Record.mix_plan = [0, 1, 2, 3].map(() => Math.random())
 }
 
 // only flat slots ever work out (and for T, only pointing down: the T-spin double shape)
@@ -1107,13 +1120,14 @@ function piece_order(avoid){
     if (Daily.seeding || is_daily_map()) return shuffle(pieces)
     var stats = Config.focus_weak? spin_stats(): null, order = []
     var weight = piece => {
-        var w = 1
+        // "Like real games": as often as players made each spin (T most of all)
+        var w = Config.mix == 'real'? 10 * REAL_SPIN_SHARE[piece]: 1
         if (stats){
             var done = 0, tries = 0
             for (var name in stats) if (name[0] == piece){ done += stats[name][0]; tries += stats[name][1] }
             w = 1 + 6 * (tries - done + 1) / (tries + 2)
         }
-        if (piece == 'I') w *= 0.35
+        if (piece == 'I' && Config.mix != 'real') w *= 0.35
         if (piece == avoid) w *= 0.35
         return w
     }
@@ -1136,6 +1150,16 @@ function first_setup(n_build, side){
     for (var piece of piece_order()){
         Record.spin_piece = piece
         var sizes = [n_build, n_build, n_build, n_build+1, n_build-1].filter(n => n >= 2 && n <= 6)
+        // a slot shaped like the ones players use (allspin-shapes.js), if one fits in time
+        // (not the daily: it stays as it was)
+        if (Config.shapes == 'real' && !Daily.seeding && !is_daily_map()){
+            var shape_until = budget_clock() + 300
+            while (!setup && budget_clock() < shape_until){
+                Record.deadline = budget_clock() + 100
+                setup = shape_setup(piece, sizes[random_int(sizes.length)])
+            }
+            if (setup) return setup
+        }
         var give_up = budget_clock() + 700
         while (!setup && budget_clock() < give_up){
             Record.deadline = budget_clock() + 100
@@ -1229,6 +1253,14 @@ function chain_end(start, chain){
 function next_setup(chain, n_build){
     var prev = chain[chain.length-1]
     var R = after_spin(prev.board, prev)
+    // (a real-shape slot: a cell it adds is stack only if it is on stack all the way
+    // down on the starting board, where the earlier spins' rows are still there)
+    var start_now = chain[0].base? null: chain_start(chain)
+    var stack_ok = start_now && ((col, row) => {
+        var r = row_at_start(chain, chain.length - 1, row)
+        for (var rr=0; rr<r; rr++) if (start_now[rr][col] != 'G') return false
+        return true
+    })
     var give_up = budget_clock() + 500
     while (budget_clock() < give_up){
         // the same well, or half the time one moved up to 3 columns left or right
@@ -1252,7 +1284,13 @@ function next_setup(chain, n_build){
         Record.spin_index = chain.filter(s => !s.base).length
         Record.deadline = budget_clock() + 100
         var sizes = [n_build, n_build, n_build+1, n_build-1].filter(n => n >= 1 && n <= 6)
-        var setup = try_second_setup(R, left, right, piece, sizes[random_int(sizes.length)], chain[0].base)
+        // a slot shaped like the players' on what the spin before leaves (often under
+        // what's left of it), or the classic one in a well (more often for a third or
+        // fourth spin: on a board full of setup pieces, real shapes rarely fit)
+        var shaped = Config.shapes == 'real' && !Daily.seeding && !is_daily_map() &&
+            Math.random() < (chain.filter(s => !s.base).length == 1? 0.75: 0.35)
+        var setup = shaped? shape_build(R, piece, sizes[random_int(sizes.length)], chain[0].base, stack_ok):
+            try_second_setup(R, left, right, piece, sizes[random_int(sizes.length)], chain[0].base)
         if (!setup) continue
         var longer = chain.concat([setup])
         var start = chain_start(longer)
@@ -1771,7 +1809,7 @@ function prepare_next_part(start){
         planner.worker.postMessage({id: planner.id, board: end, key: fill_key(end),
             last_piece: Record.spins.length? Record.spins[Record.spins.length-1].piece: null,
             cleared: Record.spins.reduce((a, s) => a + s.lines, 0),
-            config: {spins: Config.spins, no_of_piece: Config.no_of_piece, clears: Config.clears,
+            config: {spins: Config.spins, no_of_piece: Config.no_of_piece, clears: Config.clears, shapes: Config.shapes, mix: Config.mix,
                 spin_pieces: Config.spin_pieces, unqiue_ind: Config.unqiue_ind, focus_weak: Config.focus_weak,
                 continuous: true},
             stats: localStorage.getItem('allspin_spin_stats')})

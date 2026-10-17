@@ -303,6 +303,28 @@ In testing (2 spins, 5 pieces per spin), every generated map was solved by playi
 
 Also used by doubles since this change: a way into the slot that leaves a cell to build in the top spin row, in an open column with nothing to build beside it, is skipped (nothing could fill that cell).
 
+### 3.11 Real shapes (option *Slot shapes*, `allspin-shapes.js`)
+
+What strong players do, from the three test replays (a Tetra League match, a Quick Play and an Expert Quick Play game: 569 spins in 302 exercises):
+
+- **Which spins**: T 59% (the T-spin double alone 43%), S and Z 23%, L and J 16%, I 1%; **singles 41%** (T 26% of the time, S/Z/L/J 55-72%), doubles 57%, triples 2%.
+- **Upright slots**: 17% of the S/Z/L/J/I spins, and T-spin singles from the side (the T standing in a notch of the wall: the most common T single); the classic generator makes flat slots only.
+- **Roofs**: 37% of slots are roofed by what's already on the board (an earlier piece or what's left of an earlier spin), not by the setup; 10% of spins need no setup at all, 37% one or two pieces; **47% of spins come right after another**.
+- **Where**: 78% two or more columns from both walls (half of them 3 or more); often high on a tall stack (41% on a stack of 12 rows or more); only 7% clear garbage.
+- **The shapes**: what makes a spin is only the cells touching its slot (filled or open, left, right, below, above) and which of its columns are roofed. By that, each kind comes down to a handful: the T-spin double 7 shapes (4 cover 98%: the roof left or right, the cell under the tip open or filled), the S/Z single 13 (the top 6 cover 88%: the S on a step, one end open so one row stays), the T single 11. 70 shapes cover 94% of the spins; they are the table in `allspin-shapes.js` (written as S, L, T, I spins: Z and J mirror them, T and I go either way).
+
+With *Slot shapes: From real games* (the default; not the daily, which stays as it was), a spin is built around one of these shapes, drawn by how often players used it, instead of a flat slot in a well (`shape_build`):
+1. **where**: for the first spin, a column more often in the middle than at a wall (weights 1, 3, 6, 10 by distance from the wall) on 0-4 rows of stack; for a later spin, on the board the spin before leaves, the place where the shape needs the fewest cells added (where the board nearly has the slot already), the middle favoured;
+2. **its rows**: everything but the slot and the shape's open cells is filled, so the spin clears exactly its lines (a single keeps its open cell);
+3. **roofs and walls**: the shape's cells over the slot, a roof two rows up where the cell right over a roofed column is open, the stack beside up to the slot's top or 1-2 above; open columns stay open to the top;
+4. **the garbage hole**: rows under the slot that would be full keep one column open: the shape's open cell under the slot, an open slot column, or the shaft the spin before left (the board ends clean);
+5. **stack or setup**: an added cell is stack if it rests on stack all the way down (on the starting board, for a later spin: `stack_ok`); an overhang, anything over one or over earlier pieces, and everything on the board in play (continuous mode) is the player's setup;
+6. **the setup's pieces**: peeled a whole tetromino at a time off the top, the overhangs first, then added stack next to them, up to the number of pieces asked (fewer on a board that needs fewer: what must be built is built), at most 2 of a piece and 1 of the spin piece; placed in the reverse order, each resting on something.
+
+The result goes through the same checks as any map (`chain_works`, `clean_start`). A first spin takes about 3-4 ms a try and 30-60% of tries work (the T-spin single from the side about 8%); a 1-spin map is made in 15-200 ms. Later spins use a real shape 75% of the time for the second spin, 35% for a third or fourth (on a board full of setup pieces they rarely fit), the classic `try_second_setup` otherwise; maps take as long as classic ones (3 spins: about 0.7 s on average). Tested: every map solved by its own solution (1, 2 and 3 spins, and continuous mode, 8 parts in a row without a new board).
+
+*Spin mix: Like real games* draws the spin piece with the players' shares, and *Line clears: Like real games* makes each spin a single with that piece's single rate (one draw per spin of the map, like Mix). T-heavy chains of 3 or more spins take longer to make (about 2 s): many T and single setups don't chain, with either generator.
+
 ## 4. Checks every map passes
 
 | Check | Where |

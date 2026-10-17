@@ -13,7 +13,7 @@ var Daily = {on: false, seeding: false}
 const clone = (items) => items.map(item => Array.isArray(item) ? clone(item) : item)
 function budget_clock(){ return Date.now() }
 function is_daily_map(){ return false }
-importScripts('header.js', 'allspin.js')
+importScripts('header.js', 'allspin-shapes.js', 'allspin.js')
 
 onmessage = e => {
     var {id, board, key, cleared, config, stats, last_piece} = e.data
