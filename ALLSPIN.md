@@ -325,6 +325,16 @@ The result goes through the same checks as any map (`chain_works`, `clean_start`
 
 *Spin mix: Like real games* draws the spin piece with the players' shares, and *Line clears: Like real games* makes each spin a single with that piece's single rate (one draw per spin of the map, like Mix). T-heavy chains of 3 or more spins take longer to make (about 2 s): many T and single setups don't chain, with either generator.
 
+### 3.12 The Shapes page and shape drills (`allspin-shapes.html`, `allspin-shapes-page.js`)
+
+Each shape of the table also keeps **the neighbourhood it most often had in the games** (`w`: 2 columns each side of the slot, its rows and 3 rows above): the builder copies its filled and open cells, so the way in is a real one. Without it, roofed-over slots (T-spin triples, upright triples) were never reachable: the shape only says the cell over the T's stem is open, not where the overhang the T kicks under is. With it, 64 of the 70 shapes can be built (each built as a drill and solved by its own solution); 6 rare ones (1-4 in the games) never are, most likely because they need TETR.IO's own 180-degree kicks: they are marked `watch_only`. Other builder rules for these shapes: several hole columns under a slot open under; a row the shape would clear beyond its lines keeps a gap away from the slot, open to the top; a roof higher up goes 2 or 3 rows up, the stack next to it reaching it half the time; a slot open under or roofed over may leave a covered hole at the end, as in the games (`leaves_holes`, accepted by `chain_end`).
+
+The page shows the facts above, then every shape: a picture (the slot in its piece's colour, cells that must be filled, open cells, a roof higher up dashed, ↑ over a column open to the top), its name (`shape_name`: "T-Spin Single: from the side, roofed on the right, open on the left"), its share of that kind of spin, your results on it, and:
+- **Practise**: `allspin-practice.html#shape=N`, a *shape drill*: maps built only around that shape (an S shape as a Z too, mirrored; L as J), one spin a map, until *stop*; kept in the tab (`sessionStorage` `allspin_drill`) across reloads, also in continuous mode (the background planner gets it). If it doesn't fit on a map, another spin comes and the page says so.
+- **Examples**: the replay exercises (from the replays page's library) where a player used that shape (each spin's slot and touching cells matched to the table), played in replay mode.
+
+Your results per shape (`allspin_shape_stats`: {index: [done, tries]}) are logged for every spin built from a real shape, in drills or not.
+
 ## 4. Checks every map passes
 
 | Check | Where |

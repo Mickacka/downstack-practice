@@ -1082,3 +1082,15 @@ body:not(.pro-mode) .pro-option { display: none !important; }
 .pro-level.level1 { color: rgb(81, 184, 77); }
 .pro-level.level2 { color: rgb(246, 208, 60); }
 .pro-level.level3 { color: rgb(235, 79, 101); }
+
+/* All-Spin Shapes page */
+.shape-card { cursor: default; }
+.shape-card canvas { border: none; margin: 0.2rem 0; }
+.shape-grid { grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr)); }
+.shape-buttons { display: flex; gap: 0.3rem; flex-wrap: wrap; justify-content: center; margin-top: auto; padding-top: 0.3rem; }
+.shape-buttons .install-button { font-size: 0.75rem; padding: 0.25rem 0.55rem; margin: 0; line-height: 1.3; text-decoration: none; }
+.shape-legend .key { display: inline-block; width: 0.8rem; height: 0.8rem; vertical-align: -0.1rem; margin: 0 0.15rem 0 0.5rem; border-radius: 2px; }
+.shape-legend .key.slot { background: lime; }
+.shape-legend .key.fill { background: #8a8d93; }
+.shape-legend .key.open { background: #000; border: 1px solid #555; }
+.shape-legend .key.roof { border: 1.5px dashed #8a8d93; }

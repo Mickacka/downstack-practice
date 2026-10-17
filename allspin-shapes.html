@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-QCQK6ZQ0DE"></script>
+    <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-QCQK6ZQ0DE');
+    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>All-Spin Shapes - Tetris Practice</title>
+    <link rel="icon" href="/downstack-practice/favicon.svg" type="image/svg+xml">
+    <link rel="manifest" href="/downstack-practice/manifest.webmanifest">
+    <link rel="apple-touch-icon" href="/downstack-practice/icons/apple-touch-icon.png">
+    <meta name="theme-color" content="#2a2c30">
+    <link rel="stylesheet" href="style.css">
+    <script src="style-scripts.js"></script>
+</head>
+<body class="home">
+    <div class="banner">
+        <h1 hidden>All-Spin Shapes</h1>
+        <a class="title" href="/downstack-practice/">Tetris Practice</a>
+        <div class="nav">
+            <ul class="dropdown">
+                <li><a href="/downstack-practice/">Home</a></li>
+                <li><a href="/downstack-practice/stats.html">Your Progress</a></li>
+                <li><a href="/downstack-practice/tspin-challenge.html">T-Spin Challenge</a></li>
+                <li><a href="/downstack-practice/downstack.html">Downstack Practice</a></li>
+                <li><a href="/downstack-practice/pc-practice.html">Mid-game PC Practice</a></li>
+                <li><a href="/downstack-practice/usermode.html">Usermode (Includes PC Practice)</a></li>
+                <li><a href="/downstack-practice/tspin-practice.html">T-Spin Practice</a></li>
+                <li><a href="/downstack-practice/advance-tspin-practice.html">Advanced T-Spin Practice</a></li>
+                <li><a href="/downstack-practice/allspin-practice.html">All-Spin Practice</a></li>
+                <li><a href="/downstack-practice/allspin-replays.html">All-Spin from Replays</a></li>
+                <li><a href="/downstack-practice/allspin-shapes.html">All-Spin Shapes</a></li>
+                <li><a href="/downstack-practice/quad-practice.html">Quad Practice</a></li>
+                <li><a href="/downstack-practice/upstack-practice.html">Upstack Practice</a></li>
+                <li><a href="/downstack-practice/learnfromai.html">Learn from AI (ZZZTOJ)</a></li>
+                <li><a href="/downstack-practice/library.html">PC Setup Library</a></li>
+            </ul>
+        </div>
+        <button type="button" class="burger" onclick="toggleBurger()" aria-label="Menu" title="Menu" aria-expanded="false">
+            <span></span>
+        </button>
+    </div>
+
+    <main class="home-main stats-main pro-main">
+        <h2 class="stats-title">All-Spin shapes</h2>
+        <p class="home-intro">The spin slots strong players use, from three TETR.IO games (a Tetra League match, a Quick Play and an Expert Quick Play game: 569 spins).
+            What makes a spin is only what touches its slot and which of its columns are roofed: by that, each kind of spin comes down to a handful of shapes.
+            Learn to see them, practise each one on its own, and watch the players use it.</p>
+
+        <section class="stats-section">
+            <h3>What the players do</h3>
+            <div class="stat-cards" id="facts"></div>
+        </section>
+
+        <section class="stats-section">
+            <h3>The shapes</h3>
+            <div class="pro-filters">
+                <label>Spin <select id="filter-piece"><option value="">All</option><option value="T">T</option><option value="S">S / Z</option><option value="L">L / J</option><option value="I">I</option></select></label>
+                <label>Lines <select id="filter-lines"><option value="">All</option><option value="1">Single</option><option value="2">Double</option><option value="3">Triple</option></select></label>
+                <label>Order <select id="sort"><option value="">Most used</option><option value="weak">My weakest first</option><option value="new">Not practised first</option></select></label>
+            </div>
+            <p class="stats-note shape-legend"><span class="key slot"></span> the slot <span class="key fill"></span> filled <span class="key open"></span> open <span class="key roof"></span> a roof higher up · ↑ open to the top.
+                Practise: maps built only around that shape (S shapes come as Z's too, mirrored; L as J). Examples: the moments in your replay exercises where a player used it.</p>
+            <p class="stats-note" id="shown"></p>
+            <div class="pro-grid shape-grid" id="grid"></div>
+        </section>
+    </main>
+
+    <script src="header.js"></script>
+    <script src="allspin-shapes.js"></script>
+    <script src="allspin-shapes-page.js"></script>
+</body>
+</html>

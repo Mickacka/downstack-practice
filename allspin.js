@@ -1107,6 +1107,19 @@ function log_spins(){
         stats[spin_name(spin)] = s
     })
     try{ localStorage.setItem('allspin_spin_stats', JSON.stringify(stats)) }catch(err){}
+    // and by real shape (for the Shapes page): {index: [done, tries]}
+    try{
+        var by_shape = JSON.parse(localStorage.getItem('allspin_shape_stats')) || {}
+        Record.spins.slice(0, Record.done_spins + 1).forEach((spin, i) => {
+            if (spin.shape == null) return
+            var s = by_shape[spin.shape] || [0, 0]
+            s[1] += 1
+            if (i < Record.done_spins) s[0] += 1
+            by_shape[spin.shape] = s
+        })
+        localStorage.setItem('allspin_shape_stats', JSON.stringify(by_shape))
+    }
+    catch(err){}
 }
 
 // The spin pieces to try, in order: shuffled, or with "Focus on my weak spins",
@@ -1116,6 +1129,8 @@ function log_spins(){
 // the spin just before (`avoid`) come up about 3 times less often. The daily keeps a
 // plain shuffle.
 function piece_order(avoid){
+    // a shape drill: the pieces of that shape (an S shape is a Z's mirrored)
+    if (Record.drill != null) return shuffle([...shape_pieces(SPIN_SHAPES[Record.drill])])
     var pieces = [...Config.spin_pieces]
     if (Daily.seeding || is_daily_map()) return shuffle(pieces)
     var stats = Config.focus_weak? spin_stats(): null, order = []
@@ -1152,8 +1167,8 @@ function first_setup(n_build, side){
         var sizes = [n_build, n_build, n_build, n_build+1, n_build-1].filter(n => n >= 2 && n <= 6)
         // a slot shaped like the ones players use (allspin-shapes.js), if one fits in time
         // (not the daily: it stays as it was)
-        if (Config.shapes == 'real' && !Daily.seeding && !is_daily_map()){
-            var shape_until = budget_clock() + 300
+        if ((Config.shapes == 'real' || Record.drill != null) && !Daily.seeding && !is_daily_map()){
+            var shape_until = budget_clock() + (Record.drill != null? 1500: 300)
             while (!setup && budget_clock() < shape_until){
                 Record.deadline = budget_clock() + 100
                 setup = shape_setup(piece, sizes[random_int(sizes.length)])
@@ -1246,7 +1261,8 @@ function chain_end(start, chain){
     }
     // clean at the end: no empty cell under a filled one, anywhere (a donation's
     // shaft is open again)
-    return clean_start(b, true)? b: null
+    // (a real shape open under may leave its hole covered, as in the games)
+    return clean_start(b, true) || chain.some(s => s.leaves_holes)? b: null
 }
 
 // One more setup on what the chain leaves, or null if nothing fits in time
@@ -1287,8 +1303,8 @@ function next_setup(chain, n_build){
         // a slot shaped like the players' on what the spin before leaves (often under
         // what's left of it), or the classic one in a well (more often for a third or
         // fourth spin: on a board full of setup pieces, real shapes rarely fit)
-        var shaped = Config.shapes == 'real' && !Daily.seeding && !is_daily_map() &&
-            Math.random() < (chain.filter(s => !s.base).length == 1? 0.75: 0.35)
+        var shaped = Record.drill != null || (Config.shapes == 'real' && !Daily.seeding && !is_daily_map() &&
+            Math.random() < (chain.filter(s => !s.base).length == 1? 0.75: 0.35))
         var setup = shaped? shape_build(R, piece, sizes[random_int(sizes.length)], chain[0].base, stack_ok):
             try_second_setup(R, left, right, piece, sizes[random_int(sizes.length)], chain[0].base)
         if (!setup) continue
@@ -1321,6 +1337,9 @@ function play_a_map(){
     Record.part = 1
     document.getElementById('spin_message').textContent = ''
     set_plan(result.chain, result.start, false)
+    // (a shape drill that didn't fit this time: say so)
+    if (Record.drill != null && result.chain[0].shape !== Record.drill)
+        show_spin_message("The drilled shape didn't fit this time: another spin instead")
 }
 
 /*
@@ -1595,6 +1614,37 @@ function pro_continue(){
     })
 }
 
+/*
+Shape drill (from the Shapes page, allspin-shapes.html#shape=N): maps built only
+around that real shape, its pieces either way round, until Stop. Kept in this tab
+(sessionStorage) across reloads.
+*/
+function start_drill(){
+    var match = location.hash.match(/^#shape=([0-9]+)$/)
+    var n = match? Number(match[1]): null
+    if (n == null) try{ var kept = sessionStorage.getItem('allspin_drill'); if (kept != null) n = Number(kept) }catch(err){}
+    // (shapes this trainer can't build are watch only)
+    if (n == null || !SPIN_SHAPES[n] || SPIN_SHAPES[n].watch_only) return
+    if (match) history.replaceState(null, '', location.pathname)
+    Record.drill = n
+    try{ sessionStorage.setItem('allspin_drill', n) }catch(err){}
+    drill_label()
+}
+function stop_drill(){
+    Record.drill = null
+    try{ sessionStorage.removeItem('allspin_drill') }catch(err){}
+    drill_label()
+    play_a_map()
+}
+function drill_label(){
+    var el = document.getElementById('drill_info')
+    if (!el) return
+    el.hidden = Record.drill == null
+    if (Record.drill == null) return
+    var name = shape_name(SPIN_SHAPES[Record.drill])
+    el.querySelector('.drill-name').textContent = name.title + ': ' + name.text
+}
+
 function exit_pro(){
     Record.pro = null
     try{ sessionStorage.removeItem('allspin_pro_active') }catch(err){}
@@ -1624,9 +1674,11 @@ function pro_button_label(){
 function new_map(){
     var n_build = Config.no_of_piece - 1
     var result = null
-    for (var attempt=0; attempt<10 && !result; attempt++) result = chain_setup(Config.spins, n_build)
+    // (a shape drill: one spin a map, quick repetitions: the same shape rarely chains on itself)
+    var spins = Record.drill != null? 1: Config.spins
+    for (var attempt=0; attempt<10 && !result; attempt++) result = chain_setup(spins, n_build)
     // very rarely nothing fits on top: settle for fewer spins
-    for (var k=Config.spins-1; k>=1 && !result; k--)
+    for (var k=spins-1; k>=1 && !result; k--)
         for (var attempt=0; attempt<10 && !result; attempt++) result = chain_setup(k, n_build)
     while (!result) result = chain_setup(1, n_build)
     // continuous mode: prefer a first part whose end board has a next part
@@ -1634,7 +1686,7 @@ function new_map(){
         for (var attempt=0; attempt<6; attempt++){
             var end = chain_end(result.start, result.chain)
             if (end && has_next(end, lines_of(result.chain), n_build)) break
-            var other = chain_setup(Config.spins, n_build)
+            var other = chain_setup(spins, n_build)
             if (other) result = other
         }
     return result
@@ -1643,7 +1695,7 @@ function new_map(){
 // Start playing a plan: its spins, the starting board and the queue. `in_play`: the
 // board is the one from the game in progress (continuous mode), pieces included.
 function set_plan(spins, start, in_play){
-    Record.spins = spins.map(s => ({piece: s.piece, lines: s.lines, cells: s.cells, build: s.build}))
+    Record.spins = spins.map(s => ({piece: s.piece, lines: s.lines, cells: s.cells, build: s.build, shape: s.shape}))
     prepare_next_part(start)
     Record.board = [start]
     Record.in_play = in_play
@@ -1812,7 +1864,7 @@ function prepare_next_part(start){
             config: {spins: Config.spins, no_of_piece: Config.no_of_piece, clears: Config.clears, shapes: Config.shapes, mix: Config.mix,
                 spin_pieces: Config.spin_pieces, unqiue_ind: Config.unqiue_ind, focus_weak: Config.focus_weak,
                 continuous: true},
-            stats: localStorage.getItem('allspin_spin_stats')})
+            drill: Record.drill, stats: localStorage.getItem('allspin_spin_stats')})
     }
     catch(err){ planner.worker = null }
 }
@@ -2122,6 +2174,7 @@ if (typeof PLANNER == 'undefined'){
     load_gamemode()
     update_keybind()
     board.focus()
+    start_drill()
     if (!start_pro()) play_a_map()
     render()
 }

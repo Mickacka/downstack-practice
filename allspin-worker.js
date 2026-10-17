@@ -16,9 +16,10 @@ function is_daily_map(){ return false }
 importScripts('header.js', 'allspin-shapes.js', 'allspin.js')
 
 onmessage = e => {
-    var {id, board, key, cleared, config, stats, last_piece} = e.data
+    var {id, board, key, cleared, config, stats, last_piece, drill} = e.data
     Object.assign(Config, config)
     Record.last_piece = last_piece
+    Record.drill = drill ?? null
     if (stats) stored.allspin_spin_stats = stats
     draw_mix_plan()
     // (twice the usual search time: nobody waits for it)

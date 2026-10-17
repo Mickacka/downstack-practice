@@ -162,7 +162,7 @@ function update_viewport() {
     const portrait = window.matchMedia('(orientation: portrait)').matches;
     // the home page (site root), the stats page and the replays page are normal
     // responsive pages
-    const home = /\/(index\.html|stats\.html|allspin-replays\.html)?$/.test(location.pathname);
+    const home = /\/(index\.html|stats\.html|allspin-replays\.html|allspin-shapes\.html)?$/.test(location.pathname);
     const zoom = touch && portrait && !home;
     const content = zoom ? 'width=1300' : 'width=device-width, initial-scale=1';
     // lets the stylesheet use the portrait layout (panels on top, big board)
