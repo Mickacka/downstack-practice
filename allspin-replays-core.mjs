@@ -4,8 +4,7 @@
 // placed (the setup, then the spin piece), and the spin to do.
 // No page access here: used by allspin-replays.html and by the tests.
 import { parseReplay, prepareReplay, Reconstruction } from './vendor/tetrp/replay/index.js'
-import { Engine } from './vendor/tetrp/engine.js'
-import { createBag } from './vendor/tetrp/random.js'
+import { Zenith } from './allspin-zenith.mjs'
 
 const ROWS = 40          // tetrp's board: 20 rows of buffer on top of the 20 visible ones
 const MAX_SETUP = 6      // pieces before the spin, at most
@@ -38,96 +37,17 @@ export function placements_of(player){
 }
 
 /*
-Quick Play (TETR.IO's "zenith" mode), which tetrp doesn't cover. The replay has the
-player's inputs and notices of garbage sent to them, but no boards, and not how much
-garbage reached the board or where its holes were (Quick Play's garbage rules depend
-on altitudes, cancel streaks and its own random generator). So:
-- the inputs are played on the Tetra League engine (same version 19, 7-bag pieces
-  from the seed) with no gravity (this level of play is hard drops and instant soft
-  drops): that plays the game right for a long stretch;
-- the garbage is found from the game itself: when the board drifts (covered empty
-  cells stay above 12 for 10 placements, not counting garbage rows: good players keep
-  very few, all-spin overhangs only for a moment), the 50 placements before are tried
-  with 1 to 8 garbage rows inserted, each hole column, and the one that keeps the game
-  clean longest is kept. Then on to the next drift, until nothing helps.
-Garbage rises the way Quick Play lets it in: one row every 5 frames while the next
-pieces are played. In the first test (2187 placements) that found 4 rows (hole in
-column 5) after placement 342, 5 rows (column 6) after 535 and 8 rows (column 1)
-after 654, and the game stays right until about 700 (313 without garbage; 655 with
-the rows all put in at once between pieces). Tried and dropped: garbage from the Tetra League
-attack rules (it tanks far more than the player took), a 7+1 bag, gravity by floor.
+Quick Play (TETR.IO's "zenith" mode, and Expert Quick Play), which tetrp doesn't
+cover. The replay has the player's inputs and the attacks sent to them, but no boards
+and not where the garbage went. allspin-zenith.mjs plays the game by Quick Play's own
+rules (attack, cancelling, garbage delays and entry, hole columns from the game's
+second random generator, altitude and floors, the zenith bag), so the rebuilt game is
+the real one: an Expert test game (1434 pieces) comes out with the game's own lines,
+top B2B, attack sent and final altitude. Where something isn't modelled the board may
+drift: covered empty cells (not counting garbage rows) above 12 for 10 placements in
+a row, then the game is only used up to 15 placements before that.
 */
-const ZENITH_SUSTAINED = 10, ZENITH_HOLES = 12, ZENITH_WINDOW = 50, ZENITH_STEP = 3
-const ZENITH_ROWS = [1, 2, 3, 4, 5, 6, 8]
-// Quick Play lets garbage in one row at a time, every 5 frames ("continuous" entry),
-// while the next pieces are played: a rising row can push the falling piece up
-const ZENITH_GARBAGE_ARE = 5
-
-class ZenithSim {
-    constructor(engine, events, frames, cursor, n, queue, locked){
-        this.engine = engine; this.events = events; this.frames = frames
-        this.cursor = cursor || 0; this.n = n || 0
-        this.queue = queue || []; this.locked = locked || 0
-        this.rose = 0          // garbage rows risen since the last placement
-        this.keep = false      // keep the board just before each lock (for exercises)
-        this.board = null
-    }
-    clone(){
-        var copy = new ZenithSim(Engine.restore(this.engine.serialize()), this.events, this.frames, this.cursor, this.n,
-            this.queue.slice(), this.locked)
-        copy.instant = this.instant
-        return copy
-    }
-    // let `rows` garbage rows in, hole in column `hole`: they rise from now on
-    tank(rows, hole){
-        for (var i=0; i<rows; i++) this.queue.push(hole)
-        this.locked = Math.max(this.locked, this.engine.state.frame + (this.instant? 0: ZENITH_GARBAGE_ARE))
-    }
-    // on to the next placement: its lock event and lines cleared, or null at the end
-    // (of the replay, or of the rebuilt game: a top-out)
-    step(){
-        var e = this.engine
-        while (true){
-            var s = e.state
-            if (!s.playing || s.frame >= this.frames) return null
-            if (s.phase === 'ready'){
-                e.beginFrame([])
-                if (this.queue.length && s.frame >= this.locked && !s.piece.sleeping){
-                    // (Expert Quick Play: all the rows at once)
-                    for (var k = this.instant? this.queue.length: 1; k > 0; k--){
-                        if (!e.insertGarbage(this.queue.shift())) return null
-                        this.rose += 1
-                    }
-                    this.locked = s.frame + ZENITH_GARBAGE_ARE
-                }
-                if (this.keep) this.board = {rows: s.board.rows.map(row => [...row])}
-            }
-            var ev = this.events[this.cursor]
-            if (ev && ev.frame === s.frame){ e.input(ev); this.cursor++ }
-            else e.finishFrame()
-            if (!e.trace.length) continue
-            var lock = e.trace.find(t => t.type == 'lock'), removed = e.trace.find(t => t.type == 'remove-lines')
-            e.trace.length = 0
-            if (lock){ this.n++; return {lock: lock, lines: removed? removed.rows.length: 0} }
-        }
-    }
-    at_end(){ return this.engine.state.frame >= this.frames }
-}
-
-function zenith_start(data){
-    var replay = data.replay, options = replay.options
-    var engine = new Engine({mode: 'tl', seed: options.seed, handling: options.handling, rules: {g: 0.02, gincrease: options.gincrease ?? 0}})
-    engine.state.bag = createBag(options.seed)
-    engine.spawn()
-    engine.trace = []
-    var events = replay.events.filter(e => e.type == 'keydown' || e.type == 'keyup')
-        .map(e => ({frame: e.frame, type: e.type, key: e.data.key, subframe: e.data.subframe}))
-    var sim = new ZenithSim(engine, events, replay.frames)
-    // Quick Play lets garbage rise row by row ("continuous"); Expert Quick Play
-    // ("zenithex") puts it all in at once ("instant", the default)
-    sim.instant = options.garbageentry != 'continuous'
-    return sim
-}
+const ZENITH_SUSTAINED = 10, ZENITH_HOLES = 12
 
 // covered empty cells, not in garbage rows (their hole is there by design)
 function covered(rows){
@@ -142,96 +62,33 @@ function covered(rows){
     return n
 }
 
-// play on (letting garbage in as planned) until the board drifts: {at, end}. A top-out
-// of the rebuilt game is drift too (the real game went on), from where holes piled up.
-function zenith_drift(sim, inserts, max){
-    var run = 0, start = null, next = inserts.findIndex(x => x.at >= sim.n)
-    if (next < 0) next = inserts.length
-    for (var i=0; i<max; i++){
-        while (next < inserts.length && inserts[next].at == sim.n){ sim.tank(inserts[next].rows, inserts[next].hole); next++ }
-        if (!sim.step()) return {at: run? start: sim.n, end: sim.at_end()}
-        if (covered(sim.engine.state.board.rows) > ZENITH_HOLES){
-            if (!run) start = sim.n
-            if (++run >= ZENITH_SUSTAINED) return {at: start, end: false}
+// The placements of a Quick Play game: {placements, diverged, stopped}
+function zenith_placements(data){
+    var game = new Zenith(data), all = [], run = 0, start = null, drift = null
+    while (true){
+        var t = game.step()
+        if (!t) break
+        var before = {rows: t.before}
+        all.push({
+            index: game.n,
+            piece: t.piece.type.toUpperCase(),
+            spin: t.piece.spin,
+            cells: t.cells.map(([x, y]) => [x, our_row(y)]),
+            lines: t.lines,
+            before: our_board(before),
+            overflow: above_visible(before) || t.cells.some(([x, y]) => our_row(y) > 19),
+            garbage_before: all.length == 0 || t.garbage_before > 0,
+            frame: t.frame,
+        })
+        if (covered(game.e.state.board.rows) > ZENITH_HOLES){
+            if (!run) start = game.n
+            if (++run >= ZENITH_SUSTAINED){ drift = start; break }
         }
         else run = 0
     }
-    return {at: sim.n, end: false}
-}
-
-// The garbage the player got, found from the game: [{at (after that placement), rows, hole}]
-function infer_garbage(data, progress){
-    var start = zenith_start(data), inserts = []
-    // The replay says when attacks came in and how big ("interaction" events), not
-    // where their holes were nor how much the player cancelled: garbage can only come
-    // in once enough has arrived (scaled up by the game's own received / arrived, for
-    // the altitude multipliers)
-    var arrivals = data.replay.events.filter(e => e.type == 'ige' && e.data && e.data.type == 'interaction' &&
-        e.data.data && e.data.data.type == 'garbage').map(e => [e.frame, e.data.data.amt])
-    var arrived_total = arrivals.reduce((sum, a) => sum + a[1], 0)
-    var stats = data.replay.results && data.replay.results.stats
-    var received = stats && stats.garbage && stats.garbage.received
-    var scale = arrived_total && received? Math.max(1, received / arrived_total): 1
-    var budget = (frame, at) => arrivals.length?
-        Math.floor(scale * arrivals.filter(a => a[0] <= frame).reduce((sum, a) => sum + a[1], 0)) -
-            inserts.filter(x => x.at <= at).reduce((sum, x) => sum + x.rows, 0): Infinity
-    var drift = zenith_drift(start.clone(), inserts, 100000)
-    while (!drift.end){
-        if (progress) progress('Finding the garbage: the game is right up to piece ' + drift.at + '…')
-        var from = Math.max(0, drift.at - ZENITH_WINDOW)
-        // snapshots of the game (with the garbage found so far) from `from`
-        var sim = start.clone(), snaps = {}, next = 0
-        while (sim.n < drift.at){
-            while (next < inserts.length && inserts[next].at == sim.n){ sim.tank(inserts[next].rows, inserts[next].hole); next++ }
-            if (sim.n >= from) snaps[sim.n] = sim.clone()
-            if (!sim.step()) break
-        }
-        var best = null
-        for (var at = from; at < drift.at; at += ZENITH_STEP){
-            if (!snaps[at]) continue
-            var later = inserts.filter(x => x.at > at), can = budget(snaps[at].engine.state.frame, at)
-            for (var rows of ZENITH_ROWS.filter(m => m <= can)) for (var hole=0; hole<10; hole++){
-                var trial = snaps[at].clone()
-                trial.tank(rows, hole)
-                var res = zenith_drift(trial, later, 400)
-                if (!best || res.at > best.res.at) best = {at: at, rows: rows, hole: hole, res: res}
-            }
-        }
-        // nothing helps enough: the game can't be followed further
-        if (!best || best.res.at < drift.at + 15) break
-        inserts.push({at: best.at, rows: best.rows, hole: best.hole})
-        inserts.sort((a, b) => a.at - b.at)
-        drift = zenith_drift(start.clone(), inserts, 100000)
-    }
-    return {inserts: inserts, drift: drift}
-}
-
-// The placements of a Quick Play game with the garbage found, up to `until`. The
-// board before each placement is the one just before it locks (garbage may have risen
-// while it moved).
-function zenith_placements(data, inserts, until){
-    var sim = zenith_start(data), out = [], next = 0
-    sim.keep = true
-    sim.rose = 1   // (the first placement starts a stretch)
-    while (sim.n < until){
-        while (next < inserts.length && inserts[next].at == sim.n){ sim.tank(inserts[next].rows, inserts[next].hole); next++ }
-        var step = sim.step()
-        if (!step) break
-        var t = step.lock, before = sim.board
-        out.push({
-            index: t.placementIndex,
-            piece: t.piece.toUpperCase(),
-            spin: t.spin,
-            cells: t.cells.map(([x, y]) => [x, our_row(y)]),
-            lines: step.lines,
-            before: our_board(before),
-            overflow: above_visible(before) || t.cells.some(([x, y]) => our_row(y) > 19),
-            garbage_before: sim.rose > 0,
-            frame: t.frame,
-        })
-        sim.rose = 0
-    }
-    return out
+    var ended = drift == null && !game.stopped && game.e.state.frame >= data.replay.frames
+    var until = drift != null? Math.max(0, drift - 15): all.length
+    return {placements: all.slice(0, until), diverged: !ended, stopped: game.stopped}
 }
 
 // `stop_holes`: stop when the board has more covered empty cells than that (a sign
@@ -376,10 +233,8 @@ export function exercises_of_replay(text, file, progress){
     if (data && ['zenith', 'zenithex'].includes(data.gamemode) && data.replay && data.replay.options){
         var username = (data.users && data.users[0] && data.users[0].username) || data.replay.options.username || 'player'
         try{
-            // (up to where it drifts, less 15 placements, where it started)
-            var {inserts, drift} = infer_garbage(data, progress)
-            var placements = zenith_placements(data, inserts, drift.end? Infinity: Math.max(0, drift.at - 15))
-            var diverged = !drift.end
+            if (progress) progress("Playing the game by Quick Play's rules…")
+            var {placements, diverged} = zenith_placements(data)
             var exercises = exercises_from(placements, {file: file, username: username, round: 0, mode: 'zenith'})
             return [{username: username, round: 0, placements: placements.length, diverged: diverged, mode: 'zenith',
                 exercises: exercises, timeline: exercises.length? timeline_of(placements): null}]
