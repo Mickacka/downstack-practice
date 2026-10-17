@@ -96,6 +96,7 @@ A separate page turns a TETR.IO replay into exercises: every spin the player mak
 - **Session score** (replay mode): the message over the board shows ✓ solved and ✗ misses so far; at the end of the list, a summary (solved, at the first try, misses) before it starts again.
 - **Quick 10** (replays page): 10 of the exercises shown for a short session: the ones you miss most first, then ones not tried, then solved ones (slowest first).
 - **Practise my misses** (on the replays page, when there are some): the exercises you've missed more often than solved, in order.
+- **The queue moves** while Their way and the player's game between exercises play: the next pieces, in the order they go down (then the next exercise's), shift by one at each placement, so you can follow the plan.
 - **Review** (replays page, when some are due): spaced review. The first result of each go sets when an exercise comes back: solved, in 1, 3, 8, 20… days (the interval grows 2.5 times); missed, the next day. Stored with your results (`allspin_pro_results`: [solved, tries, best time, next review, interval]).
 - **Spot the spin** (replays page): a vision drill on the exercises shown. The board a few pieces before the spin and the pieces in the order placed; tap a cell where the (first) spin piece goes. The answer shows the slot, the setup dashed and your tap; the score and the best run are kept (`allspin_pro_quiz`). Watch it / Play it from there.
 - **The player's game between exercises** (option, replay mode): Slow, Normal, Fast, or Off (straight on to the next exercise).

@@ -1505,7 +1505,7 @@ function pro_continue(){
         if (item.k && i != cur.source.first) board = item.k.map(row => [...row])
         for (var [c, r] of item.c) if (r < 20) board[r][c] = item.p
         var own = i <= cur.source.last
-        steps.push({board: board.map(row => [...row]), cells: item.c, own: own})
+        steps.push({board: board.map(row => [...row]), cells: item.c, piece: item.p, own: own})
         var rows = board.filter(row => row.some(c => c == 'N'))
         while (rows.length < 20) rows.push(Array(10).fill('N'))
         board = rows
@@ -1516,11 +1516,13 @@ function pro_continue(){
     var own_end = steps.filter(s => s.own).pop()
     var same = own_end && filled(game.board) == filled(own_end.board)
     if (same) steps = steps.filter(s => !s.own)
+    // the queue moves along: the pieces still to go down, then the next exercise's
+    var order = steps.filter(s => s.cells).map(s => s.piece).concat(next.queue)
+    steps.filter(s => s.cells).forEach((s, k) => s.rest = order.slice(k + 1))
     // no input while it plays (Retry and New map still work)
     Record.showing = true
     game.tetramino = 'G'
-    game.bag = game.bag.map(() => 'G')
-    game.holdmino = ''
+    show_queue(order)
     var between = next.source.first - cur.source.last - 1
     var own_delay = 260 * speed, far_delay = Math.max(40, Math.min(260, 3000 / Math.max(1, between))) * speed
     var t = 400
@@ -1544,6 +1546,7 @@ function pro_continue(){
         later(t, (s => () => {
             game.board = s.board
             Record.replay_cells = s.cells || null
+            if (s.rest) show_queue(s.rest)
             render()
         })(step))
     }
@@ -1988,6 +1991,14 @@ function input_path(board, piece, target){
 // inputs written out (how it gets into the slot), then its lines clear before the
 // next setup
 var answer_timers = []
+// While a solution or the player's game plays by itself: the next pieces, in the
+// order they go down, move along with it (the hold stays empty: the queue is the
+// placement order, as when you play)
+function show_queue(pieces){
+    game.bag = ['G'].concat(pieces, Array(6).fill('G'))
+    game.holdmino = ''
+}
+
 function stop_answer(){
     answer_timers.forEach(clearTimeout)
     answer_timers = []
@@ -2015,6 +2026,9 @@ function show_ans(){
         game.board = rows
     }
     var next = 0
+    var upcoming = i => steps.slice(i).map(s => s.piece)
+    show_queue(upcoming(0))
+    render()
     var run = () => {
         if (next == steps.length){
             later(1500, () => {
@@ -2025,8 +2039,9 @@ function show_ans(){
             return
         }
         var step = steps[next++]
+        var after = next
         if (!step.spin){
-            later(600, () => { place(step); render(); run() })
+            later(600, () => { place(step); show_queue(upcoming(after)); render(); run() })
             return
         }
         // the spin piece: its inputs one by one, then the lines clear
@@ -2037,6 +2052,7 @@ function show_ans(){
         later(700, () => {
             game.tetramino = step.piece
             game.x = 4; game.y = 18; game.orientation = 0
+            show_queue(upcoming(after))
             render()
             show_spin_message(inputs? name + ': from spawn': name)
         })
