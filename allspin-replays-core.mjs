@@ -73,13 +73,15 @@ class ZenithSim {
         this.board = null
     }
     clone(){
-        return new ZenithSim(Engine.restore(this.engine.serialize()), this.events, this.frames, this.cursor, this.n,
+        var copy = new ZenithSim(Engine.restore(this.engine.serialize()), this.events, this.frames, this.cursor, this.n,
             this.queue.slice(), this.locked)
+        copy.instant = this.instant
+        return copy
     }
     // let `rows` garbage rows in, hole in column `hole`: they rise from now on
     tank(rows, hole){
         for (var i=0; i<rows; i++) this.queue.push(hole)
-        this.locked = Math.max(this.locked, this.engine.state.frame + ZENITH_GARBAGE_ARE)
+        this.locked = Math.max(this.locked, this.engine.state.frame + (this.instant? 0: ZENITH_GARBAGE_ARE))
     }
     // on to the next placement: its lock event and lines cleared, or null at the end
     // (of the replay, or of the rebuilt game: a top-out)
@@ -91,9 +93,12 @@ class ZenithSim {
             if (s.phase === 'ready'){
                 e.beginFrame([])
                 if (this.queue.length && s.frame >= this.locked && !s.piece.sleeping){
-                    if (!e.insertGarbage(this.queue.shift())) return null
+                    // (Expert Quick Play: all the rows at once)
+                    for (var k = this.instant? this.queue.length: 1; k > 0; k--){
+                        if (!e.insertGarbage(this.queue.shift())) return null
+                        this.rose += 1
+                    }
                     this.locked = s.frame + ZENITH_GARBAGE_ARE
-                    this.rose += 1
                 }
                 if (this.keep) this.board = {rows: s.board.rows.map(row => [...row])}
             }
@@ -111,13 +116,17 @@ class ZenithSim {
 
 function zenith_start(data){
     var replay = data.replay, options = replay.options
-    var engine = new Engine({mode: 'tl', seed: options.seed, handling: options.handling, rules: {g: 0, gincrease: 0}})
+    var engine = new Engine({mode: 'tl', seed: options.seed, handling: options.handling, rules: {g: 0.02, gincrease: options.gincrease ?? 0}})
     engine.state.bag = createBag(options.seed)
     engine.spawn()
     engine.trace = []
     var events = replay.events.filter(e => e.type == 'keydown' || e.type == 'keyup')
         .map(e => ({frame: e.frame, type: e.type, key: e.data.key, subframe: e.data.subframe}))
-    return new ZenithSim(engine, events, replay.frames)
+    var sim = new ZenithSim(engine, events, replay.frames)
+    // Quick Play lets garbage rise row by row ("continuous"); Expert Quick Play
+    // ("zenithex") puts it all in at once ("instant", the default)
+    sim.instant = options.garbageentry != 'continuous'
+    return sim
 }
 
 // covered empty cells, not in garbage rows (their hole is there by design)
@@ -153,6 +162,19 @@ function zenith_drift(sim, inserts, max){
 // The garbage the player got, found from the game: [{at (after that placement), rows, hole}]
 function infer_garbage(data, progress){
     var start = zenith_start(data), inserts = []
+    // The replay says when attacks came in and how big ("interaction" events), not
+    // where their holes were nor how much the player cancelled: garbage can only come
+    // in once enough has arrived (scaled up by the game's own received / arrived, for
+    // the altitude multipliers)
+    var arrivals = data.replay.events.filter(e => e.type == 'ige' && e.data && e.data.type == 'interaction' &&
+        e.data.data && e.data.data.type == 'garbage').map(e => [e.frame, e.data.data.amt])
+    var arrived_total = arrivals.reduce((sum, a) => sum + a[1], 0)
+    var stats = data.replay.results && data.replay.results.stats
+    var received = stats && stats.garbage && stats.garbage.received
+    var scale = arrived_total && received? Math.max(1, received / arrived_total): 1
+    var budget = (frame, at) => arrivals.length?
+        Math.floor(scale * arrivals.filter(a => a[0] <= frame).reduce((sum, a) => sum + a[1], 0)) -
+            inserts.filter(x => x.at <= at).reduce((sum, x) => sum + x.rows, 0): Infinity
     var drift = zenith_drift(start.clone(), inserts, 100000)
     while (!drift.end){
         if (progress) progress('Finding the garbage: the game is right up to piece ' + drift.at + '…')
@@ -167,8 +189,8 @@ function infer_garbage(data, progress){
         var best = null
         for (var at = from; at < drift.at; at += ZENITH_STEP){
             if (!snaps[at]) continue
-            var later = inserts.filter(x => x.at > at)
-            for (var rows of ZENITH_ROWS) for (var hole=0; hole<10; hole++){
+            var later = inserts.filter(x => x.at > at), can = budget(snaps[at].engine.state.frame, at)
+            for (var rows of ZENITH_ROWS.filter(m => m <= can)) for (var hole=0; hole<10; hole++){
                 var trial = snaps[at].clone()
                 trial.tank(rows, hole)
                 var res = zenith_drift(trial, later, 400)
@@ -351,7 +373,7 @@ export function timeline_of(placements){
 export function exercises_of_replay(text, file, progress){
     var data = null
     try{ data = JSON.parse(text) }catch(err){}
-    if (data && data.gamemode == 'zenith' && data.replay && data.replay.options){
+    if (data && ['zenith', 'zenithex'].includes(data.gamemode) && data.replay && data.replay.options){
         var username = (data.users && data.users[0] && data.users[0].username) || data.replay.options.username || 'player'
         try{
             // (up to where it drifts, less 15 placements, where it started)
