@@ -1094,3 +1094,16 @@ body:not(.pro-mode) .pro-option { display: none !important; }
 .shape-legend .key.fill { background: #8a8d93; }
 .shape-legend .key.open { background: #000; border: 1px solid #555; }
 .shape-legend .key.roof { border: 1.5px dashed #8a8d93; }
+
+/* PC Solutions page */
+.pcs-main { max-width: 60rem; margin: 2rem auto 3rem; padding: 0 1rem; color: #dcddde; }
+.pcs-main a { color: #8ab4f8; }
+.pcs-target { font-weight: bold; }
+.pcs-phase { color: #9a9ca1; }
+.pcs-steps { font-size: 0.8rem; color: #f6d03c; }
+.pcs-build { display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-end; }
+.pcs-build figure { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 0.3rem; font-size: 0.8rem; color: #9a9ca1; }
+.pcs-grid { grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr)); }
+.pcs-card { cursor: default; }
+.pcs-card.current { border-color: #f6d03c; }
+.pcs-card .install-button { font-size: 0.75rem; padding: 0.25rem 0.7rem; margin: auto 0 0; }

@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-QCQK6ZQ0DE"></script>
+    <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-QCQK6ZQ0DE');
+    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>PC Solutions</title>
+    <link rel="icon" href="/downstack-practice/favicon.svg" type="image/svg+xml">
+    <link rel="manifest" href="/downstack-practice/manifest.webmanifest">
+    <link rel="apple-touch-icon" href="/downstack-practice/icons/apple-touch-icon.png">
+    <meta name="theme-color" content="#2a2c30">
+    <link rel="stylesheet" href="style.css">
+    <script src="style-scripts.js"></script>
+    
+</head>
+<body>
+    <div class="banner">
+        <h1 hidden>PC Solutions</h1>
+        <a class="title" href="/downstack-practice/pc-solutions.html">PC Solutions - Learn every solution</a>
+        <button type="button" class="setting_icon" onclick="toggleSettings()" aria-label="Settings" title="Settings">⚙️</button>
+        <div class="nav">
+            <ul class="dropdown">
+                <li><a href="/downstack-practice/">Home</a></li>
+                <li><a href="/downstack-practice/stats.html">Your Progress</a></li>
+                <li><a href="javascript:void(0);" onclick="toggleSettings()">Settings</a></li>
+                <li><a href="/downstack-practice/tspin-challenge.html">T-Spin Challenge</a></li>
+                <li><a href="/downstack-practice/downstack.html">Downstack Practice</a></li>
+                <li><a href="/downstack-practice/pc-practice.html">Mid-game PC Practice</a></li>
+                <li><a href="/downstack-practice/usermode.html">Usermode (Includes PC Practice)</a></li>
+                <li><a href="/downstack-practice/tspin-practice.html">T-Spin Practice</a></li>
+                <li><a href="/downstack-practice/advance-tspin-practice.html">Advanced T-Spin Practice</a></li>
+                <li><a href="/downstack-practice/allspin-practice.html">All-Spin Practice</a></li>
+                <li><a href="/downstack-practice/allspin-replays.html">All-Spin from Replays</a></li>
+                <li><a href="/downstack-practice/allspin-shapes.html">All-Spin Shapes</a></li>
+                <li><a href="/downstack-practice/quad-practice.html">Quad Practice</a></li>
+                <li><a href="/downstack-practice/upstack-practice.html">Upstack Practice</a></li>
+                <li><a href="/downstack-practice/learnfromai.html">Learn from AI (ZZZTOJ)</a></li>
+                <li><a href="/downstack-practice/library.html">PC Setup Library</a></li>
+                <li><a href="/downstack-practice/pc-solutions.html">PC Solutions (SDPC)</a></li>
+            </ul>
+        </div>
+        <button type="button" class="burger" onclick="toggleBurger()" aria-label="Menu" title="Menu" aria-expanded="false">
+            <span></span>
+        </button>
+    </div>
+
+    <div id="setting">
+        <div class="settings-container">
+            <h1>Settings</h1>
+            <a class="close-button" href="javascript:void(0);" onclick="closeSettings()" aria-label="Close settings"></a>
+            <table>
+                <tbody>
+                <tr><td class="setting-label">Move Left</td><td><input class='keybind' id="input1" type="text" size="7" value="" readOnly></td></tr>
+                <tr><td class="setting-label">Move Right</td><td><input class='keybind' id="input2" type="text" size="7" value="" readOnly></td></tr>
+                <tr><td class="setting-label">Soft Drop</td><td><input class='keybind' id="input3" type="text" size="7" value="" readOnly></td></tr>
+                <tr><td class="setting-label">Hard Drop</td><td><input class='keybind' id="input4" type="text" size="7" value="" readOnly></td></tr>
+                <tr><td class="setting-label">Rotate Left</td><td><input class='keybind' id="input5" type="text" size="7" value="" readOnly></td></tr>
+                <tr><td class="setting-label">Rotate Right</td><td><input class='keybind' id="input6" type="text" size="7" value="" readOnly></td></tr>
+                <tr><td class="setting-label">Rotate 180</td><td><input class='keybind' id="input7" type="text" size="7" value="" readOnly></td></tr>
+                <tr><td class="setting-label">Hold</td><td><input class='keybind' id="input8" type="text" size="7" value="" readOnly></td></tr>
+                <tr><td class="setting-label">Retry</td><td><input class='keybind' id="input9" type="text" size="7" value="" readOnly></td></tr>
+                <tr><td class="setting-label">Show Answer</td><td><input class='keybind' id="input10" type="text" size="7" value="" readOnly></td></tr>
+                <tr><td class="setting-label">Undo</td><td><input class='keybind' id="input_undo" type="text" size="7" value="" readOnly></td></tr>
+                <tr><td colspan="2"><span id="key_conflict" role="alert"></span><button type="button" class="mini_button" onclick="reset_keys()">Reset keys to defaults</button></td></tr>
+                <tr><td class="setting-label">DAS (1 to 200)</td><td><input id="input11" type="number" min="1" max='200'></td></tr>
+                <tr><td class="setting-label">ARR (0 to 100)</td><td><input id="input12" type="number" min="0" max='100'></td></tr>
+                <tr><td class="setting-label">Touch Controls</td><td><select id="touch_controls"><option value="auto">Auto</option><option value="on">On</option><option value="off">Off</option></select></td></tr>
+                <tr><td class="setting-label">Touch button size</td><td><select id="touch_size"><option value="large">Large</option><option value="medium">Medium</option><option value="small">Small</option></select></td></tr>
+                <tr><td class="setting-label" title="Left-handed layout: rotations and hold on the left">Touch: movement on the right</td><td><input id="touch_swap" type="checkbox"></td></tr>
+                <tr><td class="setting-label" title="A short buzz on each touch button press (Android)">Touch: vibrate on press</td><td><input id="touch_vibrate" type="checkbox"></td></tr>
+                <tr><td class="setting-label" title="After each piece, flag inputs beyond the fewest needed for that spot">Finesse feedback</td><td><input id="finesse_toggle" type="checkbox"></td></tr>
+                <tr><td class="setting-label" title="Which kicks a 180° rotation tries when the plain flip is blocked">180° kicks</td><td><select id="kick180"><option value="srs+">TETR.IO (SRS+)</option><option value="simple">Simple</option></select></td></tr>
+                <tr><td class="setting-label" title="Pieces fall on their own and lock 0.5 s after landing">Gravity</td><td><select id="gravity"><option value="0">Off</option><option value="1000">Slow (1 row/s)</option><option value="500">Medium (2 rows/s)</option><option value="200">Fast (5 rows/s)</option><option value="50">Very fast (20 rows/s)</option></select></td></tr>
+                
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="flex">
+        <div id="leftpanel" class="panel">
+
+            <h2>Goal</h2>
+            <div id="winning_requirement">
+                <p id="winning_requirement2">Perfect clear with 6 pieces</p>
+                <p id="pcs_target" class="pcs-target"></p>
+                <p id="pcs_phase" class="pcs-phase"></p>
+                <p id="pcs_steps" class="pcs-steps"></p>
+            </div>
+
+            <button class="game_button orange" onclick="retry(); board.focus()">Retry</button>
+            <button class="game_button" onclick="undo(); board.focus()" title="Take back the last piece (U)">Undo</button>
+            <button class="game_button" id="peek_button" onclick="toggle_peek(); board.focus()" title="Draw the solution on the board (this bag then doesn't count towards learning it)">Peek</button>
+            <button class="game_button" onclick="next_bag(); board.focus()" title="Another bag">Next bag</button>
+            <button class="game_button red" onclick="show_ans(); board.focus()">Show Answer</button>
+
+        </div>
+        <div id="tetris">
+            <canvas id="board" tabindex='1' width="520" height="610" z-index="4"></canvas>
+        </div>
+
+        <div id="rightpanel" class="panel">
+
+            <h2>Modes</h2>
+            <button class="game_button cyan" onclick="play_learn(); board.focus()" title="One solution at a time, most useful first: study it, then solve bags from memory">Learn in order</button>
+            <button class="game_button cyan" onclick="play_mixed(); board.focus()" title="Any bag: find which solution it takes">Mixed bags</button>
+
+            <button id="game_button" class="game_button yellow" onclick="toggleOptions()">Options ▴</button>
+            <div id="gamemode" class="open">
+                <table>
+                    <tbody>
+                        <tr><td><select id="pcs_setup"></select></td><td>Setup</td></tr>
+                        <tr><td><select id="pcs_rot"><option value="r180">With 180°</option><option value="no180">Without 180°</option></select></td><td title="The solutions depend on the rotations you can use. With 180° uses TETR.IO's 180° kicks (Settings: 180° kicks).">Rotations</td></tr>
+                        <tr><td><select id="pcs_need"><option>1</option><option>2</option><option selected>3</option><option>4</option><option>5</option></select></td><td title="Bags solved from memory in a row (no peek, no answer, first try) to learn a solution">Wins in a row to learn one</td></tr>
+                        <tr><td><input id="pcs_learned_only" type="checkbox" checked></td><td title="Mixed bags: only bags whose solution you've learned (all bags once you know none)">Mixed: only solutions I've learned</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <button class="game_button" onclick="document.getElementById('pcs_list').scrollIntoView({behavior: 'smooth'})">All solutions ↓</button>
+
+        </div>
+    </div>
+
+    <div id="tcc" class="tc">
+        <span id="tc-dr">↺</span>
+        <span id="tc-h">⇄</span>
+        <span id="tc-hd">⤓</span>
+        <span id="tc-l">←</span>
+        <span id="tc-r">→</span>
+        <span id="tc-d">↓</span>
+        <span id="tc-cc">↰</span>
+        <span id="tc-c">↱</span>
+    </div>
+
+    <main class="pcs-main" id="pcs_list">
+        <h2 class="stats-title" id="pcs_title"></h2>
+        <p class="home-intro" id="pcs_text"></p>
+        <div class="stat-cards" id="pcs_facts"></div>
+        <section class="stats-section">
+            <h3>How you get there</h3>
+            <div class="pcs-build" id="pcs_build"></div>
+        </section>
+        <section class="stats-section">
+            <h3>The solutions, in the order to learn them</h3>
+            <p class="stats-note">Each one is the answer for the bags the ones before it can't solve: its share of all bags, then the total with the ones before.
+                The third bag comes with an empty hold and you place 6 of its 7 pieces. A piece drawn across a cleared row goes down after that row clears.</p>
+            <div class="pro-grid pcs-grid" id="pcs_grid"></div>
+        </section>
+        <p class="stats-note">Solutions computed on this site with its own rotation rules, over all 5040 orders of the third bag. The setups are from the <a href="https://harddrop.com/wiki/SingleYou">Hard Drop wiki</a>, which gives the same chances.</p>
+    </main>
+
+    <script src="header.js"></script>
+    <script src="common.js"></script>
+    <script src="pc-solutions-data.js"></script>
+    <script src="pc-solutions.js"></script>
+
+</body>
+</html>
