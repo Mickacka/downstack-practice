@@ -1105,6 +1105,10 @@ body:not(.pro-mode) .pro-option { display: none !important; }
 .pcs-build figure { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 0.3rem; font-size: 0.8rem; color: #9a9ca1; }
 .pcs-grid { grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr)); }
 .pcs-card { cursor: default; }
+.pcs-card.in-mix { background: #263040; }
+.pcs-mix { font-size: 0.75rem; display: inline-flex; align-items: center; gap: 0.2rem; cursor: pointer; }
+.pcs-mix-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 0.6rem; margin: 0.4rem 0 0.8rem; font-size: 0.9rem; }
+.pcs-mix-bar .install-button { margin: 0; font-size: 0.8rem; padding: 0.3rem 0.7rem; }
 .pcs-rule { font-size: 0.75rem; color: #dcddde; text-align: center; }
 .pcs-why { display: flex; flex-direction: column; gap: 0.15rem; font-size: 0.75rem; text-align: left; }
 .pcs-why[hidden] { display: none; }

@@ -123,7 +123,8 @@
                         <tr><td><select id="pcs_setup"></select></td><td>Setup</td></tr>
                         <tr><td><select id="pcs_rot"><option value="r180">With 180°</option><option value="no180">Without 180°</option></select></td><td title="The solutions depend on the rotations you can use. With 180° uses TETR.IO's 180° kicks (Settings: 180° kicks).">Rotations</td></tr>
                         <tr><td><select id="pcs_need"><option>1</option><option>2</option><option selected>3</option><option>4</option><option>5</option></select></td><td title="Bags solved from memory in a row (no peek, no answer, first try) to learn a solution">Wins in a row to learn one</td></tr>
-                        <tr><td><input id="pcs_learned_only" type="checkbox" checked></td><td title="Mixed bags: only bags whose solution you've learned (all bags once you know none)">Mixed: only solutions I've learned</td></tr>
+                        <tr><td><select id="pcs_mix_even"><option value="real">As in real bags</option><option value="even">Each equally</option></select></td><td title="Mixed bags: each solution as often as it's the answer in real bags (the first ones much more), or each one in your mix as often as the others">Mixed: how often each</td></tr>
+                        <tr><td><input id="pcs_learned_only" type="checkbox" checked></td><td title="When no solution is ticked 'In my mix': only bags whose solution you've learned (all bags once you know none)">Mixed, no mix ticked: only solutions I've learned</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -160,8 +161,16 @@
         </section>
         <section class="stats-section">
             <h3>The solutions, in the order to learn them</h3>
-            <p class="stats-note">Each one is the answer for the bags the ones before it can't solve: its share of all bags, then the total with the ones before.
+            <p class="stats-note">Each one is the answer for the bags the ones before it can't solve: its share of all bags, then the total with the ones before. Tick "In my mix" to practise some of them together in Mixed bags.
                 The third bag comes with an empty hold and you place 6 of its 7 pieces. A piece drawn across a cleared row goes down after that row clears.</p>
+            <div class="pcs-mix-bar">
+                <span id="pcs_mix_note"></span>
+                <button type="button" class="install-button" onclick="play_mixed(); document.getElementById('tetris').scrollIntoView({behavior: 'smooth', block: 'center'}); board.focus()">Play my mix</button>
+                <button type="button" class="install-button" onclick="mix_preset('top')">First 3</button>
+                <button type="button" class="install-button" onclick="mix_preset('learned')">The ones I've learned</button>
+                <button type="button" class="install-button" onclick="mix_preset('all')">All</button>
+                <button type="button" class="install-button" onclick="mix_preset('none')">None</button>
+            </div>
             <div class="pro-grid pcs-grid" id="pcs_grid"></div>
         </section>
         <p class="stats-note">Solutions computed on this site with its own rotation rules, over all 5040 orders of the third bag. The setups are from the <a href="https://harddrop.com/wiki/SingleYou">Hard Drop wiki</a>, which gives the same chances.</p>

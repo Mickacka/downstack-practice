@@ -7,7 +7,7 @@
 var game = new Game()
 var Config = {'das':100, 'arr':0, 'delay':0, 'pressing_left':false, 'pressing_right': false, 'pressing_down': false, 'pressing':{},
     'auto_next_ind': true, 'mode': 'learn', 'no_of_trial': 0, 'no_of_success': 0,
-    'setup': 'sdpc', 'rot': 'r180', 'need': 3, 'learned_only': true}
+    'setup': 'sdpc', 'rot': 'r180', 'need': 3, 'learned_only': true, 'mix_even': false}
 // (scalar fields, so Undo restores them; rowmap and placed are JSON)
 var Record = {bag: '', target: -1, focus: -1, peek: false, why: false, study: false, clean: true,
     rowmap: '[]', placed: '[]', answered: false}
@@ -149,10 +149,20 @@ function new_bag(){
         Record.bag = list[Math.floor(Math.random() * list.length)]
     }
     else{
-        var allowed = new Set()
-        if (Config.learned_only) current_variant().solutions.forEach((s, k) => { if (learned(k)) allowed.add(k) })
-        var list = ALL_BAGS.filter(b => t.first[b] >= 0 && (!allowed.size || allowed.has(t.first[b])))
-        Record.bag = list[Math.floor(Math.random() * list.length)]
+        // the solutions in the mix: the ones ticked, else the ones learned (option), else all
+        var sols = current_variant().solutions.map((s, k) => k), allowed = mix_selection()
+        if (!allowed.length && Config.learned_only) allowed = sols.filter(learned)
+        if (!allowed.length) allowed = sols
+        if (Config.mix_even){
+            // each solution as often: one of them, then one of its bags
+            var k = allowed[Math.floor(Math.random() * allowed.length)]
+            Record.bag = t.bags[k][Math.floor(Math.random() * t.bags[k].length)]
+        }
+        else{
+            // as often as they come in real bags
+            var list = ALL_BAGS.filter(b => allowed.includes(t.first[b]))
+            Record.bag = list[Math.floor(Math.random() * list.length)]
+        }
         Record.target = t.first[Record.bag]
         Record.study = false
     }
@@ -191,6 +201,22 @@ function play_learn(){
     Record.focus = -1
     play_a_map()
 }
+// The mix: solutions ticked on their cards, per setup and rotations
+function mix_selection(){
+    return (load_json('pc_solutions_mix', {})[Config.setup + ':' + Config.rot] || []).filter(k => k < current_variant().solutions.length)
+}
+function set_mix(list){
+    var all = load_json('pc_solutions_mix', {})
+    all[Config.setup + ':' + Config.rot] = [...new Set(list)].sort((a, b) => a - b)
+    save_json('pc_solutions_mix', all)
+    show_list()
+    if (Config.mode == 'mixed') show_target()
+}
+function mix_preset(which){
+    var sols = current_variant().solutions.map((s, k) => k)
+    set_mix(which == 'learned'? sols.filter(learned): which == 'all'? sols: which == 'top'? sols.slice(0, 3): [])
+}
+
 function play_mixed(){
     Config.mode = 'mixed'
     Record.focus = -1
@@ -452,7 +478,8 @@ function show_target(){
             : 'From memory: ' + (e.s || 0) + ' of ' + Config.need + ' in a row' + (e.done? ' (learned)': '')) + '. When: ' + rule_text(s)
     }
     else{
-        target.textContent = 'Mixed bags: which solution?'
+        var mix = mix_selection()
+        target.textContent = 'Mixed bags: which solution?' + (mix.length? ' (your mix: ' + mix.map(k => k + 1).join(', ') + ')': '')
         phase.textContent = Record.peek? 'Solution ' + (k + 1): ''
     }
 }
@@ -520,6 +547,10 @@ function show_list(){
     })
     document.getElementById('pcs_path_note').textContent = 'Check them in this order and play the first one your bag allows: that solves ' +
         pct(v.path) + ' of bags (' + pct(v.solvable) + ' with every order of every solution).'
+    var mix = mix_selection(), share = 0
+    for (var k of mix) share += sols[k].share
+    document.getElementById('pcs_mix_note').textContent = mix.length? 'Your mix: solution' + (mix.length > 1? 's ': ' ') + mix.map(k => k + 1).join(', ') +
+        ' (' + pct(share) + ' of bags).': 'Your mix is empty: Mixed bags uses ' + (Config.learned_only && sols.some((s, k) => learned(k))? "the solutions you've learned.": 'every solution.')
     var grid = document.getElementById('pcs_grid'), now = Config.mode == 'learn'? Record.target: -1
     grid.textContent = ''
     sols.forEach((s, k) => {
@@ -553,7 +584,18 @@ function show_list(){
         button.className = 'install-button'
         button.textContent = 'Practise'
         button.onclick = () => practise(k)
-        card.appendChild(button)
+        var tick = document.createElement('label')
+        tick.className = 'pcs-mix'
+        var box = document.createElement('input')
+        box.type = 'checkbox'
+        box.checked = mix_selection().includes(k)
+        box.onchange = (k => e => set_mix(e.target.checked? mix_selection().concat([k]): mix_selection().filter(x => x != k)))(k)
+        tick.append(box, ' In my mix')
+        var buttons = document.createElement('div')
+        buttons.className = 'shape-buttons'
+        buttons.append(button, tick)
+        card.appendChild(buttons)
+        card.classList.toggle('in-mix', box.checked)
         grid.appendChild(card)
     })
 }
@@ -563,7 +605,7 @@ function show_list(){
 */
 function load_options(){
     var saved = load_json('pc_solutions_config', {})
-    for (var key of ['setup', 'rot', 'need', 'learned_only']) if (key in saved) Config[key] = saved[key]
+    for (var key of ['setup', 'rot', 'need', 'learned_only', 'mix_even']) if (key in saved) Config[key] = saved[key]
     if (!PC_SETUPS.some(s => s.id == Config.setup)) Config.setup = PC_SETUPS[0].id
     var select = document.getElementById('pcs_setup')
     select.textContent = ''
@@ -577,6 +619,7 @@ function load_options(){
     document.getElementById('pcs_rot').value = Config.rot
     document.getElementById('pcs_need').value = String(Config.need)
     document.getElementById('pcs_learned_only').checked = Config.learned_only
+    document.getElementById('pcs_mix_even').value = Config.mix_even? 'even': 'real'
 }
 Controls.bind_options = () => {
     var save = () => {
@@ -584,12 +627,13 @@ Controls.bind_options = () => {
         Config.rot = document.getElementById('pcs_rot').value
         Config.need = parseInt(document.getElementById('pcs_need').value)
         Config.learned_only = document.getElementById('pcs_learned_only').checked
-        save_json('pc_solutions_config', {setup: Config.setup, rot: Config.rot, need: Config.need, learned_only: Config.learned_only})
+        Config.mix_even = document.getElementById('pcs_mix_even').value == 'even'
+        save_json('pc_solutions_config', {setup: Config.setup, rot: Config.rot, need: Config.need, learned_only: Config.learned_only, mix_even: Config.mix_even})
         Record.focus = -1
         play_a_map()
         show_list()
     }
-    for (var id of ['pcs_setup', 'pcs_rot', 'pcs_need', 'pcs_learned_only']) document.getElementById(id).onchange = save
+    for (var id of ['pcs_setup', 'pcs_rot', 'pcs_need', 'pcs_learned_only', 'pcs_mix_even']) document.getElementById(id).onchange = save
 }
 
 /*
