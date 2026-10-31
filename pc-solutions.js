@@ -63,8 +63,10 @@ function hold_orders(queue, n){
     return out
 }
 
-// per setup and rotations: the solutions' pieces and orders, and for each bag the
-// first solution (in learning order) that solves it. That takes a moment, so it's
+// per setup and rotations: the solutions' pieces and orders, and for each bag its
+// solution: the first one (in learning order) whose rule some order of the bag meets
+// (the decision path). A bag a solution only solves with a rare trick (a tuck or
+// kick the rule doesn't describe) isn't dealt for it. That takes a moment, so it's
 // kept in the browser: one letter per bag (A the first solution, - none), redone
 // only when the solutions change.
 var tables = {}
@@ -75,12 +77,12 @@ function table(){
     var t = {pieces: sols.map(solution_pieces), orders: sols.map(s => new Set(s.orders.split(' '))),
         tsd: sols.map(s => new Set((s.tsd || '').split(' '))), tss: sols.map(s => new Set((s.tss || '').split(' '))),
         first: {}, bags: sols.map(() => [])}
-    var version = sols.map(s => s.orders.length).join('.'), saved = load_json('pc_solutions_bags', {})
+    var version = 'rules:' + sols.map(s => s.orders.length + JSON.stringify(s.rule.all)).join('.'), saved = load_json('pc_solutions_bags', {})
     var code = saved[id] && saved[id].v == version? saved[id].first: null
     if (!code){
         code = ALL_BAGS.map(bag => {
             var ways = hold_orders(bag, PC_PIECES).map(w => w.order)
-            var k = t.orders.findIndex(orders => ways.some(o => orders.has(o)))
+            var k = sols.findIndex(sol => ways.some(o => same_pieces(sol, o) && sol.rule.all.every(c => c.some(f => fact_ok(f, o)))))
             return k < 0? '-': String.fromCharCode(65 + k)
         }).join('')
         saved[id] = {v: version, first: code}
@@ -94,13 +96,24 @@ function table(){
     return tables[id] = t
 }
 
-// How to play a bag with a solution: the hold steps, a T-spin double first if it can
+// The orders of a solution that need no 180° rotation (from the setup's solutions
+// without 180°), or null: all of them
+function orders_without_180(k){
+    if (Config.rot != 'r180') return null
+    var grid = current_variant().solutions[k].grid.join('/')
+    var same = current_setup().variants.no180.solutions.find(s => s.grid.join('/') == grid)
+    return new Set(same? same.orders.split(' '): [])
+}
+
+// How to play a bag with a solution: the hold steps, in an order its rule describes,
+// without a 180° rotation if it can, a T-spin double first if it can
 function answer_for(bag, k){
-    var t = table(), best = null
+    var t = table(), best = null, rule = current_variant().solutions[k].rule, easy = orders_without_180(k)
     for (var w of hold_orders(bag, PC_PIECES)){
         if (!t.orders[k].has(w.order)) continue
-        var score = t.tsd[k].has(w.order)? 2: t.tss[k].has(w.order)? 1: 0
-        if (!best || score > best.score) best = {order: w.order, steps: w.steps, score: score}
+        var no180 = !easy || easy.has(w.order)
+        var score = (rule.all.every(c => c.some(f => fact_ok(f, w.order)))? 8: 0) + (no180? 4: 0) + (t.tsd[k].has(w.order)? 2: t.tss[k].has(w.order)? 1: 0)
+        if (!best || score > best.score) best = {order: w.order, steps: w.steps, score: score, needs180: !no180}
     }
     return best
 }
@@ -362,6 +375,36 @@ Controls.draw_overlay = (ctx, x0, y0) => {
     ctx.restore()
 }
 
+// The inputs that put a piece on these cells, when a plain move and hard drop can't
+// (a tuck or a spin): the shortest from the spawn, "↓" a soft drop to the floor. null
+// when a hard drop gets there.
+function tuck_inputs(board, piece, cells){
+    var want = cells.map(c => c.join()).sort().join('|')
+    var g = new Game()
+    g.board = board
+    g.tetramino = piece
+    var lands = (x, y, o) => {
+        g.x = x; g.y = y; g.orientation = o
+        g.drop()
+        return g.to_shape().map(c => c.join()).sort().join('|') == want
+    }
+    var moves = [['←', g => g.move_left()], ['→', g => g.move_right()], ['↺', g => g.rotate_anticlockwise()], ['↻', g => g.rotate_clockwise()],
+        ['↓', g => { var y = g.y; g.drop(); return g.y != y }]]
+    if (Config.rot == 'r180') moves.push(['180', g => g.rotate_180()])
+    var seen = new Set(), queue = [[4, 18, 0, [], false]]
+    while (queue.length){
+        var [x, y, o, path, soft] = queue.shift(), key = x + ',' + y + ',' + o
+        if (seen.has(key)) continue
+        seen.add(key)
+        if (lands(x, y, o)) return soft? path: null
+        for (var [name, move] of moves){
+            g.x = x; g.y = y; g.orientation = o
+            if (move(g)) queue.push([g.x, g.y, g.orientation, path.concat([name]), soft || name == '↓'])
+        }
+    }
+    return null
+}
+
 function show_ans(){
     if (answer_replay.running || Record.target < 0) return
     var answer = answer_for(Record.bag, Record.target)
@@ -372,12 +415,14 @@ function show_ans(){
     // from the start: each piece where it goes, rows clearing as in the game
     play()
     Record.answered = true
-    show_steps(answer.steps)
+    show_steps(answer.steps, answer.needs180)
     answer_replay.running = true
     var H = field_height(), b = clone(game.board), rowmap = [...Array(H).keys()]
-    var pieces = table().pieces[Record.target], frames = []
+    var pieces = table().pieces[Record.target], frames = [], tucks = []
     for (var piece of answer.order){
         var p = pieces.find(x => x.piece == piece)
+        var path = tuck_inputs(clone(b), piece, p.cells.map(([c, r]) => [c, rowmap.indexOf(r)]))
+        if (path) tucks.push(piece + ': ' + path.join(' '))
         for (var [c, r] of p.cells) b[rowmap.indexOf(r)][c] = piece
         frames.push(clone(b))
         var full = []
@@ -389,6 +434,9 @@ function show_ans(){
             frames.push(clone(b))
         }
     }
+    // the pieces that need a tuck or a spin: how
+    var steps = tucks.length? answer.steps.concat(['then ' + tucks.join('; ')]): answer.steps
+    show_steps(steps, answer.needs180)
     var replay_game = game
     frames.forEach((frame, i) => answer_replay.timers.push(setTimeout(() => {
         if (game !== replay_game) return stop_replay()
@@ -399,12 +447,12 @@ function show_ans(){
     answer_replay.timers.push(setTimeout(() => {
         var same = game === replay_game
         stop_replay()
-        if (same){ play(); show_steps(answer.steps); Record.peek = true; show_target(); render() }
+        if (same){ play(); show_steps(steps, answer.needs180); Record.peek = true; show_target(); render() }
     }, 700 * frames.length + 1500))
 }
 
-function show_steps(steps){
-    document.getElementById('pcs_steps').textContent = steps? 'Order: ' + steps.join(', '): ''
+function show_steps(steps, needs180){
+    document.getElementById('pcs_steps').textContent = steps? 'Order: ' + steps.join(', ') + (needs180? ' (a piece needs a 180° rotation)': ''): ''
 }
 
 /*
@@ -429,10 +477,6 @@ function why_lines(bag){
         var sol = sols[k], mine = orders.filter(o => same_pieces(sol, o))
         if (rule_orders(sol, bag).length){
             lines.push('✓ Solution ' + (k + 1) + ': ' + rule_text(sol))
-            return lines
-        }
-        if (table().first[bag] == k){
-            lines.push('✓ Solution ' + (k + 1) + ', in a rarer order (Show Answer)')
             return lines
         }
         var c = sol.rule.all.find(c => !mine.some(o => c.some(f => fact_ok(f, o))))
@@ -469,6 +513,8 @@ function show_target(){
     }
     var why_button = document.getElementById('why_button')
     if (why_button) why_button.textContent = Record.why? 'Hide why': 'Why?'
+    var kicks = document.getElementById('pcs_kicks')
+    if (kicks) kicks.hidden = !(Config.rot == 'r180' && kick_180_setting() != 'srs+')
     if (k < 0){ target.textContent = ''; phase.textContent = ''; return }
     var s = sols[k], spin = s.tsd? ' · T-spin double': s.tss? ' · T-spin single': ''
     if (Config.mode == 'learn'){
