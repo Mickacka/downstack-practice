@@ -95,12 +95,14 @@
                 <p id="pcs_target" class="pcs-target"></p>
                 <p id="pcs_phase" class="pcs-phase"></p>
                 <p id="pcs_steps" class="pcs-steps"></p>
+                <p id="pcs_why" class="pcs-why" hidden></p>
             </div>
 
             <button class="game_button orange" onclick="retry(); board.focus()">Retry</button>
             <button class="game_button" onclick="undo(); board.focus()" title="Take back the last piece (U)">Undo</button>
             <button class="game_button" id="peek_button" onclick="toggle_peek(); board.focus()" title="Draw the solution on the board (this bag then doesn't count towards learning it)">Peek</button>
             <button class="game_button" onclick="next_bag(); board.focus()" title="Another bag">Next bag</button>
+            <button class="game_button" id="why_button" onclick="toggle_why(); board.focus()" title="The decision path for this bag: why each solution before it can't be built (this bag then doesn't count towards learning)">Why?</button>
             <button class="game_button red" onclick="show_ans(); board.focus()">Show Answer</button>
 
         </div>
@@ -148,6 +150,13 @@
         <section class="stats-section">
             <h3>How you get there</h3>
             <div class="pcs-build" id="pcs_build"></div>
+        </section>
+        <section class="stats-section">
+            <h3>Which solution? The decision path</h3>
+            <p class="stats-note">The rules are about the order you place the pieces in, not the order they come: hold lets you play a piece later.
+                Hold it, play the next ones, take it back when you need it (the piece left over can stay in hold).</p>
+            <ol class="pcs-path" id="pcs_path"></ol>
+            <p class="stats-note" id="pcs_path_note"></p>
         </section>
         <section class="stats-section">
             <h3>The solutions, in the order to learn them</h3>

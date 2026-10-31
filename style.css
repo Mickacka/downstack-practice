@@ -1105,5 +1105,9 @@ body:not(.pro-mode) .pro-option { display: none !important; }
 .pcs-build figure { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 0.3rem; font-size: 0.8rem; color: #9a9ca1; }
 .pcs-grid { grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr)); }
 .pcs-card { cursor: default; }
+.pcs-rule { font-size: 0.75rem; color: #dcddde; text-align: center; }
+.pcs-why { display: flex; flex-direction: column; gap: 0.15rem; font-size: 0.75rem; text-align: left; }
+.pcs-why[hidden] { display: none; }
+.pcs-path { margin: 0.4rem 0; padding-left: 1.6rem; line-height: 1.6; font-size: 0.95rem; }
 .pcs-card.current { border-color: #f6d03c; }
 .pcs-card .install-button { font-size: 0.75rem; padding: 0.25rem 0.7rem; margin: auto 0 0; }

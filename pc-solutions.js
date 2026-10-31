@@ -9,7 +9,7 @@ var Config = {'das':100, 'arr':0, 'delay':0, 'pressing_left':false, 'pressing_ri
     'auto_next_ind': true, 'mode': 'learn', 'no_of_trial': 0, 'no_of_success': 0,
     'setup': 'sdpc', 'rot': 'r180', 'need': 3, 'learned_only': true}
 // (scalar fields, so Undo restores them; rowmap and placed are JSON)
-var Record = {bag: '', target: -1, focus: -1, peek: false, study: false, clean: true,
+var Record = {bag: '', target: -1, focus: -1, peek: false, why: false, study: false, clean: true,
     rowmap: '[]', placed: '[]', answered: false}
 const PC_PIECES = 6
 
@@ -158,6 +158,7 @@ function new_bag(){
     }
     Record.clean = !Record.study
     Record.peek = false
+    Record.why = false
     Record.answered = false
 }
 
@@ -381,7 +382,47 @@ function show_steps(steps){
 }
 
 /*
-6. Text: the goal, the list of solutions
+6. The rules: when each solution works, from the order the pieces go down in
+(pc-solutions-data.js: conditions that must all hold, each one of a few options).
+Hold changes the order: a piece held is played later.
+*/
+const fact_ok = (f, o) => f[0] == 'b'? o.indexOf(f[1]) < o.indexOf(f[2]): f[0] == 'last'? o[o.length - 1] == f[1]: o[0] == f[1]
+const fact_text = f => f[0] == 'b'? f[1] + ' before ' + f[2]: f[1] + ' ' + f[0]
+const condition_text = c => c.map(fact_text).join(' or ')
+const rule_text = sol => sol.rule.all.map(condition_text).join(' · ')
+const same_pieces = (sol, order) => [...order].sort().join('') == [...sol.orders.slice(0, 6)].sort().join('')
+// the hold orders of a bag that meet a solution's rule
+const rule_orders = (sol, bag) => hold_orders(bag, PC_PIECES).map(w => w.order).filter(o => same_pieces(sol, o) && sol.rule.all.every(c => c.some(f => fact_ok(f, o))))
+
+// The decision path for a bag: each solution in order, until one's rule can be met;
+// for those that can't, the condition no order of this bag (with hold) meets
+function why_lines(bag){
+    var sols = current_variant().solutions, lines = []
+    var orders = hold_orders(bag, PC_PIECES).map(w => w.order)
+    for (var k=0; k<sols.length; k++){
+        var sol = sols[k], mine = orders.filter(o => same_pieces(sol, o))
+        if (rule_orders(sol, bag).length){
+            lines.push('✓ Solution ' + (k + 1) + ': ' + rule_text(sol))
+            return lines
+        }
+        if (table().first[bag] == k){
+            lines.push('✓ Solution ' + (k + 1) + ', in a rarer order (Show Answer)')
+            return lines
+        }
+        var c = sol.rule.all.find(c => !mine.some(o => c.some(f => fact_ok(f, o))))
+        lines.push('✗ ' + (k + 1) + ": can't play " + (c? condition_text(c): 'all of ' + rule_text(sol)))
+    }
+    lines.push('No perfect clear with this bag')
+    return lines
+}
+function toggle_why(){
+    Record.why = !Record.why
+    if (Record.why) Record.clean = false
+    show_target()
+}
+
+/*
+7. Text: the goal, the list of solutions
 */
 function show_target(){
     var sols = current_variant().solutions, k = Record.target
@@ -392,13 +433,23 @@ function show_target(){
         peek.textContent = Record.peek? 'Hide': 'Peek'
         peek.disabled = Record.study
     }
+    var why = document.getElementById('pcs_why')
+    why.textContent = ''
+    why.hidden = !Record.why
+    if (Record.why) for (var line of why_lines(Record.bag)){
+        var p = document.createElement('span')
+        p.textContent = line
+        why.appendChild(p)
+    }
+    var why_button = document.getElementById('why_button')
+    if (why_button) why_button.textContent = Record.why? 'Hide why': 'Why?'
     if (k < 0){ target.textContent = ''; phase.textContent = ''; return }
     var s = sols[k], spin = s.tsd? ' · T-spin double': s.tss? ' · T-spin single': ''
     if (Config.mode == 'learn'){
         target.textContent = 'Solution ' + (k + 1) + ' of ' + sols.length + ': ' + pct(s.share) + ' of bags' + spin
         var e = progress()[k] || {}
-        phase.textContent = Record.study? 'Study: the solution is drawn on the board'
-            : 'From memory: ' + (e.s || 0) + ' of ' + Config.need + ' in a row' + (e.done? ' (learned)': '')
+        phase.textContent = (Record.study? 'Study: the solution is drawn on the board'
+            : 'From memory: ' + (e.s || 0) + ' of ' + Config.need + ' in a row' + (e.done? ' (learned)': '')) + '. When: ' + rule_text(s)
     }
     else{
         target.textContent = 'Mixed bags: which solution?'
@@ -460,6 +511,15 @@ function show_list(){
         fig.append(canvas, cap)
         build.appendChild(fig)
     }
+    var path = document.getElementById('pcs_path')
+    path.textContent = ''
+    sols.forEach((s, k) => {
+        var li = document.createElement('li')
+        li.textContent = rule_text(s) + ' → solution ' + (k + 1) + ' (' + pct(s.share) + ')'
+        path.appendChild(li)
+    })
+    document.getElementById('pcs_path_note').textContent = 'Check them in this order and play the first one your bag allows: that solves ' +
+        pct(v.path) + ' of bags (' + pct(v.solvable) + ' with every order of every solution).'
     var grid = document.getElementById('pcs_grid'), now = Config.mode == 'learn'? Record.target: -1
     grid.textContent = ''
     sols.forEach((s, k) => {
@@ -479,7 +539,10 @@ function show_list(){
         var alone = document.createElement('span')
         alone.className = 'pro-who'
         alone.textContent = 'Solves ' + pct(s.alone) + ' on its own'
-        card.append(title, canvas, spare, share, alone)
+        var when = document.createElement('span')
+        when.className = 'pcs-rule'
+        when.textContent = 'When: ' + rule_text(s) + (s.rule.exact? '': ' (the usual way: ' + pct(s.rule.covers) + ' of its orders)')
+        card.append(title, canvas, spare, when, share, alone)
         var e = p[k]
         var mine = document.createElement('span')
         mine.className = 'pro-result ' + (e && e.done? 'won': '')
