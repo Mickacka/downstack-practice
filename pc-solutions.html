@@ -45,7 +45,7 @@
                 <li><a href="/downstack-practice/upstack-practice.html">Upstack Practice</a></li>
                 <li><a href="/downstack-practice/learnfromai.html">Learn from AI (ZZZTOJ)</a></li>
                 <li><a href="/downstack-practice/library.html">PC Setup Library</a></li>
-                <li><a href="/downstack-practice/pc-solutions.html">PC Solutions (SDPC)</a></li>
+                <li><a href="/downstack-practice/pc-solutions.html">PC Solutions</a></li>
             </ul>
         </div>
         <button type="button" class="burger" onclick="toggleBurger()" aria-label="Menu" title="Menu" aria-expanded="false">
@@ -155,15 +155,14 @@
         </section>
         <section class="stats-section">
             <h3>Which solution? The decision path</h3>
-            <p class="stats-note">The rules are about the order you place the pieces in, not the order they come: hold lets you play a piece later.
-                Hold it, play the next ones, take it back when you need it (the piece left over can stay in hold).</p>
+            <p class="stats-note" id="pcs_path_intro"></p>
             <ol class="pcs-path" id="pcs_path"></ol>
             <p class="stats-note" id="pcs_path_note"></p>
         </section>
         <section class="stats-section">
             <h3>The solutions, in the order to learn them</h3>
             <p class="stats-note">Each one is the answer for the bags the ones before it can't solve: its share of all bags, then the total with the ones before. Tick "In my mix" to practise some of them together in Mixed bags.
-                The third bag comes with an empty hold and you place 6 of its 7 pieces. A piece drawn across a cleared row goes down after that row clears.</p>
+                <span id="pcs_rules_note"></span></p>
             <div class="pcs-mix-bar">
                 <span id="pcs_mix_note"></span>
                 <button type="button" class="install-button" onclick="play_mixed(); document.getElementById('tetris').scrollIntoView({behavior: 'smooth', block: 'center'}); board.focus()">Play my mix</button>
@@ -174,7 +173,7 @@
             </div>
             <div class="pro-grid pcs-grid" id="pcs_grid"></div>
         </section>
-        <p class="stats-note">Solutions computed on this site with its own rotation rules, over all 5040 orders of the third bag. The setups are from the <a href="https://harddrop.com/wiki/SingleYou">Hard Drop wiki</a>, which gives the same chances.</p>
+        <p class="stats-note">Solutions computed on this site with its own rotation rules, over all 5040 orders of the bag. The setups are from the <a href="https://harddrop.com/wiki/SingleYou">Hard Drop wiki</a> (SDPC) and <a href="https://four.lol/perfect-clears/opener">four.lol</a> (<a href="https://four.lol/perfect-clears/opener">PCO</a>, <a href="https://four.lol/perfect-clears/2nd">2nd PC</a>, <a href="https://four.lol/perfect-clears/dpc">DPC</a>), whose chances don't count 180° rotations.</p>
     </main>
 
     <script src="header.js"></script>

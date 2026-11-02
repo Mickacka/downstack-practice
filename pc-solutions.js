@@ -1,4 +1,5 @@
-// PC Solutions (pc-solutions.html): learn every solution of a perfect clear setup, the
+// PC Solutions (pc-solutions.html): learn every solution of a perfect clear setup (SDPC,
+// PCO, the 2nd PC patterns, DPC after its TSD), the
 // most useful first. Learn in order: a solution is drawn on the board for a first bag
 // (study), then bags it's the answer for come one after another until you solve
 // enough of them in a row from memory; then the next solution. Mixed bags: any bag,
@@ -11,7 +12,6 @@ var Config = {'das':100, 'arr':0, 'delay':0, 'pressing_left':false, 'pressing_ri
 // (scalar fields, so Undo restores them; rowmap and placed are JSON)
 var Record = {bag: '', target: -1, focus: -1, peek: false, why: false, study: false, clean: true,
     rowmap: '[]', placed: '[]', answered: false}
-const PC_PIECES = 6
 
 function load_json(key, fallback){
     try{ return JSON.parse(localStorage.getItem(key)) || fallback }
@@ -27,15 +27,22 @@ function save_json(key, value){
 const current_setup = () => PC_SETUPS.find(s => s.id == Config.setup) || PC_SETUPS[0]
 const current_variant = () => current_setup().variants[Config.rot]
 const field_height = () => current_setup().field.length
+// the pieces to place, and the piece in hold at the start (PCO: the I)
+const n_pieces = () => current_setup().pieces || 6
+const start_hold = () => current_setup().hold || ''
+// the rules are on the bag as it comes (DPC: too many placement orders for short
+// rules), a guide that's right most of the time; else on the placement order
+const bag_rules = () => current_variant().rule_on == 'bag'
 
-// a solution's pieces: {piece, cells: [[col, row from the bottom]], key}
+// a solution's pieces: {piece, cells: [[col, row from the bottom]], key} (a second
+// piece of the same kind is in lower case)
 function solution_pieces(sol){
     var H = sol.grid.length, pieces = {}
     sol.grid.forEach((line, i) => [...line].forEach((c, col) => {
         if (c == 'G' || c == '.') return
         ;(pieces[c] = pieces[c] || []).push([col, H - 1 - i])
     }))
-    return Object.entries(pieces).map(([p, cells]) => ({piece: p, cells: cells, key: piece_key(p, cells)}))
+    return Object.entries(pieces).map(([p, cells]) => ({piece: p.toUpperCase(), cells: cells, key: piece_key(p.toUpperCase(), cells)}))
 }
 const piece_key = (p, cells) => p + ':' + cells.map(c => c.join(',')).sort().join(' ')
 
@@ -47,26 +54,31 @@ function permutations(list){
 }
 const ALL_BAGS = permutations([...'IJLOSTZ']).map(p => p.join(''))
 
-// The ways to play n pieces of a queue with hold (empty at first, once per piece):
-// {order: the pieces in the order they go down, steps: what to do}
-function hold_orders(queue, n){
+// The ways to play n pieces of a queue with hold (empty or holding a piece at first,
+// once per piece): {order: the pieces in the order they go down, steps: what to do}
+function hold_orders(queue, n, hold0){
     var out = []
     var go = (cur, next, hold, order, steps, held) => {
         if (order.length == n){ out.push({order: order, steps: steps}); return }
-        if (!cur) return
+        // the bag used up: hold swaps the next bag's first piece (?) for the held one
+        if (!cur){ if (hold && hold != '?' && !held) go(hold, next, '?', order, steps.concat(["hold (the next bag's first piece)"]), true); return }
+        if (cur == '?') return
         go(next < queue.length? queue[next]: '', next + 1, hold, order + cur, steps.concat([cur]), false)
         if (held) return
         if (!hold){ if (next < queue.length) go(queue[next], next + 1, cur, order, steps.concat(['hold ' + cur]), true) }
         else go(hold, next, cur, order, steps.concat(['hold ' + cur]), true)
     }
-    go(queue[0], 1, '', '', [], false)
+    go(queue[0], 1, hold0 || '', '', [], false)
     return out
 }
+// ... with the setup's pieces and hold
+const ways = bag => hold_orders(bag, n_pieces(), start_hold())
 
 // per setup and rotations: the solutions' pieces and orders, and for each bag its
 // solution: the first one (in learning order) whose rule some order of the bag meets
 // (the decision path). A bag a solution only solves with a rare trick (a tuck or
-// kick the rule doesn't describe) isn't dealt for it. That takes a moment, so it's
+// kick the rule doesn't describe) isn't dealt for it. With rules on the bag: the
+// solution the rules pick if it solves the bag, else the first that does. That takes a moment, so it's
 // kept in the browser: one letter per bag (A the first solution, - none), redone
 // only when the solutions change.
 var tables = {}
@@ -77,12 +89,17 @@ function table(){
     var t = {pieces: sols.map(solution_pieces), orders: sols.map(s => new Set(s.orders.split(' '))),
         tsd: sols.map(s => new Set((s.tsd || '').split(' '))), tss: sols.map(s => new Set((s.tss || '').split(' '))),
         first: {}, bags: sols.map(() => [])}
-    var version = 'rules:' + sols.map(s => s.orders.length + JSON.stringify(s.rule.all)).join('.'), saved = load_json('pc_solutions_bags', {})
+    var version = 'rules2:' + (bag_rules()? 'bag:': '') + sols.map(s => s.orders.length + JSON.stringify(s.rule && s.rule.all)).join('.'), saved = load_json('pc_solutions_bags', {})
     var code = saved[id] && saved[id].v == version? saved[id].first: null
     if (!code){
         code = ALL_BAGS.map(bag => {
-            var ways = hold_orders(bag, PC_PIECES).map(w => w.order)
-            var k = sols.findIndex(sol => ways.some(o => same_pieces(sol, o) && sol.rule.all.every(c => c.some(f => fact_ok(f, o)))))
+            var list = ways(bag).map(w => w.order), k
+            if (bag_rules()){
+                var solves = t.orders.map(set => list.some(o => set.has(o))), pick = rule_pick(bag)
+                k = pick >= 0 && solves[pick]? pick: solves.indexOf(true)
+            }
+            // (an order that meets the rule and builds it: with two of a kind, "I before" is the first I)
+            else k = sols.findIndex((sol, j) => list.some(o => t.orders[j].has(o) && rule_met(sol, o)))
             return k < 0? '-': String.fromCharCode(65 + k)
         }).join('')
         saved[id] = {v: version, first: code}
@@ -93,6 +110,8 @@ function table(){
         t.first[bag] = k
         if (k >= 0) t.bags[k].push(bag)
     })
+    // a solution no bag is dealt for (one before it always fits): the bags it solves
+    t.bags.forEach((list, k) => { if (!list.length) for (var bag of ALL_BAGS) if (ways(bag).some(w => t.orders[k].has(w.order))) list.push(bag) })
     return tables[id] = t
 }
 
@@ -108,11 +127,11 @@ function orders_without_180(k){
 // How to play a bag with a solution: the hold steps, in an order its rule describes,
 // without a 180° rotation if it can, a T-spin double first if it can
 function answer_for(bag, k){
-    var t = table(), best = null, rule = current_variant().solutions[k].rule, easy = orders_without_180(k)
-    for (var w of hold_orders(bag, PC_PIECES)){
+    var t = table(), best = null, easy = orders_without_180(k)
+    for (var w of ways(bag)){
         if (!t.orders[k].has(w.order)) continue
         var no180 = !easy || easy.has(w.order)
-        var score = (rule.all.every(c => c.some(f => fact_ok(f, w.order)))? 8: 0) + (no180? 4: 0) + (t.tsd[k].has(w.order)? 2: t.tss[k].has(w.order)? 1: 0)
+        var score = (!bag_rules() && rule_met(current_variant().solutions[k], w.order)? 8: 0) + (no180? 4: 0) + (t.tsd[k].has(w.order)? 2: t.tss[k].has(w.order)? 1: 0)
         if (!best || score > best.score) best = {order: w.order, steps: w.steps, score: score, needs180: !no180}
     }
     return best
@@ -192,6 +211,7 @@ function play(){
     field.forEach((line, i) => [...line].forEach((c, col) => { if (c != '.') game.board[H - 1 - i][col] = 'G' }))
     // the bag, then the next one (as in a game)
     game.bag = [...Record.bag].concat(shuffle([...'IJLOSTZ']))
+    game.holdmino = start_hold()
     game.update()
     Record.rowmap = JSON.stringify([...Array(H).keys()])
     Record.placed = '[]'
@@ -296,7 +316,7 @@ function detect_win(){
     // the empty cells under the top of the stack must be the pieces left, exactly
     var top = game.get_max_height() + 1, empty = 0
     for (var r=0; r<top; r++) for (var c=0; c<10; c++) if (game.board[r][c] == 'N') empty++
-    if (empty != 4 * (PC_PIECES - game.total_piece)) miss()
+    if (empty != 4 * (n_pieces() - game.total_piece)) miss()
 }
 
 // which solution the player's pieces make, or -1
@@ -376,8 +396,8 @@ Controls.draw_overlay = (ctx, x0, y0) => {
 }
 
 // The inputs that put a piece on these cells, when a plain move and hard drop can't
-// (a tuck or a spin): the shortest from the spawn, "↓" a soft drop to the floor. null
-// when a hard drop gets there.
+// (a tuck or a spin): the shortest from the spawn, "↓" a soft drop to the floor, "↓×n"
+// n rows down. null when a hard drop gets there, false when nothing does.
 function tuck_inputs(board, piece, cells){
     var want = cells.map(c => c.join()).sort().join('|')
     var g = new Game()
@@ -389,20 +409,55 @@ function tuck_inputs(board, piece, cells){
         return g.to_shape().map(c => c.join()).sort().join('|') == want
     }
     var moves = [['←', g => g.move_left()], ['→', g => g.move_right()], ['↺', g => g.rotate_anticlockwise()], ['↻', g => g.rotate_clockwise()],
-        ['↓', g => { var y = g.y; g.drop(); return g.y != y }]]
+        ['↓', g => { var y = g.y; g.drop(); return g.y != y }], ['↓1', g => g.drop(1)]]
     if (Config.rot == 'r180') moves.push(['180', g => g.rotate_180()])
     var seen = new Set(), queue = [[4, 18, 0, [], false]]
     while (queue.length){
         var [x, y, o, path, soft] = queue.shift(), key = x + ',' + y + ',' + o
         if (seen.has(key)) continue
         seen.add(key)
-        if (lands(x, y, o)) return soft? path: null
+        if (lands(x, y, o)) return soft? join_drops(path): null
         for (var [name, move] of moves){
             g.x = x; g.y = y; g.orientation = o
-            if (move(g)) queue.push([g.x, g.y, g.orientation, path.concat([name]), soft || name == '↓'])
+            if (move(g)) queue.push([g.x, g.y, g.orientation, path.concat([name]), soft || name[0] == '↓'])
         }
     }
-    return null
+    return false
+}
+
+// The solution's pieces in an order: which one each letter is (two of a kind: the one
+// that leaves the rest buildable), each with its inputs if it needs a tuck or spin,
+// the board once it's down and after rows clear. null if the order can't build it.
+function plan_for(order, pieces, board, rowmap){
+    var go = (i, b, rowmap, done) => {
+        if (i == order.length) return []
+        var now = p => p.cells.map(([c, r]) => [c, rowmap.indexOf(r)])
+        for (var p of pieces.filter(x => x.piece == order[i] && !done.includes(x.key))){
+            var path = tuck_inputs(clone(b), p.piece, now(p))
+            if (path === false) continue
+            var nb = clone(b)
+            for (var [c, r] of now(p)) nb[r][c] = p.piece
+            var full = []
+            for (var r=0; r<20; r++) if (nb[r].every(x => x != 'N')) full.push(r)
+            var after = nb.filter((row, j) => !full.includes(j))
+            while (after.length < 20) after.push(Array(10).fill('N'))
+            var rest = go(i + 1, after, rowmap.filter((x, j) => !full.includes(j)), done.concat([p.key]))
+            if (rest) return [{piece: p, path: path, board: nb, cleared: full.length? after: null}].concat(rest)
+        }
+        return null
+    }
+    return go(0, board, rowmap, [])
+}
+
+// one-row soft drops in a row: "↓×n"
+function join_drops(path){
+    var out = []
+    for (var step of path){
+        var last = out[out.length - 1]
+        if (step == '↓1' && last && last.startsWith('↓×')) out[out.length - 1] = '↓×' + (parseInt(last.slice(2)) + 1)
+        else out.push(step == '↓1'? '↓×1': step)
+    }
+    return out
 }
 
 function show_ans(){
@@ -417,22 +472,11 @@ function show_ans(){
     Record.answered = true
     show_steps(answer.steps, answer.needs180)
     answer_replay.running = true
-    var H = field_height(), b = clone(game.board), rowmap = [...Array(H).keys()]
-    var pieces = table().pieces[Record.target], frames = [], tucks = []
-    for (var piece of answer.order){
-        var p = pieces.find(x => x.piece == piece)
-        var path = tuck_inputs(clone(b), piece, p.cells.map(([c, r]) => [c, rowmap.indexOf(r)]))
-        if (path) tucks.push(piece + ': ' + path.join(' '))
-        for (var [c, r] of p.cells) b[rowmap.indexOf(r)][c] = piece
-        frames.push(clone(b))
-        var full = []
-        for (var r=0; r<20; r++) if (b[r].every(x => x != 'N')) full.push(r)
-        if (full.length){
-            b = b.filter((row, i) => !full.includes(i))
-            while (b.length < 20) b.push(Array(10).fill('N'))
-            rowmap = rowmap.filter((x, i) => !full.includes(i))
-            frames.push(clone(b))
-        }
+    var frames = [], tucks = []
+    for (var step of plan_for(answer.order, table().pieces[Record.target], clone(game.board), [...Array(field_height()).keys()]) || []){
+        if (step.path) tucks.push(step.piece.piece + ': ' + step.path.join(' '))
+        frames.push(step.board)
+        if (step.cleared) frames.push(step.cleared)
     }
     // the pieces that need a tuck or a spin: how
     var steps = tucks.length? answer.steps.concat(['then ' + tucks.join('; ')]): answer.steps
@@ -463,16 +507,44 @@ Hold changes the order: a piece held is played later.
 const fact_ok = (f, o) => f[0] == 'b'? o.indexOf(f[1]) < o.indexOf(f[2]): f[0] == 'last'? o[o.length - 1] == f[1]: o[0] == f[1]
 const fact_text = f => f[0] == 'b'? f[1] + ' before ' + f[2]: f[1] + ' ' + f[0]
 const condition_text = c => c.map(fact_text).join(' or ')
-const rule_text = sol => sol.rule.all.map(condition_text).join(' · ')
-const same_pieces = (sol, order) => [...order].sort().join('') == [...sol.orders.slice(0, 6)].sort().join('')
+const rule_text = sol => !sol.rule? 'never the first choice': sol.rule.all.length? sol.rule.all.map(condition_text).join(' · '): 'any bag left'
+// a solution's rule met by an order (placement rules) or a bag (bag rules)
+const rule_met = (sol, o) => !!sol.rule && sol.rule.all.every(c => c.some(f => fact_ok(f, o)))
+// bag rules: the first solution whose rule the bag meets
+const rule_pick = bag => current_variant().solutions.findIndex(sol => rule_met(sol, bag))
+// a placement rule too long to read at a glance (shown folded)
+const long_rule = sol => !bag_rules() && sol.rule.all.length > 5
+// "When: ..." for a card or the goal (short: a long rule's size only)
+function when_text(sol, short){
+    if (short && long_rule(sol)) return 'When: ' + sol.rule.all.length + ' conditions (see its card; Why? checks your bag)'
+    if (!bag_rules()) return 'When: ' + rule_text(sol) + (sol.rule.exact? '': ' (the usual way: ' + pct(sol.rule.covers) + ' of its orders)')
+    if (!sol.rule) return 'Never the first choice: a rule before it always fits'
+    return (sol.rule.all.length? 'Usually when the bag has: ' + rule_text(sol): 'When no rule before it fits') + ' (right ' + pct(sol.rule.right) + ')'
+}
+const same_pieces = (sol, order) => [...order].sort().join('') == [...sol.orders.slice(0, n_pieces())].sort().join('')
 // the hold orders of a bag that meet a solution's rule
-const rule_orders = (sol, bag) => hold_orders(bag, PC_PIECES).map(w => w.order).filter(o => same_pieces(sol, o) && sol.rule.all.every(c => c.some(f => fact_ok(f, o))))
+const rule_orders = (sol, bag) => { var mine = table().orders[current_variant().solutions.indexOf(sol)]; return ways(bag).map(w => w.order).filter(o => mine.has(o) && rule_met(sol, o)) }
 
 // The decision path for a bag: each solution in order, until one's rule can be met;
 // for those that can't, the condition no order of this bag (with hold) meets
 function why_lines(bag){
     var sols = current_variant().solutions, lines = []
-    var orders = hold_orders(bag, PC_PIECES).map(w => w.order)
+    var orders = ways(bag).map(w => w.order)
+    if (bag_rules()){
+        // the rules on the bag in order, then whether the one they pick solves it
+        var t = table(), k = rule_pick(bag)
+        for (var j=0; j<(k < 0? sols.length: k); j++){
+            if (!sols[j].rule) continue
+            var c = sols[j].rule.all.find(c => !c.some(f => fact_ok(f, bag)))
+            lines.push('✗ ' + (j + 1) + ': the bag has no ' + condition_text(c))
+        }
+        var solves = j => orders.some(o => t.orders[j].has(o))
+        if (k >= 0) lines.push('✓ Solution ' + (k + 1) + ': ' + rule_text(sols[k]) + (solves(k)? '': " — but this bag is one it can't do"))
+        var real = t.first[bag]
+        if (real >= 0 && real != k) lines.push('→ Solution ' + (real + 1) + ' solves this bag')
+        if (real < 0) lines.push('No perfect clear with this bag')
+        return lines
+    }
     for (var k=0; k<sols.length; k++){
         var sol = sols[k], mine = orders.filter(o => same_pieces(sol, o))
         if (rule_orders(sol, bag).length){
@@ -521,7 +593,7 @@ function show_target(){
         target.textContent = 'Solution ' + (k + 1) + ' of ' + sols.length + ': ' + pct(s.share) + ' of bags' + spin
         var e = progress()[k] || {}
         phase.textContent = (Record.study? 'Study: the solution is drawn on the board'
-            : 'From memory: ' + (e.s || 0) + ' of ' + Config.need + ' in a row' + (e.done? ' (learned)': '')) + '. When: ' + rule_text(s)
+            : 'From memory: ' + (e.s || 0) + ' of ' + Config.need + ' in a row' + (e.done? ' (learned)': '')) + '. ' + when_text(s, true)
     }
     else{
         var mix = mix_selection()
@@ -532,8 +604,20 @@ function show_target(){
 
 // (two decimals under 1%)
 const pct = x => (x > 0 && x < 0.01? (Math.round(x * 10000) / 100): Math.round(x * 1000) / 10) + '%'
-// the piece of the bag a solution doesn't use
-const left_out = sol => [...'IJLOSTZ'].find(p => !sol.grid.some(line => line.includes(p)))
+// the pieces a solution leaves (in hold or next): the bag and the held piece, less its own
+function left_over(sol){
+    var left = [...'IJLOSTZ' + start_hold()]
+    for (var p of solution_pieces(sol)) left.splice(left.indexOf(p.piece), 1)
+    return left.join('')
+}
+// what's left after a solution: the piece for later, or the pieces for the next PC
+function left_text(sol){
+    var left = left_over(sol), sorted = [...left].sort().join('')
+    if (!left) return ''
+    if (left.length == 1) return 'Leaves the ' + left + ' (in hold or next)'
+    var next = PC_SETUPS.filter(s => (s.sets || []).includes(sorted)).map(s => s.name.replace(/^2nd PC: /, ''))
+    return 'Leaves ' + sorted + (next.length? ': 2nd PC ' + next.join(', '): '')
+}
 
 // a little picture of a board, top row first ('.' empty, G field, P the spin's T)
 function draw_grid(canvas, rows, size){
@@ -557,12 +641,17 @@ function show_list(){
     var setup = current_setup(), v = current_variant(), sols = v.solutions, p = progress()
     document.getElementById('pcs_title').textContent = setup.name + ': every perfect clear'
     document.getElementById('pcs_text').textContent = setup.text
+    var n = n_pieces(), hold = start_hold()
+    document.getElementById('winning_requirement2').textContent = 'Perfect clear with ' + n + ' pieces' + (hold? ' (the ' + hold + ' starts in hold)': '')
+    document.getElementById('pcs_rules_note').textContent = (hold? 'The ' + hold + ' starts in hold and you place ' + n + ' pieces from it and the bag.'
+        : 'The bag comes with an empty hold and you place ' + (n == 7? 'all 7': n + ' of its 7') + ' pieces.') + ' A piece drawn across a cleared row goes down after that row clears.'
     var known = sols.map((s, k) => k).filter(k => learned(k))
     var cover = 0
     for (var bag of ALL_BAGS) if (table().first[bag] >= 0 && known.includes(table().first[bag])) cover++
     var facts = [['Bags with a PC', pct(v.solvable)], ['Solutions to learn', sols.length],
         ['First two solutions', pct(sols[Math.min(1, sols.length - 1)].total)], ['You know', known.length + ' of ' + sols.length],
         ['Bags you can solve', pct(cover / ALL_BAGS.length)]]
+    if (setup.wiki) facts.push(['On four.lol', setup.wiki + '%'])
     var box = document.getElementById('pcs_facts')
     box.textContent = ''
     for (var [label, value] of facts){
@@ -575,7 +664,7 @@ function show_list(){
     }
     var build = document.getElementById('pcs_build')
     build.textContent = ''
-    for (var step of setup.build.concat([{label: 'Bag 3: the perfect clear', rows: setup.field}])){
+    for (var step of (setup.build || []).concat([{label: setup.field_label || 'The perfect clear', rows: setup.field}])){
         var fig = document.createElement('figure')
         var canvas = document.createElement('canvas')
         draw_grid(canvas, step.rows, 12)
@@ -588,9 +677,11 @@ function show_list(){
     path.textContent = ''
     sols.forEach((s, k) => {
         var li = document.createElement('li')
-        li.textContent = rule_text(s) + ' → solution ' + (k + 1) + ' (' + pct(s.share) + ')'
+        li.textContent = (long_rule(s)? s.rule.all.length + ' conditions (see its card)': rule_text(s)) + ' → solution ' + (k + 1) + ' (' + pct(s.share) + ')'
         path.appendChild(li)
     })
+    document.getElementById('pcs_path_intro').textContent = bag_rules()? 'With all 7 pieces to place, which solution works depends on the whole bag, so these rules are about the bag as it comes (the queue), and they are a guide: right most of the time. Why? tells you when your bag is an exception.'
+        : 'The rules are about the order you place the pieces in, not the order they come: hold lets you play a piece later. Hold it, play the next ones, take it back when you need it (the piece left over can stay in hold).'
     document.getElementById('pcs_path_note').textContent = 'Check them in this order and play the first one your bag allows: that solves ' +
         pct(v.path) + ' of bags (' + pct(v.solvable) + ' with every order of every solution).'
     var mix = mix_selection(), share = 0
@@ -607,7 +698,7 @@ function show_list(){
         title.textContent = 'Solution ' + (k + 1) + (s.tsd? ' · TSD': s.tss? ' · TSS': '')
         var spare = document.createElement('span')
         spare.className = 'pro-who'
-        spare.textContent = 'Leaves the ' + left_out(s) + ' (in hold or next)'
+        spare.textContent = left_text(s)
         var canvas = document.createElement('canvas')
         draw_grid(canvas, s.grid, 13)
         var share = document.createElement('span')
@@ -616,9 +707,15 @@ function show_list(){
         var alone = document.createElement('span')
         alone.className = 'pro-who'
         alone.textContent = 'Solves ' + pct(s.alone) + ' on its own'
-        var when = document.createElement('span')
+        var when = document.createElement(long_rule(s)? 'details': 'span')
         when.className = 'pcs-rule'
-        when.textContent = 'When: ' + rule_text(s) + (s.rule.exact? '': ' (the usual way: ' + pct(s.rule.covers) + ' of its orders)')
+        if (long_rule(s)){
+            // many cases: folded, learn it by playing
+            var summary = document.createElement('summary')
+            summary.textContent = 'When: ' + s.rule.all.length + ' conditions'
+            when.append(summary, rule_text(s))
+        }
+        else when.textContent = when_text(s)
         card.append(title, canvas, spare, when, share, alone)
         var e = p[k]
         var mine = document.createElement('span')
@@ -655,11 +752,19 @@ function load_options(){
     if (!PC_SETUPS.some(s => s.id == Config.setup)) Config.setup = PC_SETUPS[0].id
     var select = document.getElementById('pcs_setup')
     select.textContent = ''
+    // grouped: SDPC, PC opener, 2nd PC, DPC
+    var groups = {}
     for (var s of PC_SETUPS){
+        var group = s.group || 'SDPC'
+        if (!groups[group]){
+            groups[group] = document.createElement('optgroup')
+            groups[group].label = group
+            select.appendChild(groups[group])
+        }
         var option = document.createElement('option')
         option.value = s.id
         option.textContent = s.name
-        select.appendChild(option)
+        groups[group].appendChild(option)
     }
     select.value = Config.setup
     document.getElementById('pcs_rot').value = Config.rot
