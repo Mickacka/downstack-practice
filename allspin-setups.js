@@ -1,15 +1,16 @@
 // All-Spin Setups (allspin-setups.html): the setups of an all-spin catalog, each a
-// board and the queues that spin in it. Play a queue: every piece has to spin (its
-// last move a rotation, then it can't move left, right or up), clearing lines when the
-// answer does; a first piece marked as building only has to go down. The setups and
-// a way to play each queue are in allspin-setups-data.js.
+// board and the queues that spin in it. A queue starts one piece away from the setup:
+// its first piece (in brackets) builds it, going down anywhere; then every piece has to
+// spin (its last move a rotation, then it can't move left, right or up), clearing lines
+// when the answer does. The setups and a way to play each queue are in
+// allspin-setups-data.js.
 
 var game = new Game()
 var Config = {'das':100, 'arr':0, 'delay':0, 'pressing_left':false, 'pressing_right': false, 'pressing_down': false, 'pressing':{},
     'auto_next_ind': true, 'no_of_trial': 0, 'no_of_success': 0,
     'catalog': 'all', 'order': 'next', 'with180': true}
 // (scalar fields, so Undo restores them)
-var Record = {setup: 0, queue: 0, placed: 0, builder_done: false, miss: '', solved: false, peek: false, answered: false}
+var Record = {setup: 0, queue: 0, placed: 0, miss: '', solved: false, peek: false, answered: false}
 const LINE_NAMES = ['', 'Single', 'Double', 'Triple', 'Quad']
 
 function load_json(key, fallback){
@@ -36,11 +37,13 @@ function playable(){
     return out
 }
 
-// the board a queue is played on: the picture, or its gray only
+// the board a queue starts from: one piece away from the setup (the picture without
+// its last piece), or the picture when it's already the setup
 function start_board(s, q){
-    var b = Array.from({length: 20}, () => Array(10).fill('N')), H = s.rows.length
-    s.rows.forEach((line, i) => [...line].forEach((c, col) => {
-        if (c != '.' && (!q.gray || c == 'G')) b[H - 1 - i][col] = c
+    var rows = q.start || s.rows
+    var b = Array.from({length: 20}, () => Array(10).fill('N')), H = rows.length
+    rows.forEach((line, i) => [...line].forEach((c, col) => {
+        if (c != '.') b[H - 1 - i][col] = c
     }))
     return b
 }
@@ -70,7 +73,6 @@ function play(){
     game.holdmino = ''
     game.update()
     Record.placed = 0
-    Record.builder_done = false
     Record.miss = ''
     Record.solved = false
     Record.answered = false
@@ -124,7 +126,8 @@ Controls.harddrop = () => {
     var lines = game.line_clear
     // the plan clears lines with this piece: so must the player
     var step = q.plan.find((st, i) => i >= Record.placed && st.p == piece) || {}
-    if (q.builder && piece == q.builder && !Record.builder_done) Record.builder_done = true
+    // the first pieces build: anywhere goes
+    if (Record.placed < (q.builds || 0)){}
     else if (!spin) Record.miss = 'The ' + piece + " wasn't a spin: rotate it into its slot as its last move"
     else if (step.l && !lines) Record.miss = piece + '-Spin, but it cleared no lines'
     else flash_spin(piece + '-Spin' + (lines? ' ' + LINE_NAMES[lines]: '') + '!')
@@ -244,7 +247,7 @@ function show_ans(){
             for (var [c, r] of st.c) game.board[r][c] = st.p
             game.tetramino = 'G'
             render()
-            lines.push(st.p + (q.builder == st.p && st === q.plan[0]? ' (builds)': '') + ': ' + (inputs_text(moves) || 'hard drop'))
+            lines.push(st.p + (q.plan.indexOf(st) < (q.builds || 0)? ' (builds)': '') + ': ' + (inputs_text(moves) || 'hard drop'))
             say()
         })
         t += 600
@@ -269,10 +272,10 @@ function show_ans(){
 */
 function show_goal(){
     var s = current(), q = current_queue()
-    var parts = [...q.pieces].map((p, i) => i == 0 && q.builder? p + ' (builds)': p + '-Spin')
+    var parts = [...q.pieces].map((p, i) => i < (q.builds || 0)? p + ' (builds)': p + '-Spin')
     document.getElementById('as_goal').textContent = parts.join(' → ')
     document.getElementById('as_where').textContent = s.catalog + ' · setup ' + (ALLSPIN_SETUPS.indexOf(s) + 1) + ' of ' + ALLSPIN_SETUPS.length +
-        (q.r180? ' · needs a 180°': '') + (q.gray? ' · the picture showed the answer': '')
+        (q.r180? ' · needs a 180°': '') + (q.builds? ' · build the setup, then spin': ' · the setup is built: spin')
     var e = progress()[queue_key(s, q)]
     document.getElementById('as_score').textContent = e? 'Solved ' + e.w + ' of ' + e.t: 'Not tried yet'
     if (!answer.running && !Record.answered) document.getElementById('as_steps').textContent = ''
@@ -332,8 +335,9 @@ function show_list(){
             var e = p[queue_key(s, q)], button = document.createElement('button')
             button.type = 'button'
             button.className = 'install-button' + (e && e.w? ' done': '')
-            button.textContent = (q.builder? '(' + q.builder + ')' + q.pieces.slice(1): q.pieces) + (q.r180? ' 180°': '') + (e && e.w? ' ✓': '')
-            button.title = (q.builder? q.builder + ' builds, then ': '') + [...q.pieces.slice(q.builder? 1: 0)].join(', ') + ' spin' +
+            var n = q.builds || 0
+            button.textContent = (n? '(' + q.pieces.slice(0, n) + ')': '') + q.pieces.slice(n) + (q.r180? ' 180°': '') + (e && e.w? ' ✓': '')
+            button.title = (n? [...q.pieces.slice(0, n)].join(', ') + ' build' + (n == 1? 's': '') + ', then ': '') + [...q.pieces.slice(n)].join(', ') + ' spin' +
                 (e? ' · solved ' + e.w + ' of ' + e.t: '')
             button.onclick = () => practise(k, j)
             buttons.appendChild(button)
